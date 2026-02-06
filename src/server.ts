@@ -36,8 +36,7 @@ export function buildServer() {
 
     try {
       const reader = await conn.runAndReadAll('SELECT 42 AS answer');
-      const rows = reader.getRows().map((r) => ({ answer: Number(r[0]) }));
-      return { rows };
+      return { rows: reader.getRowObjects() };
     } finally {
       conn.disconnectSync();
     }
