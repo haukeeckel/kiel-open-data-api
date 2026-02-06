@@ -1,5 +1,6 @@
 import Fastify from 'fastify';
 import { env } from './env';
+import { getDb } from './db';
 
 export function buildServer() {
   const isProd = process.env.NODE_ENV === 'production';
@@ -27,6 +28,19 @@ export function buildServer() {
 
   app.get('/health', async () => {
     return { ok: true, ts: new Date().toISOString() };
+  });
+
+  app.get('/db-test', async () => {
+    const db = await getDb();
+    const conn = await db.connect();
+
+    try {
+      const reader = await conn.runAndReadAll('SELECT 42 AS answer');
+      const rows = reader.getRows().map((r) => ({ answer: Number(r[0]) }));
+      return { rows };
+    } finally {
+      conn.disconnectSync();
+    }
   });
 
   app.setNotFoundHandler(async (_req, reply) => {
