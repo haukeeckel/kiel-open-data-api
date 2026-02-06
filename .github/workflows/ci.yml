@@ -13,11 +13,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    strategy:
-      fail-fast: false
-      matrix:
-        node: [20]
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -28,7 +23,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node }}
+          node-version: 20
           cache: pnpm
 
       - name: Install
@@ -45,7 +40,3 @@ jobs:
 
       - name: Build
         run: pnpm -s build
-
-      # Enable once real tests exist
-      # - name: Test
-      #   run: pnpm -s test
