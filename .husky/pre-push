@@ -1,0 +1,3 @@
+#!/bin/sh
+
+pnpm -s lint && pnpm -s typecheck
