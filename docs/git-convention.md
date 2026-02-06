@@ -137,7 +137,9 @@ Avoid long-lived branches.
 Recommended default: **Squash merge**
 
 - Keeps `main` history clean
+- PR titles should follow the same commit convention (`type(scope): subject`)
 - PR title becomes the squash commit message
+- Squash commit titles must not include PR suffixes like `(#123)`. If needed, reference the PR in the commit body: `Refs: #123`.
 - Ensure PR title follows commit convention:
   `feat(server): add timeseries endpoint`
 
