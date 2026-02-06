@@ -1,4 +1,5 @@
 import Fastify from 'fastify';
+import { env } from './env';
 
 export function buildServer() {
   const isProd = process.env.NODE_ENV === 'production';
@@ -38,8 +39,8 @@ export function buildServer() {
 async function main() {
   const app = buildServer();
 
-  const port = Number(process.env.PORT ?? 3000);
-  const host = process.env.HOST ?? '127.0.0.1';
+  const port = env.PORT;
+  const host = env.HOST;
 
   await app.listen({ port, host });
 
