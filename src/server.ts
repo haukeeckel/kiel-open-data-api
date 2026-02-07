@@ -11,6 +11,12 @@ const TimeseriesQuery = z.object({
   to: z.coerce.number().int().optional(),
 });
 
+const AreasQuery = z.object({
+  indicator: z.string().min(1),
+  areaType: z.string().min(1),
+  like: z.string().min(1).optional(),
+});
+
 export function buildServer() {
   const isProd = process.env.NODE_ENV === 'production';
 
@@ -97,6 +103,45 @@ export function buildServer() {
       }));
 
       return { indicator, areaType, area, rows };
+    } finally {
+      conn.disconnectSync();
+    }
+  });
+
+  app.get('/areas', async (req, reply) => {
+    const parsed = AreasQuery.safeParse(req.query);
+    if (!parsed.success) {
+      return reply
+        .code(400)
+        .send({ error: 'Invalid query parameters', details: parsed.error.message });
+    }
+
+    const { indicator, areaType, like } = parsed.data;
+
+    if (!indicator || !areaType) {
+      return reply.code(400).send({ error: 'indicator and areaType are required' });
+    }
+
+    const db = await getDb();
+    const conn = await db.connect();
+    try {
+      const params: string[] = [indicator, areaType];
+      let sql = `
+      SELECT DISTINCT area_name
+      FROM facts
+      WHERE indicator = ? AND area_type = ?
+    `;
+
+      if (like) {
+        sql += ` AND lower(area_name) LIKE ?`;
+        params.push(`%${like.toLowerCase()}%`);
+      }
+
+      sql += ` ORDER BY area_name ASC`;
+
+      const reader = await conn.runAndReadAll(sql, params);
+      const rows = reader.getRows().map((r) => String(r[0]));
+      return { indicator, areaType, rows };
     } finally {
       conn.disconnectSync();
     }
