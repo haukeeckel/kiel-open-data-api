@@ -3,7 +3,8 @@ import { buildServer } from './server';
 
 describe('api smoke', () => {
   it('GET /health returns ok', async () => {
-    const app = buildServer();
+    process.env.DUCKDB_PATH = 'data/cache/test.duckdb';
+    const app = await buildServer();
 
     const res = await app.inject({
       method: 'GET',
@@ -20,7 +21,8 @@ describe('api smoke', () => {
   });
 
   it('GET / returns endpoint list', async () => {
-    const app = buildServer();
+    process.env.DUCKDB_PATH = 'data/cache/test.duckdb';
+    const app = await buildServer();
 
     const res = await app.inject({
       method: 'GET',
@@ -36,7 +38,8 @@ describe('api smoke', () => {
   });
 
   it('GET /db-test returns 42', async () => {
-    const app = buildServer();
+    process.env.DUCKDB_PATH = 'data/cache/test.duckdb';
+    const app = await buildServer();
 
     const res = await app.inject({ method: 'GET', url: '/db-test' });
     expect(res.statusCode).toBe(200);
