@@ -15,7 +15,10 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build": "tsc -p tsconfig.json",
     "prepare": "husky",
-    "commit": "cz"
+    "commit": "cz",
+    "etl:fetch": "tsx src/etl/fetch_stadtteile_population.ts",
+    "etl:import": "tsx src/etl/import_stadtteile_population.ts",
+    "etl:run": "pnpm etl:fetch && pnpm etl:import"
   },
   "lint-staged": {
     "*.{ts,js,json,md,yml,yaml}": [
