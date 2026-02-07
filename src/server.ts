@@ -83,18 +83,6 @@ export async function buildServer() {
     async () => ({ ok: true, ts: new Date().toISOString() }),
   );
 
-  app.get('/db-test', async () => {
-    const db = await getDb();
-    const conn = await db.connect();
-
-    try {
-      const reader = await conn.runAndReadAll('SELECT 42 AS answer');
-      return { rows: reader.getRowObjects() };
-    } finally {
-      conn.disconnectSync();
-    }
-  });
-
   app.get('/timeseries', async (req, reply) => {
     const parsed = TimeseriesQuery.safeParse(req.query);
     if (!parsed.success) {

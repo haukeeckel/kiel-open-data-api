@@ -36,15 +36,4 @@ describe('api smoke', () => {
 
     await app.close();
   });
-
-  it('GET /db-test returns 42', async () => {
-    process.env.DUCKDB_PATH = 'data/cache/test.duckdb';
-    const app = await buildServer();
-
-    const res = await app.inject({ method: 'GET', url: '/db-test' });
-    expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ rows: [{ answer: 42 }] });
-
-    await app.close();
-  });
 });
