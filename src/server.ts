@@ -17,6 +17,14 @@ const AreasQuery = z.object({
   like: z.string().min(1).optional(),
 });
 
+const RankingQuery = z.object({
+  indicator: z.string().min(1),
+  areaType: z.string().min(1),
+  year: z.coerce.number().int(),
+  limit: z.coerce.number().int().min(1).max(50).default(10),
+  order: z.enum(['asc', 'desc']).default('desc'),
+});
+
 export function buildServer() {
   const isProd = process.env.NODE_ENV === 'production';
 
@@ -142,6 +150,48 @@ export function buildServer() {
       const reader = await conn.runAndReadAll(sql, params);
       const rows = reader.getRows().map((r) => String(r[0]));
       return { indicator, areaType, rows };
+    } finally {
+      conn.disconnectSync();
+    }
+  });
+
+  app.get('/ranking', async (req, reply) => {
+    const parsed = RankingQuery.safeParse(req.query);
+    if (!parsed.success) {
+      return reply
+        .code(400)
+        .send({ error: 'Invalid query parameters', details: parsed.error.message });
+    }
+    const { indicator, areaType, year, limit, order } = parsed.data;
+
+    if (!indicator || !areaType || !Number.isFinite(year)) {
+      return reply.code(400).send({
+        error: 'indicator, areaType and year are required',
+      });
+    }
+
+    const db = await getDb();
+    const conn = await db.connect();
+
+    try {
+      const reader = await conn.runAndReadAll(
+        `
+      SELECT area_name, value, unit
+      FROM facts
+      WHERE indicator = ? AND area_type = ? AND year = ?
+      ORDER BY value ${order}
+      LIMIT ?
+      `,
+        [indicator, areaType, year, limit],
+      );
+
+      const rows = reader.getRows().map((r) => ({
+        area: String(r[0]),
+        value: Number(r[1]),
+        unit: String(r[2]),
+      }));
+
+      return { indicator, areaType, year, order: order.toLowerCase(), limit, rows };
     } finally {
       conn.disconnectSync();
     }
