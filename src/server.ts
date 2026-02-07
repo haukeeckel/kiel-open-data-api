@@ -43,6 +43,7 @@ export async function buildServer() {
           },
         },
   });
+
   await app.register(swagger, {
     openapi: {
       info: {
