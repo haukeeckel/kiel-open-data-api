@@ -1,7 +1,9 @@
 import Fastify from 'fastify';
 import { env } from './env';
 import { getDb } from './db';
-import { z } from 'zod';
+import z from 'zod';
+import swagger from '@fastify/swagger';
+import swaggerUi from '@fastify/swagger-ui';
 
 const TimeseriesQuery = z.object({
   indicator: z.string().min(1),
@@ -25,7 +27,7 @@ const RankingQuery = z.object({
   order: z.enum(['asc', 'desc']).default('desc'),
 });
 
-export function buildServer() {
+export async function buildServer() {
   const isProd = process.env.NODE_ENV === 'production';
 
   const app = Fastify({
@@ -42,6 +44,20 @@ export function buildServer() {
         },
   });
 
+  await app.register(swagger, {
+    openapi: {
+      info: {
+        title: 'kiel-dashboard-api',
+        description: 'Open data API for Kiel dashboard',
+        version: '1.0.0',
+      },
+    },
+  });
+
+  await app.register(swaggerUi, {
+    routePrefix: '/docs',
+  });
+
   app.get('/', async () => {
     return {
       name: 'kiel-dashboard-api',
@@ -49,21 +65,24 @@ export function buildServer() {
     };
   });
 
-  app.get('/health', async () => {
-    return { ok: true, ts: new Date().toISOString() };
-  });
-
-  app.get('/db-test', async () => {
-    const db = await getDb();
-    const conn = await db.connect();
-
-    try {
-      const reader = await conn.runAndReadAll('SELECT 42 AS answer');
-      return { rows: reader.getRowObjects() };
-    } finally {
-      conn.disconnectSync();
-    }
-  });
+  app.get(
+    '/health',
+    {
+      schema: {
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              ok: { type: 'boolean' },
+              ts: { type: 'string' },
+            },
+            required: ['ok', 'ts'],
+          },
+        },
+      },
+    },
+    async () => ({ ok: true, ts: new Date().toISOString() }),
+  );
 
   app.get('/timeseries', async (req, reply) => {
     const parsed = TimeseriesQuery.safeParse(req.query);
@@ -200,12 +219,12 @@ export function buildServer() {
   app.setNotFoundHandler(async (_req, reply) => {
     return reply.code(404).send({ error: 'Not Found' });
   });
-
+  await app.ready();
   return app;
 }
 
 async function main() {
-  const app = buildServer();
+  const app = await buildServer();
 
   const port = env.PORT;
   const host = env.HOST;
