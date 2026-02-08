@@ -1,5 +1,6 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import z from 'zod';
+import { sendBadRequest } from './errors';
 
 export type InvalidQueryResponse = {
   error: 'Invalid query parameters';
@@ -11,12 +12,6 @@ export function badQuery(
   reply: FastifyReply,
   error: z.ZodError,
 ): FastifyReply {
-  const details = z.treeifyError(error);
-
-  req.log.debug({ details, query: req.query }, 'invalid query parameters');
-
-  return reply.code(400).send({
-    error: 'Invalid query parameters',
-    details,
-  } satisfies InvalidQueryResponse);
+  req.log.debug({ details: z.treeifyError(error) }, 'invalid query parameters');
+  return sendBadRequest(req, reply, 'Invalid query parameters', z.treeifyError(error));
 }
