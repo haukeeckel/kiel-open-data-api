@@ -4,6 +4,7 @@ import { getDb } from './db';
 import z from 'zod';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
+import { getLoggerOptions } from './logger';
 
 const TimeseriesQuery = z.object({
   indicator: z.string().min(1),
@@ -28,20 +29,8 @@ const RankingQuery = z.object({
 });
 
 export async function buildServer() {
-  const isProd = process.env.NODE_ENV === 'production';
-
   const app = Fastify({
-    logger: isProd
-      ? true
-      : {
-          transport: {
-            target: 'pino-pretty',
-            options: {
-              translateTime: 'SYS:standard',
-              ignore: 'pid,hostname',
-            },
-          },
-        },
+    logger: getLoggerOptions(env.NODE_ENV),
   });
 
   await app.register(swagger, {
