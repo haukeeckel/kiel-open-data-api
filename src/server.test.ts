@@ -74,10 +74,13 @@ describe('facts endpoints', () => {
       const res = await app.inject({ method: 'GET', url: '/timeseries' });
       expect(res.statusCode).toBe(400);
 
-      // depending on your zod schema, this might be either "Invalid query parameters"
-      // or "indicator, areaType and area are required".
-      const body = res.json();
-      expect(body).toHaveProperty('error');
+      expect(res.json()).toMatchObject({
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'Invalid query parameters',
+        },
+        requestId: expect.any(String),
+      });
     });
 
     it('returns 400 for invalid query parameters (zod)', async () => {
@@ -88,7 +91,11 @@ describe('facts endpoints', () => {
 
       expect(res.statusCode).toBe(400);
       expect(res.json()).toMatchObject({
-        error: 'Invalid query parameters',
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'Invalid query parameters',
+        },
+        requestId: expect.any(String),
       });
     });
 
@@ -127,7 +134,13 @@ describe('facts endpoints', () => {
     it('returns 400 when required params are missing', async () => {
       const res = await app.inject({ method: 'GET', url: '/areas' });
       expect(res.statusCode).toBe(400);
-      expect(res.json()).toHaveProperty('error');
+      expect(res.json()).toMatchObject({
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'Invalid query parameters',
+        },
+        requestId: expect.any(String),
+      });
     });
 
     it('returns 400 for invalid query parameters (zod)', async () => {
@@ -170,7 +183,13 @@ describe('facts endpoints', () => {
     it('returns 400 when required params are missing', async () => {
       const res = await app.inject({ method: 'GET', url: '/ranking' });
       expect(res.statusCode).toBe(400);
-      expect(res.json()).toHaveProperty('error');
+      expect(res.json()).toMatchObject({
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'Invalid query parameters',
+        },
+        requestId: expect.any(String),
+      });
     });
 
     it('returns 400 for invalid query parameters (zod)', async () => {
@@ -181,7 +200,11 @@ describe('facts endpoints', () => {
 
       expect(res.statusCode).toBe(400);
       expect(res.json()).toMatchObject({
-        error: 'Invalid query parameters',
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'Invalid query parameters',
+        },
+        requestId: expect.any(String),
       });
     });
 
