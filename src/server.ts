@@ -4,8 +4,8 @@ import { getDb } from './db';
 import z from 'zod';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
-import { getLoggerOptions } from './logger';
 import { badQuery } from './http/validation';
+import { getLoggerOptions } from './logger/http';
 
 const TimeseriesQuery = z.object({
   indicator: z.string().min(1),

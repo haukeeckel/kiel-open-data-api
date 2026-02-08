@@ -1,6 +1,5 @@
-// src/logger.ts
 import type { FastifyServerOptions } from 'fastify';
-import type { NodeEnv } from './constants';
+import type { NodeEnv } from '../constants';
 
 type LoggerOption = Exclude<FastifyServerOptions['logger'], undefined>;
 
@@ -11,10 +10,7 @@ export function getLoggerOptions(nodeEnv: NodeEnv): LoggerOption {
   return {
     transport: {
       target: 'pino-pretty',
-      options: {
-        translateTime: 'SYS:standard',
-        ignore: 'pid,hostname',
-      },
+      options: { translateTime: 'SYS:standard', ignore: 'pid,hostname' },
     },
   };
 }
