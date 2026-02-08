@@ -1,10 +1,9 @@
 import type { FastifyInstance } from 'fastify';
 
 import { badQuery } from '../http/validation';
+import { sendBadRequest } from '../http/errors';
 import { AreasQuery, RankingQuery, TimeseriesQuery } from '../../schemas/facts';
 import { areasRouteSchema, rankingRouteSchema, timeseriesRouteSchema } from './facts.schema';
-import { sendBadRequest } from '../http/errors';
-import { getDb } from '../../infra/db/duckdb';
 
 export async function registerFactsRoutes(app: FastifyInstance) {
   app.get('/timeseries', timeseriesRouteSchema, async (req, reply) => {
@@ -13,43 +12,21 @@ export async function registerFactsRoutes(app: FastifyInstance) {
 
     const { indicator, areaType, area, from, to } = parsed.data;
 
+    const input: { indicator: string; areaType: string; area: string; from?: number; to?: number } =
+      {
+        indicator,
+        areaType,
+        area,
+      };
+
     if (!indicator || !areaType || !area) {
       return sendBadRequest(req, reply, 'indicator, areaType and area are required');
     }
 
-    const db = await getDb();
-    const conn = await db.connect();
+    if (from !== undefined) input.from = from;
+    if (to !== undefined) input.to = to;
 
-    try {
-      const params: Array<string | number> = [indicator, areaType, area];
-      let sql = `
-      SELECT year, value, unit
-      FROM facts
-      WHERE indicator = ? AND area_type = ? AND area_name = ?
-    `;
-
-      if (from !== undefined && Number.isFinite(from)) {
-        sql += ` AND year >= ?`;
-        params.push(from);
-      }
-      if (to !== undefined && Number.isFinite(to)) {
-        sql += ` AND year <= ?`;
-        params.push(to);
-      }
-
-      sql += ` ORDER BY year ASC`;
-
-      const reader = await conn.runAndReadAll(sql, params);
-      const rows = reader.getRows().map((r) => ({
-        year: Number(r[0]),
-        value: Number(r[1]),
-        unit: String(r[2]),
-      }));
-
-      return { indicator, areaType, area, rows };
-    } finally {
-      conn.disconnectSync();
-    }
+    return app.services.statisticsQuery.getTimeseries(input);
   });
 
   app.get('/areas', areasRouteSchema, async (req, reply) => {
@@ -58,34 +35,18 @@ export async function registerFactsRoutes(app: FastifyInstance) {
 
     const { indicator, areaType, like } = parsed.data;
 
+    const input: { indicator: string; areaType: string; like?: string } = {
+      indicator,
+      areaType,
+    };
+
     if (!indicator || !areaType) {
       return sendBadRequest(req, reply, 'indicator and areaType are required');
     }
 
-    const db = await getDb();
-    const conn = await db.connect();
+    if (like !== undefined) input.like = like;
 
-    try {
-      const params: string[] = [indicator, areaType];
-      let sql = `
-      SELECT DISTINCT area_name
-      FROM facts
-      WHERE indicator = ? AND area_type = ?
-    `;
-
-      if (like) {
-        sql += ` AND lower(area_name) LIKE ?`;
-        params.push(`%${like.toLowerCase()}%`);
-      }
-
-      sql += ` ORDER BY area_name ASC`;
-
-      const reader = await conn.runAndReadAll(sql, params);
-      const rows = reader.getRows().map((r) => String(r[0]));
-      return { indicator, areaType, rows };
-    } finally {
-      conn.disconnectSync();
-    }
+    return app.services.statisticsQuery.listAreas(input);
   });
 
   app.get('/ranking', rankingRouteSchema, async (req, reply) => {
@@ -98,30 +59,12 @@ export async function registerFactsRoutes(app: FastifyInstance) {
       return sendBadRequest(req, reply, 'indicator, areaType and year are required');
     }
 
-    const db = await getDb();
-    const conn = await db.connect();
-
-    try {
-      const reader = await conn.runAndReadAll(
-        `
-      SELECT area_name, value, unit
-      FROM facts
-      WHERE indicator = ? AND area_type = ? AND year = ?
-      ORDER BY value ${order}
-      LIMIT ?
-      `,
-        [indicator, areaType, year, limit],
-      );
-
-      const rows = reader.getRows().map((r) => ({
-        area: String(r[0]),
-        value: Number(r[1]),
-        unit: String(r[2]),
-      }));
-
-      return { indicator, areaType, year, order: order.toLowerCase(), limit, rows };
-    } finally {
-      conn.disconnectSync();
-    }
+    return app.services.statisticsQuery.getRanking({
+      indicator,
+      areaType,
+      year,
+      limit,
+      order,
+    });
   });
 }

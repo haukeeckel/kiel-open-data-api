@@ -6,6 +6,8 @@ import { registerFactsRoutes } from './routes/facts.route';
 import { registerErrorHandlers } from './plugins/errorHandler';
 import { registerApiSchemas } from './plugins/schemas';
 import { env } from '../config/env';
+import { registerRepositories } from './plugins/repositories';
+import { registerServices } from './plugins/services';
 
 export async function buildServer() {
   const app = Fastify({
@@ -16,6 +18,9 @@ export async function buildServer() {
 
   await registerApiSchemas(app);
   await registerSwagger(app);
+
+  await registerRepositories(app);
+  await registerServices(app);
 
   await registerHealthRoutes(app);
   await registerFactsRoutes(app);
