@@ -1,5 +1,5 @@
 import * as path from 'node:path';
-import { env } from '../env';
+import { env } from '../config/env';
 import { getDb } from '../db';
 import { durationMs, type EtlContext, nowMs } from './etlContext';
 import { firstCellAsNumber } from './sql';

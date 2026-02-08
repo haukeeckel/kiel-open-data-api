@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildServer } from '../../server';
+import { buildServer } from '../server';
 
 describe('api smoke', () => {
   it('GET /health returns ok', async () => {
