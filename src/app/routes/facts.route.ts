@@ -2,9 +2,10 @@ import type { FastifyInstance } from 'fastify';
 import { getDb } from '../../db';
 import { badQuery } from '../http/validation';
 import { AreasQuery, RankingQuery, TimeseriesQuery } from '../../schemas/facts';
+import { areasRouteSchema, rankingRouteSchema, timeseriesRouteSchema } from './facts.schema';
 
 export async function registerFactsRoutes(app: FastifyInstance) {
-  app.get('/timeseries', async (req, reply) => {
+  app.get('/timeseries', timeseriesRouteSchema, async (req, reply) => {
     const parsed = TimeseriesQuery.safeParse(req.query);
     if (!parsed.success) return badQuery(req, reply, parsed.error);
 
@@ -51,7 +52,7 @@ export async function registerFactsRoutes(app: FastifyInstance) {
     }
   });
 
-  app.get('/areas', async (req, reply) => {
+  app.get('/areas', areasRouteSchema, async (req, reply) => {
     const parsed = AreasQuery.safeParse(req.query);
     if (!parsed.success) return badQuery(req, reply, parsed.error);
 
@@ -63,6 +64,7 @@ export async function registerFactsRoutes(app: FastifyInstance) {
 
     const db = await getDb();
     const conn = await db.connect();
+
     try {
       const params: string[] = [indicator, areaType];
       let sql = `
@@ -86,7 +88,7 @@ export async function registerFactsRoutes(app: FastifyInstance) {
     }
   });
 
-  app.get('/ranking', async (req, reply) => {
+  app.get('/ranking', rankingRouteSchema, async (req, reply) => {
     const parsed = RankingQuery.safeParse(req.query);
     if (!parsed.success) return badQuery(req, reply, parsed.error);
 
