@@ -1,13 +1,28 @@
 import * as path from 'node:path';
+import { env } from '../env';
 import { getDb } from '../db';
+import { durationMs, type EtlContext, nowMs } from './etlContext';
+import { firstCellAsNumber } from './sql';
+import { createEtlLogger } from '../logger/etl';
+import { flushLogger } from '../logger/flush';
+
+const log = createEtlLogger(env.NODE_ENV);
 
 const CSV_PATH = path.join(process.cwd(), 'data', 'cache', 'kiel_bevoelkerung_stadtteile.csv');
+const DATASET = 'stadtteile_population';
+const ctx: EtlContext = { dataset: DATASET, step: 'import' };
 
 const INDICATOR = 'population';
 const AREA_TYPE = 'district';
 const UNIT = 'persons';
 
 async function main() {
+  const started = nowMs();
+  log.info(
+    { ...ctx, csvPath: CSV_PATH, indicator: INDICATOR, areaType: AREA_TYPE },
+    'etl.import: start',
+  );
+
   const db = await getDb();
   const conn = await db.connect();
 
@@ -23,32 +38,42 @@ async function main() {
       );
     `);
 
-    // Raw lesen (delim=';' weil Kiel CSV so aussieht)
     await conn.run(`
       CREATE OR REPLACE TEMP TABLE raw AS
       SELECT *
       FROM read_csv_auto('${CSV_PATH}', header=true, delim=';');
     `);
 
-    // Jahres-Spalten + Spaltenliste
     const info = await conn.runAndReadAll(`PRAGMA table_info('raw');`);
     const cols = info.getRows().map((r) => String(r[1]));
-
     const yearCols = cols.filter((c) => /^\d{4}$/.test(c));
+
+    log.debug(
+      { ...ctx, columns: cols.length, yearColumns: yearCols.length },
+      'etl.import: detected columns',
+    );
+
     if (yearCols.length === 0) {
-      throw new Error('[etl] No year columns found (expected columns like 1988..2023).');
+      throw new Error('No year columns found (expected columns like 1988..2023).');
     }
 
-    // UNPIVOT braucht explizite Spaltenliste
     const inList = yearCols.map((c) => `"${c}"`).join(', ');
 
-    // idempotent: alte Werte für diesen Indicator/AreaType entfernen
+    // delete old rows for this slice
+    const delRes = await conn.runAndReadAll(
+      `SELECT COUNT(*) FROM facts WHERE indicator = ? AND area_type = ?;`,
+      [INDICATOR, AREA_TYPE],
+    );
+    const existing = firstCellAsNumber(delRes.getRows(), 'existing facts count');
+    if (existing > 0) {
+      log.info({ ...ctx, existing }, 'etl.import: deleting existing rows');
+    }
+
     await conn.run(`DELETE FROM facts WHERE indicator = ? AND area_type = ?;`, [
       INDICATOR,
       AREA_TYPE,
     ]);
 
-    // Import wide -> long
     await conn.run(`
       INSERT INTO facts
       SELECT
@@ -70,11 +95,20 @@ async function main() {
       CREATE INDEX IF NOT EXISTS facts_idx
       ON facts(indicator, area_type, area_name, year);
     `);
+
+    const countRes = await conn.runAndReadAll(
+      `SELECT COUNT(*) FROM facts WHERE indicator = ? AND area_type = ?;`,
+      [INDICATOR, AREA_TYPE],
+    );
+    const imported = firstCellAsNumber(countRes.getRows(), 'imported facts count');
+
+    log.info({ ...ctx, imported, ms: durationMs(started) }, 'etl.import: done');
   } catch (err) {
-    console.error('[etl] import failed:', err);
-    throw err;
+    log.error({ ...ctx, err, ms: durationMs(started) }, 'etl.import: failed');
+    process.exitCode = 1;
   } finally {
     conn.disconnectSync();
+    await flushLogger(log);
   }
 }
 

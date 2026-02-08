@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { z } from 'zod';
 import { DEFAULT_HOST, DEFAULT_NODE_ENV, DEFAULT_PORT, NODE_ENVS } from './constants';
 
