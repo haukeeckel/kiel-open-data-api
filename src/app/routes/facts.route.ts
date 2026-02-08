@@ -1,9 +1,10 @@
 import type { FastifyInstance } from 'fastify';
-import { getDb } from '../../db';
+
 import { badQuery } from '../http/validation';
 import { AreasQuery, RankingQuery, TimeseriesQuery } from '../../schemas/facts';
 import { areasRouteSchema, rankingRouteSchema, timeseriesRouteSchema } from './facts.schema';
 import { sendBadRequest } from '../http/errors';
+import { getDb } from '../../infra/db/duckdb';
 
 export async function registerFactsRoutes(app: FastifyInstance) {
   app.get('/timeseries', timeseriesRouteSchema, async (req, reply) => {

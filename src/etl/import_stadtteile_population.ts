@@ -1,10 +1,10 @@
 import * as path from 'node:path';
 import { env } from '../config/env';
-import { getDb } from '../db';
 import { durationMs, type EtlContext, nowMs } from './etlContext';
 import { firstCellAsNumber } from './sql';
 import { createEtlLogger } from '../logger/etl';
 import { flushLogger } from '../logger/flush';
+import { getDb } from '../infra/db/duckdb';
 
 const log = createEtlLogger(env.NODE_ENV);
 
