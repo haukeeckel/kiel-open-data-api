@@ -5,6 +5,7 @@ import z from 'zod';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
 import { getLoggerOptions } from './logger';
+import { badQuery } from './http/validation';
 
 const TimeseriesQuery = z.object({
   indicator: z.string().min(1),
@@ -31,6 +32,11 @@ const RankingQuery = z.object({
 export async function buildServer() {
   const app = Fastify({
     logger: getLoggerOptions(env.NODE_ENV),
+  });
+
+  app.setErrorHandler((err, req, reply) => {
+    req.log.error({ err }, 'request failed');
+    reply.code(500).send({ error: 'Internal Server Error', requestId: req.id });
   });
 
   await app.register(swagger, {
@@ -75,11 +81,7 @@ export async function buildServer() {
 
   app.get('/timeseries', async (req, reply) => {
     const parsed = TimeseriesQuery.safeParse(req.query);
-    if (!parsed.success) {
-      return reply
-        .code(400)
-        .send({ error: 'Invalid query parameters', details: parsed.error.message });
-    }
+    if (!parsed.success) return badQuery(req, reply, parsed.error);
 
     const { indicator, areaType, area, from, to } = parsed.data;
 
@@ -126,11 +128,7 @@ export async function buildServer() {
 
   app.get('/areas', async (req, reply) => {
     const parsed = AreasQuery.safeParse(req.query);
-    if (!parsed.success) {
-      return reply
-        .code(400)
-        .send({ error: 'Invalid query parameters', details: parsed.error.message });
-    }
+    if (!parsed.success) return badQuery(req, reply, parsed.error);
 
     const { indicator, areaType, like } = parsed.data;
 
@@ -165,11 +163,8 @@ export async function buildServer() {
 
   app.get('/ranking', async (req, reply) => {
     const parsed = RankingQuery.safeParse(req.query);
-    if (!parsed.success) {
-      return reply
-        .code(400)
-        .send({ error: 'Invalid query parameters', details: parsed.error.message });
-    }
+    if (!parsed.success) return badQuery(req, reply, parsed.error);
+
     const { indicator, areaType, year, limit, order } = parsed.data;
 
     if (!indicator || !areaType || !Number.isFinite(year)) {
