@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
@@ -6,6 +6,22 @@ import { buildServer } from './server';
 import { getDb, resetDbForTests } from './db';
 
 const TEST_DB_PATH = path.join(process.cwd(), 'data', 'cache', 'test.duckdb');
+
+async function makeAppAndSeed() {
+  fs.mkdirSync(path.dirname(TEST_DB_PATH), { recursive: true });
+  if (fs.existsSync(TEST_DB_PATH)) fs.unlinkSync(TEST_DB_PATH);
+
+  process.env.NODE_ENV = 'test';
+  process.env.DUCKDB_PATH = TEST_DB_PATH;
+  resetDbForTests();
+
+  const app = await buildServer();
+  await seedFacts();
+
+  await app.ready();
+
+  return app;
+}
 
 async function seedFacts() {
   const db = await getDb();
@@ -45,28 +61,44 @@ async function seedFacts() {
 describe('facts endpoints', () => {
   let app: Awaited<ReturnType<typeof buildServer>>;
 
-  beforeAll(async () => {
-    // isolate DB for this test file
-    fs.mkdirSync(path.dirname(TEST_DB_PATH), { recursive: true });
-    if (fs.existsSync(TEST_DB_PATH)) fs.unlinkSync(TEST_DB_PATH);
-
-    process.env.NODE_ENV = 'test';
-    process.env.DUCKDB_PATH = TEST_DB_PATH;
-    resetDbForTests();
-
-    app = await buildServer();
-    await seedFacts();
-  });
-
   afterAll(async () => {
     await app.close();
     // cleanup
     if (fs.existsSync(TEST_DB_PATH)) fs.unlinkSync(TEST_DB_PATH);
   });
 
-  beforeEach(() => {
+  beforeEach(async () => {
     // in case a test changes env later
-    process.env.DUCKDB_PATH = TEST_DB_PATH;
+    app = await makeAppAndSeed();
+  });
+
+  describe('GET /does-not', () => {
+    it('returns 404 for non-existent routes', async () => {
+      const res = await app.inject({ method: 'GET', url: '/does-not-exist' });
+      expect(res.statusCode).toBe(404);
+      expect(res.json()).toMatchObject({
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Not Found',
+        },
+        requestId: expect.any(String),
+      });
+    });
+  });
+
+  it('returns 500 error contract on unhandled error', async () => {
+    const res = await app.inject({ method: 'GET', url: '/__boom' });
+    expect(res.statusCode).toBe(500);
+
+    expect(res.json()).toMatchObject({
+      error: {
+        code: 'INTERNAL',
+        message: 'Internal Server Error',
+      },
+      requestId: expect.any(String),
+    });
+
+    await app.close();
   });
 
   describe('GET /timeseries', () => {

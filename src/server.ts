@@ -4,25 +4,24 @@ import { buildHttpLogger } from './app/plugins/logging';
 import { registerSwagger } from './app/plugins/swagger';
 import { registerHealthRoutes } from './app/routes/health';
 import { registerFactsRoutes } from './app/routes/facts.route';
+import { registerErrorHandlers } from './app/plugins/errorHandler';
+import { registerTestRoutes } from './app/routes/test.routes';
 
 export async function buildServer() {
   const app = Fastify({
     logger: buildHttpLogger(env.NODE_ENV),
   });
 
-  app.setErrorHandler((err, req, reply) => {
-    req.log.error({ err }, 'request failed');
-    reply.code(500).send({ error: 'Internal Server Error', requestId: req.id });
-  });
+  await registerErrorHandlers(app);
 
   await registerSwagger(app);
 
   await registerHealthRoutes(app);
   await registerFactsRoutes(app);
+  if (env.NODE_ENV === 'test') {
+    await registerTestRoutes(app);
+  }
 
-  app.setNotFoundHandler(async (_req, reply) => {
-    return reply.code(404).send({ error: 'Not Found' });
-  });
   await app.ready();
   return app;
 }
