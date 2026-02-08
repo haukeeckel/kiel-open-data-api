@@ -21,3 +21,7 @@ export const RankingQuery = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(10),
   order: z.enum(['asc', 'desc']).default('desc'),
 });
+
+export type TimeseriesQueryInput = z.infer<typeof TimeseriesQuery>;
+export type AreasQueryInput = z.infer<typeof AreasQuery>;
+export type RankingQueryInput = z.infer<typeof RankingQuery>;

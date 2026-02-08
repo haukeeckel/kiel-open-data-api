@@ -1,4 +1,5 @@
-import type { FactsRepository, Order } from '../ports/factsRepository';
+import { type Order } from '../model/types';
+import type { FactsRepository } from '../ports/factsRepository';
 
 export class StatisticsQueryService {
   constructor(private readonly repo: FactsRepository) {}
