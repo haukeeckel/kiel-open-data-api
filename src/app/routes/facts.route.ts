@@ -3,6 +3,7 @@ import { getDb } from '../../db';
 import { badQuery } from '../http/validation';
 import { AreasQuery, RankingQuery, TimeseriesQuery } from '../../schemas/facts';
 import { areasRouteSchema, rankingRouteSchema, timeseriesRouteSchema } from './facts.schema';
+import { sendBadRequest } from '../http/errors';
 
 export async function registerFactsRoutes(app: FastifyInstance) {
   app.get('/timeseries', timeseriesRouteSchema, async (req, reply) => {
@@ -12,9 +13,7 @@ export async function registerFactsRoutes(app: FastifyInstance) {
     const { indicator, areaType, area, from, to } = parsed.data;
 
     if (!indicator || !areaType || !area) {
-      return reply.code(400).send({
-        error: 'indicator, areaType and area are required',
-      });
+      return sendBadRequest(req, reply, 'indicator, areaType and area are required');
     }
 
     const db = await getDb();
@@ -59,7 +58,7 @@ export async function registerFactsRoutes(app: FastifyInstance) {
     const { indicator, areaType, like } = parsed.data;
 
     if (!indicator || !areaType) {
-      return reply.code(400).send({ error: 'indicator and areaType are required' });
+      return sendBadRequest(req, reply, 'indicator and areaType are required');
     }
 
     const db = await getDb();
@@ -95,9 +94,7 @@ export async function registerFactsRoutes(app: FastifyInstance) {
     const { indicator, areaType, year, limit, order } = parsed.data;
 
     if (!indicator || !areaType || !Number.isFinite(year)) {
-      return reply.code(400).send({
-        error: 'indicator, areaType and year are required',
-      });
+      return sendBadRequest(req, reply, 'indicator, areaType and year are required');
     }
 
     const db = await getDb();

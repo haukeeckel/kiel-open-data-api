@@ -5,7 +5,6 @@ import { registerSwagger } from './app/plugins/swagger';
 import { registerHealthRoutes } from './app/routes/health';
 import { registerFactsRoutes } from './app/routes/facts.route';
 import { registerErrorHandlers } from './app/plugins/errorHandler';
-import { registerTestRoutes } from './app/routes/test.routes';
 import { registerApiSchemas } from './app/plugins/schemas';
 
 export async function buildServer() {
@@ -15,21 +14,19 @@ export async function buildServer() {
 
   await registerErrorHandlers(app);
 
-  await registerSwagger(app);
   await registerApiSchemas(app);
+  await registerSwagger(app);
 
   await registerHealthRoutes(app);
   await registerFactsRoutes(app);
-  if (env.NODE_ENV === 'test') {
-    await registerTestRoutes(app);
-  }
 
-  await app.ready();
   return app;
 }
 
 async function main() {
   const app = await buildServer();
+
+  await app.ready();
 
   await app.listen({ port: env.PORT, host: env.HOST });
 
@@ -49,4 +46,6 @@ async function main() {
   process.on('SIGTERM', () => void close('SIGTERM'));
 }
 
-void main();
+if (require.main === module) {
+  void main();
+}
