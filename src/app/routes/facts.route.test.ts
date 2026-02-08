@@ -1,72 +1,54 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
-
-import { buildServer } from './server';
-import { getDb, resetDbForTests } from './db';
-
-const TEST_DB_PATH = path.join(process.cwd(), 'data', 'cache', 'test.duckdb');
-
-async function seedFacts() {
-  const db = await getDb();
-  const conn = await db.connect();
-
-  try {
-    await conn.run(`
-      CREATE TABLE IF NOT EXISTS facts (
-        indicator TEXT,
-        area_type TEXT,
-        area_name TEXT,
-        year INTEGER,
-        value DOUBLE,
-        unit TEXT
-      );
-    `);
-
-    await conn.run(`DELETE FROM facts;`);
-
-    // Seed: population by district for 2022/2023
-    await conn.run(
-      `
-      INSERT INTO facts (indicator, area_type, area_name, year, value, unit) VALUES
-      ('population','district','Altstadt',2022,1213,'persons'),
-      ('population','district','Altstadt',2023,1220,'persons'),
-      ('population','district','Gaarden-Ost',2023,18000,'persons'),
-      ('population','district','Schreventeich',2023,9000,'persons');
-      `,
-    );
-  } finally {
-    // duckdb node-api hat je nach Version close() oder disconnectSync(); du nutzt disconnectSync()
-    // falls close() existiert: await conn.close();
-    conn.disconnectSync();
-  }
-}
+import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { cleanupDuckDbFiles, makeAppAndSeed } from '../../test/helpers/app';
+import { type buildServer } from '../server';
 
 describe('facts endpoints', () => {
   let app: Awaited<ReturnType<typeof buildServer>>;
+  let dbPath: string;
 
-  beforeAll(async () => {
-    // isolate DB for this test file
-    fs.mkdirSync(path.dirname(TEST_DB_PATH), { recursive: true });
-    if (fs.existsSync(TEST_DB_PATH)) fs.unlinkSync(TEST_DB_PATH);
+  beforeEach(async () => {
+    const res = await makeAppAndSeed();
+    app = res.app;
+    dbPath = res.dbPath;
+  });
 
-    process.env.NODE_ENV = 'test';
-    process.env.DUCKDB_PATH = TEST_DB_PATH;
-    resetDbForTests();
-
-    app = await buildServer();
-    await seedFacts();
+  afterEach(async () => {
+    await app.close();
+    cleanupDuckDbFiles(dbPath);
   });
 
   afterAll(async () => {
     await app.close();
-    // cleanup
-    if (fs.existsSync(TEST_DB_PATH)) fs.unlinkSync(TEST_DB_PATH);
+    cleanupDuckDbFiles(dbPath);
   });
 
-  beforeEach(() => {
-    // in case a test changes env later
-    process.env.DUCKDB_PATH = TEST_DB_PATH;
+  describe('GET /does-not', () => {
+    it('returns 404 for non-existent routes', async () => {
+      const res = await app.inject({ method: 'GET', url: '/does-not-exist' });
+      expect(res.statusCode).toBe(404);
+      expect(res.json()).toMatchObject({
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Not Found',
+        },
+        requestId: expect.any(String),
+      });
+    });
+  });
+
+  it('returns 500 error contract on unhandled error', async () => {
+    const res = await app.inject({ method: 'GET', url: '/__boom' });
+    expect(res.statusCode).toBe(500);
+
+    expect(res.json()).toMatchObject({
+      error: {
+        code: 'INTERNAL',
+        message: 'Internal Server Error',
+      },
+      requestId: expect.any(String),
+    });
+
+    await app.close();
   });
 
   describe('GET /timeseries', () => {
@@ -74,10 +56,13 @@ describe('facts endpoints', () => {
       const res = await app.inject({ method: 'GET', url: '/timeseries' });
       expect(res.statusCode).toBe(400);
 
-      // depending on your zod schema, this might be either "Invalid query parameters"
-      // or "indicator, areaType and area are required".
-      const body = res.json();
-      expect(body).toHaveProperty('error');
+      expect(res.json()).toMatchObject({
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'Invalid query parameters',
+        },
+        requestId: expect.any(String),
+      });
     });
 
     it('returns 400 for invalid query parameters (zod)', async () => {
@@ -88,7 +73,11 @@ describe('facts endpoints', () => {
 
       expect(res.statusCode).toBe(400);
       expect(res.json()).toMatchObject({
-        error: 'Invalid query parameters',
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'Invalid query parameters',
+        },
+        requestId: expect.any(String),
       });
     });
 
@@ -127,7 +116,13 @@ describe('facts endpoints', () => {
     it('returns 400 when required params are missing', async () => {
       const res = await app.inject({ method: 'GET', url: '/areas' });
       expect(res.statusCode).toBe(400);
-      expect(res.json()).toHaveProperty('error');
+      expect(res.json()).toMatchObject({
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'Invalid query parameters',
+        },
+        requestId: expect.any(String),
+      });
     });
 
     it('returns 400 for invalid query parameters (zod)', async () => {
@@ -170,7 +165,13 @@ describe('facts endpoints', () => {
     it('returns 400 when required params are missing', async () => {
       const res = await app.inject({ method: 'GET', url: '/ranking' });
       expect(res.statusCode).toBe(400);
-      expect(res.json()).toHaveProperty('error');
+      expect(res.json()).toMatchObject({
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'Invalid query parameters',
+        },
+        requestId: expect.any(String),
+      });
     });
 
     it('returns 400 for invalid query parameters (zod)', async () => {
@@ -181,7 +182,11 @@ describe('facts endpoints', () => {
 
       expect(res.statusCode).toBe(400);
       expect(res.json()).toMatchObject({
-        error: 'Invalid query parameters',
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'Invalid query parameters',
+        },
+        requestId: expect.any(String),
       });
     });
 
@@ -214,42 +219,5 @@ describe('facts endpoints', () => {
       expect(res.statusCode).toBe(200);
       expect(res.json().rows).toEqual([{ area: 'Altstadt', value: 1220, unit: 'persons' }]);
     });
-  });
-});
-
-describe('api smoke', () => {
-  it('GET /health returns ok', async () => {
-    process.env.DUCKDB_PATH = 'data/cache/test.duckdb';
-    const app = await buildServer();
-
-    const res = await app.inject({
-      method: 'GET',
-      url: '/health',
-    });
-
-    expect(res.statusCode).toBe(200);
-
-    const body = res.json();
-    expect(body).toMatchObject({ ok: true });
-    expect(typeof body.ts).toBe('string');
-
-    await app.close();
-  });
-
-  it('GET / returns endpoint list', async () => {
-    process.env.DUCKDB_PATH = 'data/cache/test.duckdb';
-    const app = await buildServer();
-
-    const res = await app.inject({
-      method: 'GET',
-      url: '/',
-    });
-
-    expect(res.statusCode).toBe(200);
-    expect(res.json()).toMatchObject({
-      name: 'kiel-dashboard-api',
-    });
-
-    await app.close();
   });
 });

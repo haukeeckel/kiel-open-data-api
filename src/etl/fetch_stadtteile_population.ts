@@ -1,7 +1,6 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-
-import { env } from '../env';
+import { env } from '../config/env';
 import type { EtlContext } from './etlContext';
 import { durationMs, nowMs } from './etlContext';
 import { createEtlLogger } from '../logger/etl';

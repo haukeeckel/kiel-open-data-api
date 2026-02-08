@@ -1,4 +1,4 @@
-import type { NodeEnv } from '../../constants';
+import { type NodeEnv } from '../../config/constants';
 import { getLoggerOptions } from '../../logger/http';
 
 export function buildHttpLogger(nodeEnv: NodeEnv) {

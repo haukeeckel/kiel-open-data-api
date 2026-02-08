@@ -21,6 +21,7 @@ export async function registerHealthRoutes(app: FastifyInstance) {
             },
             required: ['ok', 'ts'],
           },
+          500: { $ref: 'ApiError#' },
         },
       },
     },
