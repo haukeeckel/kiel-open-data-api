@@ -1,2 +1,3 @@
-process.env.NODE_ENV = 'test';
-process.env.DUCKDB_PATH = ':memory:';
+import { resetTestEnvToDefaults } from './src/test/helpers/env';
+
+resetTestEnvToDefaults();
