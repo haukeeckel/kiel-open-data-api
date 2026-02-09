@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import fp from 'fastify-plugin';
 import {
   type ApiErrorCode,
   sendBadRequest,
@@ -56,7 +57,7 @@ function defaultMessageForStatus(status: number) {
   }
 }
 
-export async function registerErrorHandlers(app: FastifyInstance) {
+export default fp(async function errorHandlerPlugin(app: FastifyInstance) {
   app.setErrorHandler((err, req, reply) => {
     // 1) Domain validation => 400
     if (err instanceof StatisticsValidationError) {
@@ -93,4 +94,4 @@ export async function registerErrorHandlers(app: FastifyInstance) {
   app.setNotFoundHandler((req, reply) => {
     return sendNotFound(req, reply);
   });
-}
+});

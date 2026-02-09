@@ -13,7 +13,7 @@ const HealthResponse = z.object({
   ts: z.string(),
 });
 
-export async function registerHealthRoutes(app: FastifyInstance) {
+export default async function healthRoutes(app: FastifyInstance) {
   const r = app.withTypeProvider<ZodTypeProvider>();
 
   r.get(

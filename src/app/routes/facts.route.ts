@@ -2,11 +2,10 @@ import type { FastifyInstance } from 'fastify';
 import { type ZodTypeProvider } from 'fastify-type-provider-zod';
 import { areasRouteSchema, rankingRouteSchema, timeseriesRouteSchema } from './facts.schema';
 
-export async function registerFactsRoutes(app: FastifyInstance) {
+export default async function factsRoutes(app: FastifyInstance) {
   const r = app.withTypeProvider<ZodTypeProvider>();
 
   r.get('/timeseries', timeseriesRouteSchema, async (req) => {
-    // req.query ist schon validiert und typisiert
     return app.services.statisticsQuery.getTimeseries(req.query);
   });
 
