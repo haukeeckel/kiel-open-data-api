@@ -36,6 +36,32 @@ describe('facts endpoints', () => {
     });
   });
 
+  it('returns 401 error contract for client errors (does not collapse to 400)', async () => {
+    const res = await app.inject({ method: 'GET', url: '/__401' });
+
+    expect(res.statusCode).toBe(401);
+    expect(res.json()).toMatchObject({
+      error: {
+        code: 'UNAUTHORIZED',
+        message: 'nope',
+      },
+      requestId: expect.any(String),
+    });
+  });
+
+  it('returns 409 error contract for conflict errors', async () => {
+    const res = await app.inject({ method: 'GET', url: '/__409' });
+
+    expect(res.statusCode).toBe(409);
+    expect(res.json()).toMatchObject({
+      error: {
+        code: 'CONFLICT',
+        message: 'conflict',
+      },
+      requestId: expect.any(String),
+    });
+  });
+
   it('returns 500 error contract on unhandled error', async () => {
     const res = await app.inject({ method: 'GET', url: '/__boom' });
     expect(res.statusCode).toBe(500);
@@ -47,8 +73,6 @@ describe('facts endpoints', () => {
       },
       requestId: expect.any(String),
     });
-
-    await app.close();
   });
 
   describe('GET /timeseries', () => {

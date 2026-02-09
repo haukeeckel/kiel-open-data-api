@@ -62,6 +62,18 @@ export async function makeAppAndSeed() {
     throw new Error('boom');
   });
 
+  app.get('/__401', async () => {
+    const err = new Error('nope');
+    (err as unknown as { statusCode: number }).statusCode = 401;
+    throw err;
+  });
+
+  app.get('/__409', async () => {
+    const err = new Error('conflict');
+    (err as unknown as { statusCode: number }).statusCode = 409;
+    throw err;
+  });
+
   // 4) seed ausführen (weil die Tests Daten in der DB brauchen)
   await seedFacts();
 

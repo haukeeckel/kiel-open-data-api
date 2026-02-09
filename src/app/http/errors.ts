@@ -1,6 +1,14 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
-export type ApiErrorCode = 'BAD_REQUEST' | 'NOT_FOUND' | 'INTERNAL';
+export type ApiErrorCode =
+  | 'BAD_REQUEST'
+  | 'UNAUTHORIZED'
+  | 'FORBIDDEN'
+  | 'NOT_FOUND'
+  | 'CONFLICT'
+  | 'UNPROCESSABLE_ENTITY'
+  | 'CLIENT_ERROR'
+  | 'INTERNAL';
 
 export type ApiErrorBody = {
   error: {
@@ -16,27 +24,43 @@ function requestId(req: FastifyRequest): string {
   return String((req as { id?: unknown }).id ?? 'unknown');
 }
 
+export function sendError(
+  req: FastifyRequest,
+  reply: FastifyReply,
+  input: { statusCode: number; code: ApiErrorCode; message: string; details?: unknown },
+) {
+  const body: ApiErrorBody = {
+    error: {
+      code: input.code,
+      message: input.message,
+      ...(input.details !== undefined ? { details: input.details } : {}),
+    },
+    requestId: requestId(req),
+  };
+
+  return reply.code(input.statusCode).send(body);
+}
+
 export function sendBadRequest(
   req: FastifyRequest,
   reply: FastifyReply,
   message: string,
   details?: unknown,
 ) {
-  const body: ApiErrorBody = {
-    error: { code: 'BAD_REQUEST', message, ...(details !== undefined ? { details } : {}) },
-    requestId: requestId(req),
-  };
-
-  return reply.code(400).send(body);
+  return sendError(req, reply, {
+    statusCode: 400,
+    code: 'BAD_REQUEST',
+    message,
+    details,
+  });
 }
 
 export function sendNotFound(req: FastifyRequest, reply: FastifyReply, message = 'Not Found') {
-  const body: ApiErrorBody = {
-    error: { code: 'NOT_FOUND', message },
-    requestId: requestId(req),
-  };
-
-  return reply.code(404).send(body);
+  return sendError(req, reply, {
+    statusCode: 404,
+    code: 'NOT_FOUND',
+    message,
+  });
 }
 
 export function sendInternalError(
@@ -44,10 +68,9 @@ export function sendInternalError(
   reply: FastifyReply,
   message = 'Internal Server Error',
 ) {
-  const body: ApiErrorBody = {
-    error: { code: 'INTERNAL', message },
-    requestId: requestId(req),
-  };
-
-  return reply.code(500).send(body);
+  return sendError(req, reply, {
+    statusCode: 500,
+    code: 'INTERNAL',
+    message,
+  });
 }
