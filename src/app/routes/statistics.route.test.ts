@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { cleanupDuckDbFiles, makeAppAndSeed } from '../../test/helpers/app';
 import { type buildServer } from '../server';
 
-describe('facts endpoints', () => {
+describe('statistics endpoints', () => {
   let app: Awaited<ReturnType<typeof buildServer>>;
   let dbPath: string;
 

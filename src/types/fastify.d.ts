@@ -1,13 +1,13 @@
 import 'fastify';
 
-import type { FactsRepository } from '../domains/statistics/ports/factsRepository';
+import type { StatisticsRepository } from '../domains/statistics/ports/statisticsRepository';
 import type { StatisticsQueryService } from '../domains/statistics/services/queryService';
 
 declare module 'fastify' {
   // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
   interface FastifyInstance {
     repos: {
-      factsRepository: FactsRepository;
+      statisticsRepository: StatisticsRepository;
     };
     services: {
       statisticsQuery: StatisticsQueryService;

@@ -1,14 +1,13 @@
-// src/domains/statistics/services/queryService.ts
-import type { FactsRepository } from '../ports/factsRepository';
+import type { StatisticsRepository } from '../ports/statisticsRepository';
 import type {
   TimeseriesQueryInput,
   AreasQueryInput,
   RankingQueryInput,
-} from '../../../schemas/facts';
+} from '../../../schemas/statistics';
 import { StatisticsValidationError } from '../errors/statisticsValidationError';
 
 export class StatisticsQueryService {
-  constructor(private readonly repo: FactsRepository) {}
+  constructor(private readonly repo: StatisticsRepository) {}
 
   async getTimeseries(input: TimeseriesQueryInput) {
     const from = input.from;
@@ -18,7 +17,6 @@ export class StatisticsQueryService {
       throw new StatisticsValidationError('from must be <= to', { from, to });
     }
 
-    // optional: undefined-properties entfernen (siehe unten) oder Repo-Typ anpassen
     return this.repo.getTimeseries(stripUndefined(input));
   }
 

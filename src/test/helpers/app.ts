@@ -10,13 +10,13 @@ export function makeTestDbPath() {
   return path.join(process.cwd(), 'data', 'cache', `test-${id}.duckdb`);
 }
 
-export async function seedFacts() {
+export async function seedStatistics() {
   const db = await getDb();
   const conn = await db.connect();
 
   try {
     await conn.run(`
-      CREATE TABLE IF NOT EXISTS facts (
+      CREATE TABLE IF NOT EXISTS statistics (
         indicator TEXT,
         area_type TEXT,
         area_name TEXT,
@@ -26,11 +26,11 @@ export async function seedFacts() {
       );
     `);
 
-    await conn.run(`DELETE FROM facts;`);
+    await conn.run(`DELETE FROM statistics;`);
 
     await conn.run(
       `
-      INSERT INTO facts (indicator, area_type, area_name, year, value, unit) VALUES
+      INSERT INTO statistics (indicator, area_type, area_name, year, value, unit) VALUES
       ('population','district','Altstadt',2022,1213,'persons'),
       ('population','district','Altstadt',2023,1220,'persons'),
       ('population','district','Gaarden-Ost',2023,18000,'persons'),
@@ -75,7 +75,7 @@ export async function makeAppAndSeed() {
   });
 
   // 4) seed ausführen (weil die Tests Daten in der DB brauchen)
-  await seedFacts();
+  await seedStatistics();
 
   await app.ready();
   return { app, dbPath };

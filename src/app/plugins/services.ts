@@ -4,6 +4,6 @@ import { StatisticsQueryService } from '../../domains/statistics/services/queryS
 
 export default fp(async function servicesPlugin(app: FastifyInstance) {
   app.decorate('services', {
-    statisticsQuery: new StatisticsQueryService(app.repos.factsRepository),
+    statisticsQuery: new StatisticsQueryService(app.repos.statisticsRepository),
   });
 });

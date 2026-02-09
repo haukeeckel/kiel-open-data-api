@@ -1,7 +1,7 @@
-import type { FactsRepository } from '../../domains/statistics/ports/factsRepository';
+import type { StatisticsRepository } from '../../domains/statistics/ports/statisticsRepository';
 import { getDb } from './duckdb';
 
-export function createDuckDbFactsRepository(): FactsRepository {
+export function createDuckDbStatisticsRepository(): StatisticsRepository {
   return {
     async getTimeseries(input) {
       const db = await getDb();
@@ -11,7 +11,7 @@ export function createDuckDbFactsRepository(): FactsRepository {
         const params: Array<string | number> = [input.indicator, input.areaType, input.area];
         let sql = `
           SELECT year, value, unit
-          FROM facts
+          FROM statistics
           WHERE indicator = ? AND area_type = ? AND area_name = ?
         `;
 
@@ -52,7 +52,7 @@ export function createDuckDbFactsRepository(): FactsRepository {
         const params: string[] = [input.indicator, input.areaType];
         let sql = `
           SELECT DISTINCT area_name
-          FROM facts
+          FROM statistics
           WHERE indicator = ? AND area_type = ?
         `;
 
@@ -80,7 +80,7 @@ export function createDuckDbFactsRepository(): FactsRepository {
         const reader = await conn.runAndReadAll(
           `
           SELECT area_name, value, unit
-          FROM facts
+          FROM statistics
           WHERE indicator = ? AND area_type = ? AND year = ?
           ORDER BY value ${input.order}
           LIMIT ?

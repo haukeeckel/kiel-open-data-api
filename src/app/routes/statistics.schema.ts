@@ -5,12 +5,12 @@ import {
   RankingResponse,
   TimeseriesQuery,
   TimeseriesResponse,
-} from '../../schemas/facts';
+} from '../../schemas/statistics';
 import { ApiError } from '../../schemas/api';
 
 export const timeseriesRouteSchema = {
   schema: {
-    tags: ['facts'],
+    tags: ['statistics'],
     description: 'Get time series for a given indicator and area',
     querystring: TimeseriesQuery,
     response: {
@@ -23,7 +23,7 @@ export const timeseriesRouteSchema = {
 
 export const areasRouteSchema = {
   schema: {
-    tags: ['facts'],
+    tags: ['statistics'],
     description: 'List distinct areas for an indicator and area type',
     querystring: AreasQuery,
     response: {
@@ -36,7 +36,7 @@ export const areasRouteSchema = {
 
 export const rankingRouteSchema = {
   schema: {
-    tags: ['facts'],
+    tags: ['statistics'],
     description: 'Get ranking of areas by value for a given indicator/year',
     querystring: RankingQuery,
     response: {
