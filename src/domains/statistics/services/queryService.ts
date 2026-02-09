@@ -1,4 +1,5 @@
 import { type Order } from '../model/types';
+import { StatisticsValidationError } from '../errors/statisticsValidationError';
 import type { FactsRepository } from '../ports/factsRepository';
 
 export class StatisticsQueryService {
@@ -13,7 +14,10 @@ export class StatisticsQueryService {
   }) {
     // kleine Domain-Regel: from <= to, wenn beide gesetzt
     if (input.from !== undefined && input.to !== undefined && input.from > input.to) {
-      throw new Error('from must be <= to');
+      throw new StatisticsValidationError('from must be <= to', {
+        from: input.from,
+        to: input.to,
+      });
     }
     return this.repo.getTimeseries(input);
   }

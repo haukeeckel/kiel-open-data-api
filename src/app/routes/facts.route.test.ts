@@ -110,6 +110,23 @@ describe('facts endpoints', () => {
         rows: [{ year: 2023, value: 1220, unit: 'persons' }],
       });
     });
+
+    it('returns 400 when from is greater than to', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/timeseries?indicator=population&areaType=district&area=Altstadt&from=2024&to=2023',
+      });
+
+      expect(res.statusCode).toBe(400);
+      expect(res.json()).toMatchObject({
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'from must be <= to',
+          details: { from: 2024, to: 2023 },
+        },
+        requestId: expect.any(String),
+      });
+    });
   });
 
   describe('GET /areas', () => {
