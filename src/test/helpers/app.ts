@@ -68,6 +68,7 @@ export async function makeAppAndSeed() {
   await app.ready();
   return { app, dbPath };
 }
+
 export function cleanupDuckDbFiles(dbPath: string) {
   const candidates = [dbPath, `${dbPath}.wal`, `${dbPath}.shm`];
 
