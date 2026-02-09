@@ -4,20 +4,26 @@ import { registerSwagger } from './plugins/swagger';
 import { registerHealthRoutes } from './routes/health';
 import { registerFactsRoutes } from './routes/facts.route';
 import { registerErrorHandlers } from './plugins/errorHandler';
-import { registerApiSchemas } from './plugins/schemas';
 import { getEnv } from '../config/env';
 import { registerRepositories } from './plugins/repositories';
 import { registerServices } from './plugins/services';
+import {
+  serializerCompiler,
+  validatorCompiler,
+  type ZodTypeProvider,
+} from 'fastify-type-provider-zod';
 
 export async function buildServer() {
   const env = getEnv();
   const app = Fastify({
     logger: buildHttpLogger(env.NODE_ENV),
-  });
+  }).withTypeProvider<ZodTypeProvider>();
+
+  app.setValidatorCompiler(validatorCompiler);
+  app.setSerializerCompiler(serializerCompiler);
 
   await registerErrorHandlers(app);
 
-  await registerApiSchemas(app);
   await registerSwagger(app);
 
   await registerRepositories(app);
