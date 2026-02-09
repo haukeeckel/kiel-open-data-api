@@ -1,4 +1,11 @@
 import type { FastifyInstance } from 'fastify';
+import z from 'zod';
+import { ApiError } from '../../schemas/api';
+
+const HealthResponse = z.object({
+  ok: z.boolean(),
+  ts: z.string(),
+});
 
 export async function registerHealthRoutes(app: FastifyInstance) {
   app.get('/', async () => {
@@ -13,15 +20,8 @@ export async function registerHealthRoutes(app: FastifyInstance) {
     {
       schema: {
         response: {
-          200: {
-            type: 'object',
-            properties: {
-              ok: { type: 'boolean' },
-              ts: { type: 'string' },
-            },
-            required: ['ok', 'ts'],
-          },
-          500: { $ref: 'ApiError#' },
+          200: HealthResponse,
+          500: ApiError,
         },
       },
     },

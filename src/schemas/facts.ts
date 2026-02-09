@@ -8,10 +8,29 @@ export const TimeseriesQuery = z.object({
   to: z.coerce.number().int().optional(),
 });
 
+export const TimeseriesResponse = z.object({
+  indicator: z.string(),
+  areaType: z.string(),
+  area: z.string(),
+  rows: z.array(
+    z.object({
+      year: z.number().int(),
+      value: z.number(),
+      unit: z.string(),
+    }),
+  ),
+});
+
 export const AreasQuery = z.object({
   indicator: z.string().min(1),
   areaType: z.string().min(1),
   like: z.string().min(1).optional(),
+});
+
+export const AreasResponse = z.object({
+  indicator: z.string(),
+  areaType: z.string(),
+  rows: z.array(z.string()),
 });
 
 export const RankingQuery = z.object({
@@ -20,6 +39,21 @@ export const RankingQuery = z.object({
   year: z.coerce.number().int(),
   limit: z.coerce.number().int().min(1).max(50).default(10),
   order: z.enum(['asc', 'desc']).default('desc'),
+});
+
+export const RankingResponse = z.object({
+  indicator: z.string(),
+  areaType: z.string(),
+  year: z.number().int(),
+  order: z.string(),
+  limit: z.number().int(),
+  rows: z.array(
+    z.object({
+      area: z.string(),
+      value: z.number(),
+      unit: z.string(),
+    }),
+  ),
 });
 
 export type TimeseriesQueryInput = z.infer<typeof TimeseriesQuery>;
