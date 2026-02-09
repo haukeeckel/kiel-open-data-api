@@ -1,36 +1,36 @@
 import Fastify from 'fastify';
-import { buildHttpLogger } from './plugins/logging';
-import { registerSwagger } from './plugins/swagger';
-import { registerHealthRoutes } from './routes/health';
-import { registerFactsRoutes } from './routes/facts.route';
-import { registerErrorHandlers } from './plugins/errorHandler';
-import { getEnv } from '../config/env';
-import { registerRepositories } from './plugins/repositories';
-import { registerServices } from './plugins/services';
 import {
   serializerCompiler,
   validatorCompiler,
   type ZodTypeProvider,
 } from 'fastify-type-provider-zod';
+import { getEnv } from '../config/env';
+import { getLoggerOptions } from '../logger/http';
+import errorHandlerPlugin from './plugins/errorHandler';
+import swaggerPlugin from './plugins/swagger';
+import repositoriesPlugin from './plugins/repositories';
+import servicesPlugin from './plugins/services';
+import healthRoutes from './routes/health.route';
+import factsRoutes from './routes/facts.route';
 
 export async function buildServer() {
   const env = getEnv();
   const app = Fastify({
-    logger: buildHttpLogger(env.NODE_ENV),
+    logger: getLoggerOptions(env.NODE_ENV),
   }).withTypeProvider<ZodTypeProvider>();
 
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
 
-  await registerErrorHandlers(app);
+  // plugins (shared scope via fp())
+  await app.register(errorHandlerPlugin);
+  await app.register(swaggerPlugin);
+  await app.register(repositoriesPlugin);
+  await app.register(servicesPlugin);
 
-  await registerSwagger(app);
-
-  await registerRepositories(app);
-  await registerServices(app);
-
-  await registerHealthRoutes(app);
-  await registerFactsRoutes(app);
+  // routes (encapsulated)
+  await app.register(healthRoutes);
+  await app.register(factsRoutes);
 
   return app;
 }
