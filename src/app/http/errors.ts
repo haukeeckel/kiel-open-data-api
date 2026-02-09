@@ -23,7 +23,7 @@ export function sendBadRequest(
   details?: unknown,
 ) {
   const body: ApiErrorBody = {
-    error: { code: 'BAD_REQUEST', message, ...(details ? { details } : {}) },
+    error: { code: 'BAD_REQUEST', message, ...(details !== undefined ? { details } : {}) },
     requestId: requestId(req),
   };
 
