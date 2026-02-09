@@ -1,12 +1,12 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { env } from '../config/env';
+import { getEnv } from '../config/env';
 import type { EtlContext } from './etlContext';
 import { durationMs, nowMs } from './etlContext';
 import { createEtlLogger } from '../logger/etl';
 import { flushLogger } from '../logger/flush';
 
-const log = createEtlLogger(env.NODE_ENV);
+const log = createEtlLogger(getEnv().NODE_ENV);
 
 const URL =
   'https://www.kiel.de/de/kiel_zukunft/statistik_kieler_zahlen/open_data/kiel_bevoelkerung_stadtteile.csv';

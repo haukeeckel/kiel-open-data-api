@@ -9,5 +9,17 @@ const EnvSchema = z.object({
   DUCKDB_PATH: z.string().trim().optional(),
 });
 
-export const env = EnvSchema.parse(process.env);
-export type Env = typeof env;
+export type Env = z.infer<typeof EnvSchema>;
+
+let cachedEnv: Env | null = null;
+
+export function getEnv(): Env {
+  if (cachedEnv) return cachedEnv;
+  cachedEnv = EnvSchema.parse(process.env);
+  return cachedEnv;
+}
+
+// only for tests
+export function resetEnvForTests() {
+  cachedEnv = null;
+}

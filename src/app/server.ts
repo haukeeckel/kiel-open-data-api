@@ -5,11 +5,12 @@ import { registerHealthRoutes } from './routes/health';
 import { registerFactsRoutes } from './routes/facts.route';
 import { registerErrorHandlers } from './plugins/errorHandler';
 import { registerApiSchemas } from './plugins/schemas';
-import { env } from '../config/env';
+import { getEnv } from '../config/env';
 import { registerRepositories } from './plugins/repositories';
 import { registerServices } from './plugins/services';
 
 export async function buildServer() {
+  const env = getEnv();
   const app = Fastify({
     logger: buildHttpLogger(env.NODE_ENV),
   });
@@ -29,6 +30,7 @@ export async function buildServer() {
 }
 
 export async function startServer() {
+  const env = getEnv();
   const app = await buildServer();
 
   await app.ready();

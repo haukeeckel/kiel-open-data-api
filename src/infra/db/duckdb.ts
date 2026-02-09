@@ -2,17 +2,17 @@ import { DuckDBInstance } from '@duckdb/node-api';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-let instance: DuckDBInstance | null = null;
+import { getEnv } from '../../config/env';
+import { getDuckDbPath } from '../../config/path';
 
-function resolveDbPath() {
-  if (process.env.DUCKDB_PATH) return path.resolve(process.env.DUCKDB_PATH);
-  return path.join(process.cwd(), 'data', 'kiel.duckdb');
-}
+let instance: DuckDBInstance | null = null;
 
 export async function getDb(): Promise<DuckDBInstance> {
   if (instance) return instance;
 
-  const dbPath = resolveDbPath();
+  const env = getEnv();
+  const dbPath = getDuckDbPath(env);
+
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
   instance = await DuckDBInstance.create(dbPath);

@@ -9,14 +9,13 @@ export function getDataDir() {
   return path.join(process.cwd(), 'data');
 }
 
-// TODO: später: db path by env, DUCKDB_PATH override, etc.
 export function getDuckDbPath(env: Env) {
   if (env.DUCKDB_PATH) {
-    return path.isAbsolute(env.DUCKDB_PATH)
-      ? env.DUCKDB_PATH
-      : path.join(getDataDir(), env.DUCKDB_PATH);
+    const raw = env.DUCKDB_PATH;
+    const absolute = path.isAbsolute(raw) ? raw : path.join(getDataDir(), raw);
+    return path.resolve(absolute);
   }
 
   const fileName = env.NODE_ENV === 'production' ? 'kiel.duckdb' : `kiel.${env.NODE_ENV}.duckdb`;
-  return path.join(getDataDir(), fileName);
+  return path.resolve(path.join(getDataDir(), fileName));
 }
