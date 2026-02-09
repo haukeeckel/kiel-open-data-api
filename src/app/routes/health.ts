@@ -1,6 +1,12 @@
 import type { FastifyInstance } from 'fastify';
 import z from 'zod';
+import { type ZodTypeProvider } from 'fastify-type-provider-zod';
 import { ApiError } from '../../schemas/api';
+
+const RootResponse = z.object({
+  name: z.string(),
+  endpoints: z.array(z.string()),
+});
 
 const HealthResponse = z.object({
   ok: z.boolean(),
@@ -8,14 +14,24 @@ const HealthResponse = z.object({
 });
 
 export async function registerHealthRoutes(app: FastifyInstance) {
-  app.get('/', async () => {
-    return {
+  const r = app.withTypeProvider<ZodTypeProvider>();
+
+  r.get(
+    '/',
+    {
+      schema: {
+        response: {
+          200: RootResponse,
+        },
+      },
+    },
+    async () => ({
       name: 'kiel-dashboard-api',
       endpoints: ['/health'],
-    };
-  });
+    }),
+  );
 
-  app.get(
+  r.get(
     '/health',
     {
       schema: {

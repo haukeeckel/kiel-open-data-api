@@ -4,7 +4,7 @@ export const ApiError = z.object({
   error: z.object({
     code: z.string(),
     message: z.string(),
-    details: z.any().optional(),
+    details: z.unknown().optional(),
   }),
   requestId: z.string(),
 });

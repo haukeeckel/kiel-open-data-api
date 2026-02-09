@@ -45,7 +45,7 @@ export const RankingResponse = z.object({
   indicator: z.string(),
   areaType: z.string(),
   year: z.number().int(),
-  order: z.string(),
+  order: z.enum(['asc', 'desc']),
   limit: z.number().int(),
   rows: z.array(
     z.object({
