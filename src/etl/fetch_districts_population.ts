@@ -10,7 +10,7 @@ const log = createEtlLogger(getEnv().NODE_ENV);
 
 const URL =
   'https://www.kiel.de/de/kiel_zukunft/statistik_kieler_zahlen/open_data/kiel_bevoelkerung_stadtteile.csv';
-const DATASET = 'stadtteile_population';
+const DATASET = 'districts_population';
 const ctx: EtlContext = { dataset: DATASET, step: 'fetch' };
 
 const CACHE_DIR = path.join(process.cwd(), 'data', 'cache');
@@ -36,7 +36,7 @@ async function writeMeta(meta: Meta) {
   await fs.writeFile(OUT_META, JSON.stringify(meta, null, 2), 'utf8');
 }
 
-export async function fetchStadtteilePopulation(): Promise<{ updated: boolean; path: string }> {
+export async function fetchDistrictsPopulation(): Promise<{ updated: boolean; path: string }> {
   const started = nowMs();
   log.info({ ...ctx, url: URL, out: OUT_CSV }, 'etl.fetch: start');
 
@@ -97,7 +97,7 @@ export async function fetchStadtteilePopulation(): Promise<{ updated: boolean; p
 
 async function main() {
   try {
-    const result = await fetchStadtteilePopulation();
+    const result = await fetchDistrictsPopulation();
     log.info({ ...ctx, ...result }, 'etl.fetch: done');
   } catch (err) {
     log.error({ ...ctx, err }, 'etl.fetch: fatal');

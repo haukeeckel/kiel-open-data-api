@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { StatisticsQueryService } from './queryService';
-import type { FactsRepository } from '../ports/factsRepository';
+import type { StatisticsRepository } from '../ports/statisticsRepository';
 
-function createFakeRepo(): FactsRepository {
+function createFakeRepo(): StatisticsRepository {
   return {
     async getTimeseries(input) {
       return {

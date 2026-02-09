@@ -9,7 +9,7 @@ import { getDb } from '../infra/db/duckdb';
 const log = createEtlLogger(getEnv().NODE_ENV);
 
 const CSV_PATH = path.join(process.cwd(), 'data', 'cache', 'kiel_bevoelkerung_stadtteile.csv');
-const DATASET = 'stadtteile_population';
+const DATASET = 'districts_population';
 const ctx: EtlContext = { dataset: DATASET, step: 'import' };
 
 const INDICATOR = 'population';
@@ -28,7 +28,7 @@ async function main() {
 
   try {
     await conn.run(`
-      CREATE TABLE IF NOT EXISTS facts (
+      CREATE TABLE IF NOT EXISTS statistics (
         indicator TEXT,
         area_type TEXT,
         area_name TEXT,
@@ -61,21 +61,21 @@ async function main() {
 
     // delete old rows for this slice
     const delRes = await conn.runAndReadAll(
-      `SELECT COUNT(*) FROM facts WHERE indicator = ? AND area_type = ?;`,
+      `SELECT COUNT(*) FROM statistics WHERE indicator = ? AND area_type = ?;`,
       [INDICATOR, AREA_TYPE],
     );
-    const existing = firstCellAsNumber(delRes.getRows(), 'existing facts count');
+    const existing = firstCellAsNumber(delRes.getRows(), 'existing statistics count');
     if (existing > 0) {
       log.info({ ...ctx, existing }, 'etl.import: deleting existing rows');
     }
 
-    await conn.run(`DELETE FROM facts WHERE indicator = ? AND area_type = ?;`, [
+    await conn.run(`DELETE FROM statistics WHERE indicator = ? AND area_type = ?;`, [
       INDICATOR,
       AREA_TYPE,
     ]);
 
     await conn.run(`
-      INSERT INTO facts
+      INSERT INTO statistics
       SELECT
         '${INDICATOR}' AS indicator,
         '${AREA_TYPE}' AS area_type,
@@ -92,15 +92,15 @@ async function main() {
     `);
 
     await conn.run(`
-      CREATE INDEX IF NOT EXISTS facts_idx
-      ON facts(indicator, area_type, area_name, year);
+      CREATE INDEX IF NOT EXISTS statistics_idx
+      ON statistics(indicator, area_type, area_name, year);
     `);
 
     const countRes = await conn.runAndReadAll(
-      `SELECT COUNT(*) FROM facts WHERE indicator = ? AND area_type = ?;`,
+      `SELECT COUNT(*) FROM statistics WHERE indicator = ? AND area_type = ?;`,
       [INDICATOR, AREA_TYPE],
     );
-    const imported = firstCellAsNumber(countRes.getRows(), 'imported facts count');
+    const imported = firstCellAsNumber(countRes.getRows(), 'imported statistics count');
 
     log.info({ ...ctx, imported, ms: durationMs(started) }, 'etl.import: done');
   } catch (err) {

@@ -11,7 +11,7 @@ import swaggerPlugin from './plugins/swagger';
 import repositoriesPlugin from './plugins/repositories';
 import servicesPlugin from './plugins/services';
 import healthRoutes from './routes/health.route';
-import factsRoutes from './routes/facts.route';
+import statisticsRoutes from './routes/statistics.route';
 
 export async function buildServer() {
   const env = getEnv();
@@ -30,7 +30,7 @@ export async function buildServer() {
 
   // routes (encapsulated)
   await app.register(healthRoutes);
-  await app.register(factsRoutes);
+  await app.register(statisticsRoutes);
 
   return app;
 }
