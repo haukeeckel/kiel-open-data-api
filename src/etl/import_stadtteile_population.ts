@@ -1,12 +1,12 @@
 import * as path from 'node:path';
-import { env } from '../config/env';
+import { getEnv } from '../config/env';
 import { durationMs, type EtlContext, nowMs } from './etlContext';
 import { firstCellAsNumber } from './sql';
 import { createEtlLogger } from '../logger/etl';
 import { flushLogger } from '../logger/flush';
 import { getDb } from '../infra/db/duckdb';
 
-const log = createEtlLogger(env.NODE_ENV);
+const log = createEtlLogger(getEnv().NODE_ENV);
 
 const CSV_PATH = path.join(process.cwd(), 'data', 'cache', 'kiel_bevoelkerung_stadtteile.csv');
 const DATASET = 'stadtteile_population';
