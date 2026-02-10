@@ -40,7 +40,8 @@ export async function importDistrictsPopulation(opts?: {
     throw new Error(`CSV file not found: ${csvPath}. Run fetch step first.`);
   }
 
-  const db = await createDb(dbPath, { logger: log });
+  const dbLogger = log.child({ name: 'db' });
+  const db = await createDb(dbPath, { logger: dbLogger });
   const conn = await db.connect();
 
   try {

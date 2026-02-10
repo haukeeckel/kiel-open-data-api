@@ -8,6 +8,7 @@ export function getLoggerOptions(nodeEnv: NodeEnv): LoggerOption {
   if (nodeEnv === 'production') return true;
 
   return {
+    name: 'server',
     transport: {
       target: 'pino-pretty',
       options: { translateTime: 'SYS:standard', ignore: 'pid,hostname' },

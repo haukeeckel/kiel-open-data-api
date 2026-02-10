@@ -27,6 +27,9 @@ export async function createDb(dbPath: string, options?: CreateDbOptions): Promi
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   const { retries, baseDelayMs, maxDelayMs } = { ...defaultOptions, ...options };
   const logger = options?.logger;
+  const startedAt = Date.now();
+
+  logger?.info?.({ dbPath }, 'duckdb: create start');
 
   let lastError: unknown;
 
@@ -37,7 +40,12 @@ export async function createDb(dbPath: string, options?: CreateDbOptions): Promi
     }
 
     try {
-      return await DuckDBInstance.create(dbPath);
+      const db = await DuckDBInstance.create(dbPath);
+      logger?.info?.(
+        { dbPath, attempts: attempt + 1, ms: Date.now() - startedAt },
+        'duckdb: create success',
+      );
+      return db;
     } catch (err) {
       lastError = err;
       logger?.warn?.({ err, attempt: attempt + 1, dbPath }, 'duckdb: create failed');
