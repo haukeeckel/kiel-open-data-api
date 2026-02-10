@@ -1,3 +1,4 @@
+import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { getEnv } from '../config/env';
 import { durationMs, type EtlContext, nowMs } from './etlContext';
@@ -33,16 +34,23 @@ export async function importDistrictsPopulation(opts?: {
 
   log.info({ ...ctx, csvPath, indicator: INDICATOR, areaType: AREA_TYPE }, 'etl.import: start');
 
+  try {
+    await fs.access(csvPath);
+  } catch {
+    throw new Error(`CSV file not found: ${csvPath}. Run fetch step first.`);
+  }
+
   const db = await createDb(dbPath);
   const conn = await db.connect();
 
   try {
     await conn.run(STATISTICS_DDL);
 
+    const safeCsvPath = csvPath.replaceAll("'", "''");
     await conn.run(`
       CREATE OR REPLACE TEMP TABLE raw AS
       SELECT *
-      FROM read_csv_auto('${csvPath}', header=true, delim=';');
+      FROM read_csv_auto('${safeCsvPath}', header=true, delim=';');
     `);
 
     const info = await conn.runAndReadAll(`PRAGMA table_info('raw');`);
@@ -83,22 +91,25 @@ export async function importDistrictsPopulation(opts?: {
         AREA_TYPE,
       ]);
 
-      await conn.run(`
+      await conn.run(
+        `
         INSERT INTO statistics
         SELECT
-          '${INDICATOR}' AS indicator,
-          '${AREA_TYPE}' AS area_type,
+          ? AS indicator,
+          ? AS area_type,
           "Stadtteil" AS area_name,
           CAST(year AS INTEGER) AS year,
           CAST(value AS DOUBLE) AS value,
-          '${UNIT}' AS unit
+          ? AS unit
         FROM (
           SELECT *
           FROM raw
           WHERE "Merkmal" = 'Einwohner insgesamt'
         )
         UNPIVOT(value FOR year IN (${inList}));
-      `);
+        `,
+        [INDICATOR, AREA_TYPE, UNIT],
+      );
 
       await conn.run('COMMIT');
     } catch (err) {
