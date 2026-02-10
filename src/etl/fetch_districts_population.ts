@@ -4,27 +4,20 @@ import { getEnv } from '../config/env';
 import type { EtlContext } from './etlContext';
 import { durationMs, nowMs } from './etlContext';
 import { createEtlLogger } from '../logger/etl';
-import { flushLogger } from '../logger/flush';
+import { getCacheDir } from '../config/path';
+import { CSV_FILENAME, CSV_META_FILENAME, DATASET, URL } from './districts_population.constants';
 
 const log = createEtlLogger(getEnv().NODE_ENV);
-
-const URL =
-  'https://www.kiel.de/de/kiel_zukunft/statistik_kieler_zahlen/open_data/kiel_bevoelkerung_stadtteile.csv';
-const DATASET = 'districts_population';
 const ctx: EtlContext = { dataset: DATASET, step: 'fetch' };
-
-const CACHE_DIR = path.join(process.cwd(), 'data', 'cache');
-const OUT_CSV = path.join(CACHE_DIR, 'kiel_bevoelkerung_stadtteile.csv');
-const OUT_META = path.join(CACHE_DIR, 'kiel_bevoelkerung_stadtteile.meta.json');
 
 type Meta = {
   etag?: string;
   lastModified?: string;
 };
 
-async function readMeta(): Promise<Meta> {
+async function readMeta(metaPath: string): Promise<Meta> {
   try {
-    const raw = await fs.readFile(OUT_META, 'utf8');
+    const raw = await fs.readFile(metaPath, 'utf8');
     return JSON.parse(raw) as Meta;
   } catch (err) {
     log.debug({ ...ctx, err }, 'etl.fetch: meta not found or invalid; continuing with empty meta');
@@ -32,16 +25,26 @@ async function readMeta(): Promise<Meta> {
   }
 }
 
-async function writeMeta(meta: Meta) {
-  await fs.writeFile(OUT_META, JSON.stringify(meta, null, 2), 'utf8');
+async function writeMeta(metaPath: string, meta: Meta) {
+  await fs.writeFile(metaPath, JSON.stringify(meta, null, 2), 'utf8');
 }
 
-export async function fetchDistrictsPopulation(): Promise<{ updated: boolean; path: string }> {
+export async function fetchDistrictsPopulation(opts?: {
+  cacheDir?: string;
+  fetchFn?: typeof fetch;
+}): Promise<{ updated: boolean; path: string }> {
   const started = nowMs();
-  log.info({ ...ctx, url: URL, out: OUT_CSV }, 'etl.fetch: start');
 
-  await fs.mkdir(CACHE_DIR, { recursive: true });
-  const meta = await readMeta();
+  const cacheDir = opts?.cacheDir ?? getCacheDir();
+  const outCsv = path.join(cacheDir, CSV_FILENAME);
+  const outMeta = path.join(cacheDir, CSV_META_FILENAME);
+
+  const fetchFn = opts?.fetchFn ?? fetch;
+
+  log.info({ ...ctx, url: URL, out: outCsv }, 'etl.fetch: start');
+
+  await fs.mkdir(cacheDir, { recursive: true });
+  const meta = await readMeta(outMeta);
 
   const headers: Record<string, string> = {};
   if (meta.etag) headers['If-None-Match'] = meta.etag;
@@ -49,7 +52,7 @@ export async function fetchDistrictsPopulation(): Promise<{ updated: boolean; pa
 
   log.debug({ ...ctx, headers }, 'etl.fetch: request headers');
 
-  const res = await fetch(URL, { headers });
+  const res = await fetchFn(URL, { headers });
 
   log.info(
     {
@@ -62,8 +65,8 @@ export async function fetchDistrictsPopulation(): Promise<{ updated: boolean; pa
   );
 
   if (res.status === 304) {
-    log.info({ ...ctx, ms: durationMs(started), path: OUT_CSV }, 'etl.fetch: not modified');
-    return { updated: false, path: OUT_CSV };
+    log.info({ ...ctx, ms: durationMs(started), path: outCsv }, 'etl.fetch: not modified');
+    return { updated: false, path: outCsv };
   }
 
   if (!res.ok) {
@@ -76,7 +79,7 @@ export async function fetchDistrictsPopulation(): Promise<{ updated: boolean; pa
   }
 
   const text = await res.text();
-  await fs.writeFile(OUT_CSV, text, 'utf8');
+  await fs.writeFile(outCsv, text, 'utf8');
 
   const bytes = Buffer.byteLength(text, 'utf8');
 
@@ -85,27 +88,13 @@ export async function fetchDistrictsPopulation(): Promise<{ updated: boolean; pa
   const lastModified = res.headers.get('last-modified');
   if (etag) nextMeta.etag = etag;
   if (lastModified) nextMeta.lastModified = lastModified;
-  await writeMeta(nextMeta);
+
+  await writeMeta(outMeta, nextMeta);
 
   log.info(
-    { ...ctx, ms: durationMs(started), path: OUT_CSV, bytes, meta: nextMeta },
+    { ...ctx, ms: durationMs(started), path: outCsv, bytes, meta: nextMeta },
     'etl.fetch: wrote cache file',
   );
 
-  return { updated: true, path: OUT_CSV };
+  return { updated: true, path: outCsv };
 }
-
-async function main() {
-  try {
-    const result = await fetchDistrictsPopulation();
-    log.info({ ...ctx, ...result }, 'etl.fetch: done');
-  } catch (err) {
-    log.error({ ...ctx, err }, 'etl.fetch: fatal');
-    process.exitCode = 1;
-  } finally {
-    // ensure logs are flushed
-    await flushLogger(log);
-  }
-}
-
-void main();

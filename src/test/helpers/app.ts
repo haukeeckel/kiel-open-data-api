@@ -5,10 +5,11 @@ import { DuckDBInstance } from '@duckdb/node-api';
 import { buildServer } from '../../app/server';
 import { resetEnvForTests } from '../../config/env';
 import { STATISTICS_DDL } from '../../infra/db/schema';
+import { getCacheDir } from '../../config/path';
 
 export function makeTestDbPath() {
   const id = crypto.randomUUID();
-  return path.join(process.cwd(), 'data', 'cache', `test-${id}.duckdb`);
+  return path.join(getCacheDir(), `test-${id}.duckdb`);
 }
 
 export async function seedStatistics(db: DuckDBInstance) {
