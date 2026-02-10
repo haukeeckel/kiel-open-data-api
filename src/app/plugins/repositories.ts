@@ -20,5 +20,6 @@ export default fp(async function repositoriesPlugin(app: FastifyInstance) {
 
   app.addHook('onClose', () => {
     conn.closeSync();
+    db.closeSync();
   });
 });
