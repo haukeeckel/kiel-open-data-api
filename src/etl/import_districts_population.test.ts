@@ -7,6 +7,7 @@ import * as path from 'node:path';
 import { importDistrictsPopulation } from './import_districts_population.js';
 import { createDb } from '../infra/db/duckdb.js';
 import { CSV_FILENAME } from './districts_population.constants.js';
+import { setTestEnv } from '../test/helpers/env.js';
 
 function mkTmpDir() {
   return fssync.mkdtempSync(path.join(os.tmpdir(), 'kiel-etl-'));
@@ -26,7 +27,7 @@ describe('importDistrictsPopulation', () => {
 
     await fs.mkdir(cacheDir, { recursive: true });
 
-    process.env['NODE_ENV'] = 'test';
+    setTestEnv({ NODE_ENV: 'test' });
   });
 
   afterEach(() => {

@@ -6,6 +6,7 @@ import * as path from 'node:path';
 
 import { fetchDistrictsPopulation } from './fetch_districts_population.js';
 import { CSV_FILENAME, CSV_META_FILENAME } from './districts_population.constants.js';
+import { setTestEnv } from '../test/helpers/env.js';
 
 function mkTmpDir() {
   return fssync.mkdtempSync(path.join(os.tmpdir(), 'kiel-etl-'));
@@ -21,7 +22,7 @@ describe('fetchDistrictsPopulation', () => {
 
     await fs.mkdir(cacheDir, { recursive: true });
 
-    process.env['NODE_ENV'] = 'test';
+    setTestEnv({ NODE_ENV: 'test' });
     vi.unstubAllGlobals();
   });
 

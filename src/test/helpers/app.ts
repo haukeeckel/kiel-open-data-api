@@ -3,8 +3,8 @@ import * as path from 'node:path';
 import * as crypto from 'node:crypto';
 import { DuckDBInstance } from '@duckdb/node-api';
 import { buildServer } from '../../app/server.js';
-import { resetEnvForTests } from '../../config/env.js';
 import { applyMigrations } from '../../infra/db/migrations.js';
+import { setTestEnv } from './env.js';
 import { getCacheDir } from '../../config/path.js';
 
 export function makeTestDbPath() {
@@ -39,10 +39,7 @@ export async function makeAppAndSeed() {
 
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
-  process.env['NODE_ENV'] = 'test';
-  process.env['DUCKDB_PATH'] = dbPath;
-
-  resetEnvForTests();
+  setTestEnv({ NODE_ENV: 'test', DUCKDB_PATH: dbPath });
 
   // Seed first, then close so the app can open its own instance
   const db = await DuckDBInstance.create(dbPath);
