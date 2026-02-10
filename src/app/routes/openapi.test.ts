@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { type buildServer } from '../server.js';
 import { cleanupDuckDbFiles, makeAppAndSeed } from '../../test/helpers/app.js';
+import { API_NAME } from '../../config/constants.js';
 
 describe('openapi', () => {
   let app: Awaited<ReturnType<typeof buildServer>>;
@@ -28,7 +29,7 @@ describe('openapi', () => {
     expect(body).toMatchObject({
       openapi: expect.any(String),
       info: {
-        title: 'kiel-dashboard-api',
+        title: API_NAME,
       },
       paths: expect.any(Object),
     });

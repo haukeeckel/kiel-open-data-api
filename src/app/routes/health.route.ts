@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { type ZodTypeProvider } from 'fastify-type-provider-zod';
+import { API_NAME } from '../../config/constants.js';
 
 const RootResponse = z.object({
   name: z.string(),
@@ -26,7 +27,7 @@ export default async function healthRoutes(app: FastifyInstance) {
       },
     },
     async () => ({
-      name: 'kiel-dashboard-api',
+      name: API_NAME,
       endpoints: ['/health', '/docs', '/docs/json', '/v1/timeseries', '/v1/areas', '/v1/ranking'],
     }),
   );
