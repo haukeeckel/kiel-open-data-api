@@ -8,6 +8,7 @@ const EnvSchema = z.object({
   HOST: z.string().default(DEFAULT_HOST),
   DUCKDB_PATH: z.string().trim().optional(),
   CORS_ORIGIN: z.string().default('*'),
+  APP_VERSION: z.string().default(process.env.npm_package_version ?? '0.0.0'),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
