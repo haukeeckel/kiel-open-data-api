@@ -11,6 +11,7 @@ const RootResponse = z.object({
 const HealthResponse = z.object({
   ok: z.boolean(),
   ts: z.string(),
+  db: z.enum(['up', 'down']),
 });
 
 export default async function healthRoutes(app: FastifyInstance) {
@@ -41,6 +42,15 @@ export default async function healthRoutes(app: FastifyInstance) {
         },
       },
     },
-    async () => ({ ok: true, ts: new Date().toISOString() }),
+    async (req) => {
+      let db: 'up' | 'down' = 'down';
+      try {
+        await req.server.dbConn.run('SELECT 1');
+        db = 'up';
+      } catch {
+        // db stays 'down'
+      }
+      return { ok: db === 'up', ts: new Date().toISOString(), db };
+    },
   );
 }

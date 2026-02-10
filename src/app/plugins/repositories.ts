@@ -12,6 +12,7 @@ export default fp(async function repositoriesPlugin(app: FastifyInstance) {
 
   const statisticsRepository = createDuckDbStatisticsRepository(conn);
 
+  app.decorate('dbConn', conn);
   app.decorate('repos', {
     statisticsRepository,
   });

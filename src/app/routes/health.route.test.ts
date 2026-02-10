@@ -21,7 +21,7 @@ describe('api smoke', () => {
     const res = await app.inject({ method: 'GET', url: '/health' });
 
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toMatchObject({ ok: true });
+    expect(res.json()).toMatchObject({ ok: true, db: 'up' });
   });
 
   it('GET / returns endpoint list', async () => {
