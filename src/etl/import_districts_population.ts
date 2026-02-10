@@ -4,7 +4,8 @@ import { durationMs, type EtlContext, nowMs } from './etlContext';
 import { firstCellAsNumber } from './sql';
 import { createEtlLogger } from '../logger/etl';
 import { flushLogger } from '../logger/flush';
-import { getDb } from '../infra/db/duckdb';
+import { createDb } from '../infra/db/duckdb';
+import { getDuckDbPath } from '../config/path';
 
 const log = createEtlLogger(getEnv().NODE_ENV);
 
@@ -23,7 +24,9 @@ async function main() {
     'etl.import: start',
   );
 
-  const db = await getDb();
+  const env = getEnv();
+  const dbPath = getDuckDbPath(env);
+  const db = await createDb(dbPath);
   const conn = await db.connect();
 
   try {
@@ -45,8 +48,8 @@ async function main() {
     `);
 
     const info = await conn.runAndReadAll(`PRAGMA table_info('raw');`);
-    const cols = info.getRows().map((r) => String(r[1]));
-    const yearCols = cols.filter((c) => /^\d{4}$/.test(c));
+    const cols = info.getRowObjects().map((r) => String(r.name));
+    const yearCols = cols.filter((c: string) => /^\d{4}$/.test(c));
 
     log.debug(
       { ...ctx, columns: cols.length, yearColumns: yearCols.length },
@@ -57,7 +60,7 @@ async function main() {
       throw new Error('No year columns found (expected columns like 1988..2023).');
     }
 
-    const inList = yearCols.map((c) => `"${c}"`).join(', ');
+    const inList = yearCols.map((c: string) => `"${c}"`).join(', ');
 
     // delete old rows for this slice
     const delRes = await conn.runAndReadAll(
@@ -107,7 +110,7 @@ async function main() {
     log.error({ ...ctx, err, ms: durationMs(started) }, 'etl.import: failed');
     process.exitCode = 1;
   } finally {
-    conn.disconnectSync();
+    conn.closeSync();
     await flushLogger(log);
   }
 }
