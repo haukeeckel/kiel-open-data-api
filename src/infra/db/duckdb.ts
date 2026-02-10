@@ -1,6 +1,7 @@
 import { DuckDBInstance } from '@duckdb/node-api';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { DEFAULT_RETRIES, type RetryConfig } from '../../config/retry.js';
 import { sleep } from '../../utils/sleep.js';
 
 type LoggerLike = {
@@ -9,23 +10,19 @@ type LoggerLike = {
   error?: (obj: unknown, msg?: string) => void;
 };
 
-type CreateDbOptions = {
-  retries?: number;
-  baseDelayMs?: number;
-  maxDelayMs?: number;
+type CreateDbOptions = Partial<RetryConfig> & {
   logger?: LoggerLike;
 };
 
-const defaultOptions: Required<Omit<CreateDbOptions, 'logger'>> = {
-  // retries = number of retries after the first attempt (matches fetchWithRetry semantics)
-  retries: 3,
+const defaults: RetryConfig = {
+  retries: DEFAULT_RETRIES,
   baseDelayMs: 100,
   maxDelayMs: 1000,
 };
 
 export async function createDb(dbPath: string, options?: CreateDbOptions): Promise<DuckDBInstance> {
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-  const { retries, baseDelayMs, maxDelayMs } = { ...defaultOptions, ...options };
+  const { retries, baseDelayMs, maxDelayMs } = { ...defaults, ...options };
   const logger = options?.logger;
   const startedAt = Date.now();
 
