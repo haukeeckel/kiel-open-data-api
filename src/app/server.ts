@@ -9,6 +9,7 @@ import { getLoggerOptions } from '../logger/http';
 import corsPlugin from './plugins/cors';
 import errorHandlerPlugin from './plugins/errorHandler';
 import swaggerPlugin from './plugins/swagger';
+import rateLimitPlugin from './plugins/rateLimit';
 import repositoriesPlugin from './plugins/repositories';
 import servicesPlugin from './plugins/services';
 import healthRoutes from './routes/health.route';
@@ -27,6 +28,7 @@ export async function buildServer() {
   await app.register(corsPlugin);
   await app.register(errorHandlerPlugin);
   await app.register(swaggerPlugin);
+  await app.register(rateLimitPlugin);
   await app.register(repositoriesPlugin);
   await app.register(servicesPlugin);
 
