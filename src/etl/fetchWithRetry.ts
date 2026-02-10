@@ -1,10 +1,8 @@
 const DEFAULT_RETRIES = 3;
 const DEFAULT_INITIAL_DELAY_MS = 500;
-const DEFAULT_TIMEOUT_MS = 30_000;
+import { sleep } from '../utils/sleep';
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+const DEFAULT_TIMEOUT_MS = 30_000;
 
 export async function fetchWithRetry(
   url: string,

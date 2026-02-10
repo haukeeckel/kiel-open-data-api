@@ -7,7 +7,7 @@ import { createDuckDbStatisticsRepository } from '../../infra/db/statisticsRepos
 
 export default fp(async function repositoriesPlugin(app: FastifyInstance) {
   const dbPath = getDuckDbPath(getEnv());
-  const db = await createDb(dbPath);
+  const db = await createDb(dbPath, { logger: app.log });
   const conn = await db.connect();
 
   const statisticsRepository = createDuckDbStatisticsRepository(conn);
