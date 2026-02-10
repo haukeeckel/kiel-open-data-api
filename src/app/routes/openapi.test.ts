@@ -35,8 +35,8 @@ describe('openapi', () => {
 
     // sanity: the routes we care about exist in the spec
     expect(body.paths).toHaveProperty('/health');
-    expect(body.paths).toHaveProperty('/timeseries');
-    expect(body.paths).toHaveProperty('/areas');
-    expect(body.paths).toHaveProperty('/ranking');
+    expect(body.paths).toHaveProperty('/v1/timeseries');
+    expect(body.paths).toHaveProperty('/v1/areas');
+    expect(body.paths).toHaveProperty('/v1/ranking');
   });
 });
