@@ -24,7 +24,7 @@ describe('openapi', () => {
 
     const body = res.json();
 
-    // minimal assertions (nicht zu brittle)
+    // minimal assertions (avoid brittleness)
     expect(body).toMatchObject({
       openapi: expect.any(String),
       info: {

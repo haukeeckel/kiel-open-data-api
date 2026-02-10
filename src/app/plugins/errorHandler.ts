@@ -73,7 +73,7 @@ export default fp(async function errorHandlerPlugin(app: FastifyInstance) {
       return sendBadRequest(req, reply, 'Invalid query parameters', err.validation);
     }
 
-    // 3) Other 4xx: Status beibehalten + Code mappen
+    // 3) Other 4xx: preserve status + map to API code
     if (status !== undefined && status >= 400 && status < 500) {
       req.log.debug({ err, status }, 'client error');
       const message =
