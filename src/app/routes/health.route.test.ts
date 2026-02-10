@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { type buildServer } from '../server';
 import { cleanupDuckDbFiles, makeAppAndSeed } from '../../test/helpers/app';
 
@@ -17,18 +17,11 @@ describe('api smoke', () => {
     cleanupDuckDbFiles(dbPath);
   });
 
-  afterAll(async () => {
-    await app.close();
-    cleanupDuckDbFiles(dbPath);
-  });
-
   it('GET /health returns ok', async () => {
     const res = await app.inject({ method: 'GET', url: '/health' });
 
     expect(res.statusCode).toBe(200);
     expect(res.json()).toMatchObject({ ok: true });
-
-    await app.close();
   });
 
   it('GET / returns endpoint list', async () => {
@@ -36,7 +29,5 @@ describe('api smoke', () => {
 
     expect(res.statusCode).toBe(200);
     expect(res.json()).toMatchObject({ name: 'kiel-dashboard-api' });
-
-    await app.close();
   });
 });

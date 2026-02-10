@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { cleanupDuckDbFiles, makeAppAndSeed } from '../../test/helpers/app';
 import { type buildServer } from '../server';
 
@@ -13,11 +13,6 @@ describe('statistics endpoints', () => {
   });
 
   afterEach(async () => {
-    await app.close();
-    cleanupDuckDbFiles(dbPath);
-  });
-
-  afterAll(async () => {
     await app.close();
     cleanupDuckDbFiles(dbPath);
   });

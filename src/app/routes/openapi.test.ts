@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { type buildServer } from '../server';
 import { cleanupDuckDbFiles, makeAppAndSeed } from '../../test/helpers/app';
 
@@ -13,11 +13,6 @@ describe('openapi', () => {
   });
 
   afterEach(async () => {
-    await app.close();
-    cleanupDuckDbFiles(dbPath);
-  });
-
-  afterAll(async () => {
     await app.close();
     cleanupDuckDbFiles(dbPath);
   });
@@ -43,7 +38,5 @@ describe('openapi', () => {
     expect(body.paths).toHaveProperty('/timeseries');
     expect(body.paths).toHaveProperty('/areas');
     expect(body.paths).toHaveProperty('/ranking');
-
-    await app.close();
   });
 });
