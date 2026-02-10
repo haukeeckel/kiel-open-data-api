@@ -39,8 +39,8 @@ export async function makeAppAndSeed() {
 
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
-  process.env.NODE_ENV = 'test';
-  process.env.DUCKDB_PATH = dbPath;
+  process.env['NODE_ENV'] = 'test';
+  process.env['DUCKDB_PATH'] = dbPath;
 
   resetEnvForTests();
 

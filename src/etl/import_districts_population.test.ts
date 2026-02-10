@@ -26,7 +26,7 @@ describe('importDistrictsPopulation', () => {
 
     await fs.mkdir(cacheDir, { recursive: true });
 
-    process.env.NODE_ENV = 'test';
+    process.env['NODE_ENV'] = 'test';
   });
 
   afterEach(() => {
@@ -59,7 +59,7 @@ describe('importDistrictsPopulation', () => {
         `SELECT COUNT(*) AS c FROM statistics WHERE indicator = ? AND area_type = ?;`,
         ['population', 'district'],
       );
-      expect(Number(reader.getRowObjects()[0]?.c)).toBe(4);
+      expect(Number(reader.getRowObjects()[0]?.['c'])).toBe(4);
     } finally {
       conn.closeSync();
     }

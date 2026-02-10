@@ -21,7 +21,7 @@ describe('fetchDistrictsPopulation', () => {
 
     await fs.mkdir(cacheDir, { recursive: true });
 
-    process.env.NODE_ENV = 'test';
+    process.env['NODE_ENV'] = 'test';
     vi.unstubAllGlobals();
   });
 
