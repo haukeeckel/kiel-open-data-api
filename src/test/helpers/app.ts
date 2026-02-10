@@ -4,7 +4,7 @@ import * as crypto from 'node:crypto';
 import { DuckDBInstance } from '@duckdb/node-api';
 import { buildServer } from '../../app/server';
 import { resetEnvForTests } from '../../config/env';
-import { STATISTICS_DDL } from '../../infra/db/schema';
+import { applyMigrations } from '../../infra/db/migrations';
 import { getCacheDir } from '../../config/path';
 
 export function makeTestDbPath() {
@@ -16,7 +16,7 @@ export async function seedStatistics(db: DuckDBInstance) {
   const conn = await db.connect();
 
   try {
-    await conn.run(STATISTICS_DDL);
+    await applyMigrations(conn);
 
     await conn.run(`DELETE FROM statistics;`);
 

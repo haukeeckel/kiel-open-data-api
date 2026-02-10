@@ -5,7 +5,7 @@ import { durationMs, type EtlContext, nowMs } from './etlContext';
 import { firstCellAsNumber } from './sql';
 import { createEtlLogger } from '../logger/etl';
 import { createDb } from '../infra/db/duckdb';
-import { STATISTICS_DDL } from '../infra/db/schema';
+import { applyMigrations } from '../infra/db/migrations';
 import { getDuckDbPath, getCacheDir } from '../config/path';
 import {
   AREA_TYPE,
@@ -40,11 +40,12 @@ export async function importDistrictsPopulation(opts?: {
     throw new Error(`CSV file not found: ${csvPath}. Run fetch step first.`);
   }
 
-  const db = await createDb(dbPath);
+  const dbLogger = log.child({ name: 'db' });
+  const db = await createDb(dbPath, { logger: dbLogger });
   const conn = await db.connect();
 
   try {
-    await conn.run(STATISTICS_DDL);
+    await applyMigrations(conn);
 
     const safeCsvPath = csvPath.replaceAll("'", "''");
     await conn.run(`
@@ -116,11 +117,6 @@ export async function importDistrictsPopulation(opts?: {
       await conn.run('ROLLBACK');
       throw err;
     }
-
-    await conn.run(`
-      CREATE INDEX IF NOT EXISTS statistics_idx
-      ON statistics(indicator, area_type, area_name, year);
-    `);
 
     const countRes = await conn.runAndReadAll(
       `SELECT COUNT(*) FROM statistics WHERE indicator = ? AND area_type = ?;`,
