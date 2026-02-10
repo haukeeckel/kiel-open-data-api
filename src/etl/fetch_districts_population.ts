@@ -1,12 +1,12 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { getEnv } from '../config/env';
-import type { EtlContext } from './etlContext';
-import { durationMs, nowMs } from './etlContext';
-import { createEtlLogger } from '../logger/etl';
-import { getCacheDir } from '../config/path';
-import { CSV_FILENAME, CSV_META_FILENAME, DATASET, URL } from './districts_population.constants';
-import { fetchWithRetry } from './fetchWithRetry';
+import { getEnv } from '../config/env.js';
+import type { EtlContext } from './etlContext.js';
+import { durationMs, nowMs } from './etlContext.js';
+import { createEtlLogger } from '../logger/etl.js';
+import { getCacheDir } from '../config/path.js';
+import { CSV_FILENAME, CSV_META_FILENAME, DATASET, URL } from './districts_population.constants.js';
+import { fetchWithRetry } from './fetchWithRetry.js';
 
 const log = createEtlLogger(getEnv().NODE_ENV);
 const ctx: EtlContext = { dataset: DATASET, step: 'fetch' };

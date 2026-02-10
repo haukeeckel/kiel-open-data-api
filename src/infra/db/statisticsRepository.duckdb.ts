@@ -1,5 +1,5 @@
 import type { DuckDBConnection } from '@duckdb/node-api';
-import type { StatisticsRepository } from '../../domains/statistics/ports/statisticsRepository';
+import type { StatisticsRepository } from '../../domains/statistics/ports/statisticsRepository.js';
 
 export function createDuckDbStatisticsRepository(conn: DuckDBConnection): StatisticsRepository {
   return {

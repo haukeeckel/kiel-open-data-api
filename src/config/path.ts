@@ -1,5 +1,5 @@
 import * as path from 'node:path';
-import type { Env } from './env';
+import type { Env } from './env.js';
 
 export function getCacheDir() {
   return path.join(process.cwd(), 'data', 'cache');

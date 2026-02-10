@@ -1,5 +1,3 @@
-import { startServer } from './app/server';
+import { startServer } from './app/server.js';
 
-if (require.main === module) {
-  void startServer();
-}
+void startServer();

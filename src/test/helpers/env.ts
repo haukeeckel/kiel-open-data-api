@@ -1,4 +1,4 @@
-import { resetEnvForTests } from '../../config/env';
+import { resetEnvForTests } from '../../config/env.js';
 
 type TestEnv = {
   NODE_ENV?: 'test' | 'development' | 'production';

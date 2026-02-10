@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createEtlLogger } from './etl';
+import { createEtlLogger } from './etl.js';
 
 describe('createEtlLogger', () => {
   it('uses info level in production', () => {

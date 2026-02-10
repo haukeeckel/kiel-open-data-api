@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { fetchWithRetry } from './fetchWithRetry';
+import { fetchWithRetry } from './fetchWithRetry.js';
 
 const TEST_URL = 'https://example.com/data.csv';
 const FAST = { retries: 2, initialDelayMs: 1, timeoutMs: 5000 };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getLoggerOptions } from './http';
+import { getLoggerOptions } from './http.js';
 
 describe('getLoggerOptions', () => {
   it('disables logger in test', () => {

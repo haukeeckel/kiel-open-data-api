@@ -4,9 +4,9 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
-import { importDistrictsPopulation } from './import_districts_population';
-import { createDb } from '../infra/db/duckdb';
-import { CSV_FILENAME } from './districts_population.constants';
+import { importDistrictsPopulation } from './import_districts_population.js';
+import { createDb } from '../infra/db/duckdb.js';
+import { CSV_FILENAME } from './districts_population.constants.js';
 
 function mkTmpDir() {
   return fssync.mkdtempSync(path.join(os.tmpdir(), 'kiel-etl-'));

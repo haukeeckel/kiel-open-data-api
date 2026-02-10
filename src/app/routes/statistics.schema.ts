@@ -5,8 +5,8 @@ import {
   RankingResponse,
   TimeseriesQuery,
   TimeseriesResponse,
-} from '../../schemas/statistics';
-import { ApiError } from '../../schemas/api';
+} from '../../schemas/statistics.js';
+import { ApiError } from '../../schemas/api.js';
 
 export const timeseriesRouteSchema = {
   schema: {
