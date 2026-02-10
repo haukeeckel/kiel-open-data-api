@@ -1,4 +1,4 @@
-import z from 'zod';
+import { z } from 'zod';
 
 export const INDICATORS = ['population'] as const;
 export const AREA_TYPES = ['district'] as const;
