@@ -6,6 +6,7 @@ import {
 } from 'fastify-type-provider-zod';
 import { getEnv } from '../config/env';
 import { getLoggerOptions } from '../logger/http';
+import corsPlugin from './plugins/cors';
 import errorHandlerPlugin from './plugins/errorHandler';
 import swaggerPlugin from './plugins/swagger';
 import repositoriesPlugin from './plugins/repositories';
@@ -23,6 +24,7 @@ export async function buildServer() {
   app.setSerializerCompiler(serializerCompiler);
 
   // plugins (shared scope via fp())
+  await app.register(corsPlugin);
   await app.register(errorHandlerPlugin);
   await app.register(swaggerPlugin);
   await app.register(repositoriesPlugin);
