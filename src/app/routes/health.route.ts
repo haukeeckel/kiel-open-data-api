@@ -1,7 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { type ZodTypeProvider } from 'fastify-type-provider-zod';
-import { ApiError } from '../../schemas/api.js';
 
 const RootResponse = z.object({
   name: z.string(),
@@ -38,19 +37,19 @@ export default async function healthRoutes(app: FastifyInstance) {
       schema: {
         response: {
           200: HealthResponse,
-          500: ApiError,
+          503: HealthResponse,
         },
       },
     },
-    async (req) => {
-      let db: 'up' | 'down' = 'down';
+    async (req, reply) => {
+      const ts = new Date().toISOString();
       try {
         await req.server.dbConn.run('SELECT 1');
-        db = 'up';
-      } catch {
-        // db stays 'down'
+      } catch (err) {
+        req.log.warn({ err }, 'health-check: db unreachable');
+        return reply.code(503).send({ ok: false, ts, db: 'down' as const });
       }
-      return { ok: db === 'up', ts: new Date().toISOString(), db };
+      return { ok: true, ts, db: 'up' as const };
     },
   );
 }
