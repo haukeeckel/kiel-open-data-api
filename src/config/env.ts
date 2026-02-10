@@ -9,6 +9,8 @@ const EnvSchema = z.object({
   DUCKDB_PATH: z.string().trim().optional(),
   CORS_ORIGIN: z.string().default('*'),
   APP_VERSION: z.string().default(process.env['npm_package_version'] ?? '0.0.0'),
+  RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
+  RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
