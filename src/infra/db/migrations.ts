@@ -22,6 +22,14 @@ const migrations: Migration[] = [
       );
     `,
   },
+  {
+    version: 2,
+    name: 'create_statistics_index',
+    up: `
+      CREATE INDEX IF NOT EXISTS statistics_idx
+      ON statistics(indicator, area_type, area_name, year);
+    `,
+  },
 ];
 
 function hashMigration(migration: Migration): string {

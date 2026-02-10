@@ -117,11 +117,6 @@ export async function importDistrictsPopulation(opts?: {
       throw err;
     }
 
-    await conn.run(`
-      CREATE INDEX IF NOT EXISTS statistics_idx
-      ON statistics(indicator, area_type, area_name, year);
-    `);
-
     const countRes = await conn.runAndReadAll(
       `SELECT COUNT(*) FROM statistics WHERE indicator = ? AND area_type = ?;`,
       [INDICATOR, AREA_TYPE],
