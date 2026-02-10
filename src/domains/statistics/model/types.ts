@@ -1,5 +1,27 @@
 export type Order = 'asc' | 'desc';
 
+export type TimeseriesQuery = {
+  indicator: string;
+  areaType: string;
+  area: string;
+  from?: number;
+  to?: number;
+};
+
+export type AreasQuery = {
+  indicator: string;
+  areaType: string;
+  like?: string;
+};
+
+export type RankingQuery = {
+  indicator: string;
+  areaType: string;
+  year: number;
+  limit: number;
+  order: Order;
+};
+
 export type TimeseriesRow = {
   year: number;
   value: number;
