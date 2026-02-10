@@ -75,6 +75,14 @@ describe('importDistrictsPopulation', () => {
     );
   });
 
+  it('throws when CSV file does not exist', async () => {
+    const missing = path.join(cacheDir, 'nonexistent.csv');
+
+    await expect(importDistrictsPopulation({ csvPath: missing, dbPath })).rejects.toThrow(
+      /CSV file not found/i,
+    );
+  });
+
   it('throws when no year columns exist', async () => {
     const csv =
       ['Merkmal;Stadtteil;foo;bar', 'Einwohner insgesamt;Altstadt;1213;1220'].join('\n') + '\n';

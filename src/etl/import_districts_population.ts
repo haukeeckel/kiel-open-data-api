@@ -1,3 +1,4 @@
+import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { getEnv } from '../config/env';
 import { durationMs, type EtlContext, nowMs } from './etlContext';
@@ -32,6 +33,12 @@ export async function importDistrictsPopulation(opts?: {
   const dbPath = opts?.dbPath ?? getDuckDbPath(env);
 
   log.info({ ...ctx, csvPath, indicator: INDICATOR, areaType: AREA_TYPE }, 'etl.import: start');
+
+  try {
+    await fs.access(csvPath);
+  } catch {
+    throw new Error(`CSV file not found: ${csvPath}. Run fetch step first.`);
+  }
 
   const db = await createDb(dbPath);
   const conn = await db.connect();
