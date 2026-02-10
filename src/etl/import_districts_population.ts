@@ -54,7 +54,7 @@ export async function importDistrictsPopulation(opts?: {
     `);
 
     const info = await conn.runAndReadAll(`PRAGMA table_info('raw');`);
-    const cols = info.getRowObjects().map((r) => String(r.name));
+    const cols = info.getRowObjects().map((r) => String(r['name']));
     const yearCols = cols.filter((c) => /^\d{4}$/.test(c));
 
     log.debug(
