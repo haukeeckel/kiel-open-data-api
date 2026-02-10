@@ -5,7 +5,7 @@ import { durationMs, type EtlContext, nowMs } from './etlContext';
 import { firstCellAsNumber } from './sql';
 import { createEtlLogger } from '../logger/etl';
 import { createDb } from '../infra/db/duckdb';
-import { STATISTICS_DDL } from '../infra/db/schema';
+import { applyMigrations } from '../infra/db/migrations';
 import { getDuckDbPath, getCacheDir } from '../config/path';
 import {
   AREA_TYPE,
@@ -44,7 +44,7 @@ export async function importDistrictsPopulation(opts?: {
   const conn = await db.connect();
 
   try {
-    await conn.run(STATISTICS_DDL);
+    await applyMigrations(conn);
 
     const safeCsvPath = csvPath.replaceAll("'", "''");
     await conn.run(`
