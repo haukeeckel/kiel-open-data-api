@@ -1,7 +1,7 @@
 {
   "name": "kiel-dashboard-api",
   "version": "1.0.0",
-  "description": "",
+  "description": "API for Open Data Kiel",
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
@@ -35,7 +35,7 @@
     }
   },
   "keywords": [],
-  "author": "",
+  "author": "Hauke Eckel",
   "license": "ISC",
   "type": "module",
   "engines": {
