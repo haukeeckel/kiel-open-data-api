@@ -24,9 +24,9 @@ export function createDuckDbStatisticsRepository(conn: DuckDBConnection): Statis
 
       const reader = await conn.runAndReadAll(sql, params);
       const rows = reader.getRowObjects().map((r) => ({
-        year: Number(r.year),
-        value: Number(r.value),
-        unit: String(r.unit),
+        year: Number(r['year']),
+        value: Number(r['value']),
+        unit: String(r['unit']),
       }));
 
       return {
@@ -53,7 +53,7 @@ export function createDuckDbStatisticsRepository(conn: DuckDBConnection): Statis
       sql += ` ORDER BY area_name ASC`;
 
       const reader = await conn.runAndReadAll(sql, params);
-      const rows = reader.getRowObjects().map((r) => String(r.area_name));
+      const rows = reader.getRowObjects().map((r) => String(r['area_name']));
 
       return { indicator: input.indicator, areaType: input.areaType, rows };
     },
@@ -71,9 +71,9 @@ export function createDuckDbStatisticsRepository(conn: DuckDBConnection): Statis
       );
 
       const rows = reader.getRowObjects().map((r) => ({
-        area: String(r.area_name),
-        value: Number(r.value),
-        unit: String(r.unit),
+        area: String(r['area_name']),
+        value: Number(r['value']),
+        unit: String(r['unit']),
       }));
 
       return {
