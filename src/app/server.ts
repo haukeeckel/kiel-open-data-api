@@ -32,7 +32,7 @@ export async function buildServer() {
 
   // routes (encapsulated)
   await app.register(healthRoutes);
-  await app.register(statisticsRoutes);
+  await app.register(statisticsRoutes, { prefix: '/v1' });
 
   return app;
 }

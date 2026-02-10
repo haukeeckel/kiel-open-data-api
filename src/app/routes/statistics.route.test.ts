@@ -70,9 +70,9 @@ describe('statistics endpoints', () => {
     });
   });
 
-  describe('GET /timeseries', () => {
+  describe('GET /v1/timeseries', () => {
     it('returns 400 when required params are missing', async () => {
-      const res = await app.inject({ method: 'GET', url: '/timeseries' });
+      const res = await app.inject({ method: 'GET', url: '/v1/timeseries' });
       expect(res.statusCode).toBe(400);
 
       expect(res.json()).toMatchObject({
@@ -87,7 +87,7 @@ describe('statistics endpoints', () => {
     it('returns 400 for invalid query parameters (zod)', async () => {
       const res = await app.inject({
         method: 'GET',
-        url: '/timeseries?indicator=population&areaType=district&area=Altstadt&from=abc',
+        url: '/v1/timeseries?indicator=population&areaType=district&area=Altstadt&from=abc',
       });
 
       expect(res.statusCode).toBe(400);
@@ -103,7 +103,7 @@ describe('statistics endpoints', () => {
     it('returns time series for a district', async () => {
       const res = await app.inject({
         method: 'GET',
-        url: '/timeseries?indicator=population&areaType=district&area=Altstadt',
+        url: '/v1/timeseries?indicator=population&areaType=district&area=Altstadt',
       });
 
       expect(res.statusCode).toBe(200);
@@ -121,7 +121,7 @@ describe('statistics endpoints', () => {
     it('supports from/to filters', async () => {
       const res = await app.inject({
         method: 'GET',
-        url: '/timeseries?indicator=population&areaType=district&area=Altstadt&from=2023&to=2023',
+        url: '/v1/timeseries?indicator=population&areaType=district&area=Altstadt&from=2023&to=2023',
       });
 
       expect(res.statusCode).toBe(200);
@@ -133,7 +133,7 @@ describe('statistics endpoints', () => {
     it('returns 400 when from is greater than to', async () => {
       const res = await app.inject({
         method: 'GET',
-        url: '/timeseries?indicator=population&areaType=district&area=Altstadt&from=2024&to=2023',
+        url: '/v1/timeseries?indicator=population&areaType=district&area=Altstadt&from=2024&to=2023',
       });
 
       expect(res.statusCode).toBe(400);
@@ -148,9 +148,9 @@ describe('statistics endpoints', () => {
     });
   });
 
-  describe('GET /areas', () => {
+  describe('GET /v1/areas', () => {
     it('returns 400 when required params are missing', async () => {
-      const res = await app.inject({ method: 'GET', url: '/areas' });
+      const res = await app.inject({ method: 'GET', url: '/v1/areas' });
       expect(res.statusCode).toBe(400);
       expect(res.json()).toMatchObject({
         error: {
@@ -164,7 +164,7 @@ describe('statistics endpoints', () => {
     it('returns 400 for invalid query parameters (zod)', async () => {
       const res = await app.inject({
         method: 'GET',
-        url: '/areas?indicator=population&areaType=district&like=123&extra=wat',
+        url: '/v1/areas?indicator=population&areaType=district&like=123&extra=wat',
       });
 
       // only if your schema rejects unknown keys; if not, remove `extra=...`
@@ -175,7 +175,7 @@ describe('statistics endpoints', () => {
     it('returns distinct areas sorted', async () => {
       const res = await app.inject({
         method: 'GET',
-        url: '/areas?indicator=population&areaType=district',
+        url: '/v1/areas?indicator=population&areaType=district',
       });
 
       expect(res.statusCode).toBe(200);
@@ -189,7 +189,7 @@ describe('statistics endpoints', () => {
     it('supports like filter (case-insensitive)', async () => {
       const res = await app.inject({
         method: 'GET',
-        url: '/areas?indicator=population&areaType=district&like=gaard',
+        url: '/v1/areas?indicator=population&areaType=district&like=gaard',
       });
 
       expect(res.statusCode).toBe(200);
@@ -197,9 +197,9 @@ describe('statistics endpoints', () => {
     });
   });
 
-  describe('GET /ranking', () => {
+  describe('GET /v1/ranking', () => {
     it('returns 400 when required params are missing', async () => {
-      const res = await app.inject({ method: 'GET', url: '/ranking' });
+      const res = await app.inject({ method: 'GET', url: '/v1/ranking' });
       expect(res.statusCode).toBe(400);
       expect(res.json()).toMatchObject({
         error: {
@@ -213,7 +213,7 @@ describe('statistics endpoints', () => {
     it('returns 400 for invalid query parameters (zod)', async () => {
       const res = await app.inject({
         method: 'GET',
-        url: '/ranking?indicator=population&areaType=district&year=not-a-year',
+        url: '/v1/ranking?indicator=population&areaType=district&year=not-a-year',
       });
 
       expect(res.statusCode).toBe(400);
@@ -229,7 +229,7 @@ describe('statistics endpoints', () => {
     it('returns ranking for a year (desc)', async () => {
       const res = await app.inject({
         method: 'GET',
-        url: '/ranking?indicator=population&areaType=district&year=2023&limit=2&order=desc',
+        url: '/v1/ranking?indicator=population&areaType=district&year=2023&limit=2&order=desc',
       });
 
       expect(res.statusCode).toBe(200);
@@ -249,7 +249,7 @@ describe('statistics endpoints', () => {
     it('returns ranking (asc)', async () => {
       const res = await app.inject({
         method: 'GET',
-        url: '/ranking?indicator=population&areaType=district&year=2023&limit=1&order=asc',
+        url: '/v1/ranking?indicator=population&areaType=district&year=2023&limit=1&order=asc',
       });
 
       expect(res.statusCode).toBe(200);

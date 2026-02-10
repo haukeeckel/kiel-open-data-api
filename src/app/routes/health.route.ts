@@ -28,7 +28,7 @@ export default async function healthRoutes(app: FastifyInstance) {
     },
     async () => ({
       name: 'kiel-dashboard-api',
-      endpoints: ['/health'],
+      endpoints: ['/health', '/docs', '/docs/json', '/v1/timeseries', '/v1/areas', '/v1/ranking'],
     }),
   );
 
