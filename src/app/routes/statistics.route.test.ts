@@ -164,12 +164,17 @@ describe('statistics endpoints', () => {
     it('returns 400 for invalid query parameters (zod)', async () => {
       const res = await app.inject({
         method: 'GET',
-        url: '/v1/areas?indicator=population&areaType=district&like=123&extra=wat',
+        url: '/v1/areas?indicator=population&areaType=unknown&like=gaard',
       });
 
-      // only if your schema rejects unknown keys; if not, remove `extra=...`
-      // and instead test a wrong type.
-      expect([200, 400]).toContain(res.statusCode);
+      expect(res.statusCode).toBe(400);
+      expect(res.json()).toMatchObject({
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'Invalid query parameters',
+        },
+        requestId: expect.any(String),
+      });
     });
 
     it('returns distinct areas sorted', async () => {
