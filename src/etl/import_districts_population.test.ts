@@ -65,6 +65,16 @@ describe('importDistrictsPopulation', () => {
     }
   });
 
+  it('throws when required columns are missing', async () => {
+    const csv = ['Name;2022;2023', 'Altstadt;1213;1220'].join('\n') + '\n';
+
+    await fs.writeFile(csvPath, csv, 'utf8');
+
+    await expect(importDistrictsPopulation({ csvPath, dbPath })).rejects.toThrow(
+      /Missing required columns.*Merkmal.*Stadtteil/i,
+    );
+  });
+
   it('throws when no year columns exist', async () => {
     const csv =
       ['Merkmal;Stadtteil;foo;bar', 'Einwohner insgesamt;Altstadt;1213;1220'].join('\n') + '\n';

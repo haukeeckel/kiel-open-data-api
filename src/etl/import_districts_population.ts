@@ -54,43 +54,57 @@ export async function importDistrictsPopulation(opts?: {
       'etl.import: detected columns',
     );
 
+    const requiredCols = ['Merkmal', 'Stadtteil'];
+    const missing = requiredCols.filter((c) => !cols.includes(c));
+    if (missing.length > 0) {
+      throw new Error(`Missing required columns: ${missing.join(', ')}`);
+    }
+
     if (yearCols.length === 0) {
       throw new Error('No year columns found (expected columns like 1988..2023).');
     }
 
     const inList = yearCols.map((c) => `"${c}"`).join(', ');
 
-    // delete old rows for this slice
-    const delRes = await conn.runAndReadAll(
-      `SELECT COUNT(*) FROM statistics WHERE indicator = ? AND area_type = ?;`,
-      [INDICATOR, AREA_TYPE],
-    );
-    const existing = firstCellAsNumber(delRes.getRows(), 'existing statistics count');
-    if (existing > 0) {
-      log.info({ ...ctx, existing }, 'etl.import: deleting existing rows');
+    // delete + insert in a transaction to avoid empty table on crash (#4)
+    await conn.run('BEGIN TRANSACTION');
+    try {
+      const delRes = await conn.runAndReadAll(
+        `SELECT COUNT(*) FROM statistics WHERE indicator = ? AND area_type = ?;`,
+        [INDICATOR, AREA_TYPE],
+      );
+      const existing = firstCellAsNumber(delRes.getRows(), 'existing statistics count');
+      if (existing > 0) {
+        log.info({ ...ctx, existing }, 'etl.import: deleting existing rows');
+      }
+
+      await conn.run(`DELETE FROM statistics WHERE indicator = ? AND area_type = ?;`, [
+        INDICATOR,
+        AREA_TYPE,
+      ]);
+
+      await conn.run(`
+        INSERT INTO statistics
+        SELECT
+          '${INDICATOR}' AS indicator,
+          '${AREA_TYPE}' AS area_type,
+          "Stadtteil" AS area_name,
+          CAST(year AS INTEGER) AS year,
+          CAST(value AS DOUBLE) AS value,
+          '${UNIT}' AS unit
+        FROM (
+          SELECT *
+          FROM raw
+          WHERE "Merkmal" = 'Einwohner insgesamt'
+        )
+        UNPIVOT(value FOR year IN (${inList}));
+      `);
+
+      await conn.run('COMMIT');
+    } catch (err) {
+      await conn.run('ROLLBACK');
+      throw err;
     }
-
-    await conn.run(`DELETE FROM statistics WHERE indicator = ? AND area_type = ?;`, [
-      INDICATOR,
-      AREA_TYPE,
-    ]);
-
-    await conn.run(`
-      INSERT INTO statistics
-      SELECT
-        '${INDICATOR}' AS indicator,
-        '${AREA_TYPE}' AS area_type,
-        "Stadtteil" AS area_name,
-        CAST(year AS INTEGER) AS year,
-        CAST(value AS DOUBLE) AS value,
-        '${UNIT}' AS unit
-      FROM (
-        SELECT *
-        FROM raw
-        WHERE "Merkmal" = 'Einwohner insgesamt'
-      )
-      UNPIVOT(value FOR year IN (${inList}));
-    `);
 
     await conn.run(`
       CREATE INDEX IF NOT EXISTS statistics_idx
