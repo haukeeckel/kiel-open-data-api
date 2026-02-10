@@ -95,12 +95,12 @@ describe('fetchDistrictsPopulation', () => {
     expect(res).toEqual({ updated: false, path: path.join(cacheDir, CSV_FILENAME) });
   });
 
-  it('throws on non-ok response (e.g. 500)', async () => {
+  it('throws on non-ok response after retries (e.g. 500)', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => new Response('nope', { status: 500, statusText: 'Internal Server Error' })),
     );
 
     await expect(fetchDistrictsPopulation({ cacheDir })).rejects.toThrow(/Fetch failed: 500/i);
-  });
+  }, 10_000);
 });

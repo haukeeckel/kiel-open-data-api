@@ -6,6 +6,7 @@ import { durationMs, nowMs } from './etlContext';
 import { createEtlLogger } from '../logger/etl';
 import { getCacheDir } from '../config/path';
 import { CSV_FILENAME, CSV_META_FILENAME, DATASET, URL } from './districts_population.constants';
+import { fetchWithRetry } from './fetchWithRetry';
 
 const log = createEtlLogger(getEnv().NODE_ENV);
 const ctx: EtlContext = { dataset: DATASET, step: 'fetch' };
@@ -39,8 +40,6 @@ export async function fetchDistrictsPopulation(opts?: {
   const outCsv = path.join(cacheDir, CSV_FILENAME);
   const outMeta = path.join(cacheDir, CSV_META_FILENAME);
 
-  const fetchFn = opts?.fetchFn ?? fetch;
-
   log.info({ ...ctx, url: URL, out: outCsv }, 'etl.fetch: start');
 
   await fs.mkdir(cacheDir, { recursive: true });
@@ -52,7 +51,8 @@ export async function fetchDistrictsPopulation(opts?: {
 
   log.debug({ ...ctx, headers }, 'etl.fetch: request headers');
 
-  const res = await fetchFn(URL, { headers });
+  const retryOpts = opts?.fetchFn ? { fetchFn: opts.fetchFn } : {};
+  const res = await fetchWithRetry(URL, { headers }, retryOpts);
 
   log.info(
     {
