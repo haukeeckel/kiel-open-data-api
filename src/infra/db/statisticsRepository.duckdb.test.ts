@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api';
 import { createDuckDbStatisticsRepository } from './statisticsRepository.duckdb';
+import { STATISTICS_DDL } from './schema';
 import type { StatisticsRepository } from '../../domains/statistics/ports/statisticsRepository';
 
 describe('DuckDbStatisticsRepository', () => {
@@ -12,16 +13,7 @@ describe('DuckDbStatisticsRepository', () => {
     conn = await db.connect();
     repo = createDuckDbStatisticsRepository(conn);
 
-    await conn.run(`
-      CREATE TABLE statistics (
-        indicator TEXT,
-        area_type TEXT,
-        area_name TEXT,
-        year INTEGER,
-        value DOUBLE,
-        unit TEXT
-      );
-    `);
+    await conn.run(STATISTICS_DDL);
 
     await conn.run(`
       INSERT INTO statistics (indicator, area_type, area_name, year, value, unit) VALUES

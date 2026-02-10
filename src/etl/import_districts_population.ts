@@ -5,6 +5,7 @@ import { firstCellAsNumber } from './sql';
 import { createEtlLogger } from '../logger/etl';
 import { flushLogger } from '../logger/flush';
 import { createDb } from '../infra/db/duckdb';
+import { STATISTICS_DDL } from '../infra/db/schema';
 import { getDuckDbPath } from '../config/path';
 
 const log = createEtlLogger(getEnv().NODE_ENV);
@@ -30,16 +31,7 @@ async function main() {
   const conn = await db.connect();
 
   try {
-    await conn.run(`
-      CREATE TABLE IF NOT EXISTS statistics (
-        indicator TEXT,
-        area_type TEXT,
-        area_name TEXT,
-        year INTEGER,
-        value DOUBLE,
-        unit TEXT
-      );
-    `);
+    await conn.run(STATISTICS_DDL);
 
     await conn.run(`
       CREATE OR REPLACE TEMP TABLE raw AS
