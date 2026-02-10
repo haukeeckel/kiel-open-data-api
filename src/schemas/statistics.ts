@@ -1,8 +1,14 @@
 import z from 'zod';
 
+export const INDICATORS = ['population'] as const;
+export const AREA_TYPES = ['district'] as const;
+
+const Indicator = z.enum(INDICATORS);
+const AreaType = z.enum(AREA_TYPES);
+
 export const TimeseriesQuery = z.object({
-  indicator: z.string().min(1),
-  areaType: z.string().min(1),
+  indicator: Indicator,
+  areaType: AreaType,
   area: z.string().min(1),
   from: z.coerce.number().int().optional(),
   to: z.coerce.number().int().optional(),
@@ -22,8 +28,8 @@ export const TimeseriesResponse = z.object({
 });
 
 export const AreasQuery = z.object({
-  indicator: z.string().min(1),
-  areaType: z.string().min(1),
+  indicator: Indicator,
+  areaType: AreaType,
   like: z.string().min(1).optional(),
 });
 
@@ -34,8 +40,8 @@ export const AreasResponse = z.object({
 });
 
 export const RankingQuery = z.object({
-  indicator: z.string().min(1),
-  areaType: z.string().min(1),
+  indicator: Indicator,
+  areaType: AreaType,
   year: z.coerce.number().int(),
   limit: z.coerce.number().int().min(1).max(50).default(10),
   order: z.enum(['asc', 'desc']).default('desc'),
