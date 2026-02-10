@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { cleanupDuckDbFiles, makeAppAndSeed } from '../../test/helpers/app';
-import { type buildServer } from '../server';
+import { cleanupDuckDbFiles, makeAppAndSeed } from '../../test/helpers/app.js';
+import { type buildServer } from '../server.js';
 
 describe('statistics endpoints', () => {
   let app: Awaited<ReturnType<typeof buildServer>>;

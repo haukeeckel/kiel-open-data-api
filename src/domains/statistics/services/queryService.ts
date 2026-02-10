@@ -1,6 +1,6 @@
-import type { StatisticsRepository } from '../ports/statisticsRepository';
-import type { AreasQuery, RankingQuery, TimeseriesQuery } from '../model/types';
-import { StatisticsValidationError } from '../errors/statisticsValidationError';
+import type { StatisticsRepository } from '../ports/statisticsRepository.js';
+import type { AreasQuery, RankingQuery, TimeseriesQuery } from '../model/types.js';
+import { StatisticsValidationError } from '../errors/statisticsValidationError.js';
 
 export class StatisticsQueryService {
   constructor(private readonly repo: StatisticsRepository) {}

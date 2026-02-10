@@ -2,12 +2,12 @@ import type {
   TimeseriesQuery,
   AreasQuery,
   RankingQuery,
-} from '../../domains/statistics/model/types';
+} from '../../domains/statistics/model/types.js';
 import {
   type RankingQueryInput,
   type AreasQueryInput,
   type TimeseriesQueryInput,
-} from '../../schemas/statistics';
+} from '../../schemas/statistics.js';
 
 export function toTimeseriesQuery(query: TimeseriesQueryInput): TimeseriesQuery {
   return {

@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import z from 'zod';
 import { type ZodTypeProvider } from 'fastify-type-provider-zod';
-import { ApiError } from '../../schemas/api';
+import { ApiError } from '../../schemas/api.js';
 
 const RootResponse = z.object({
   name: z.string(),

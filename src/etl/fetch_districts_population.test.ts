@@ -4,8 +4,8 @@ import * as fssync from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
-import { fetchDistrictsPopulation } from './fetch_districts_population';
-import { CSV_FILENAME, CSV_META_FILENAME } from './districts_population.constants';
+import { fetchDistrictsPopulation } from './fetch_districts_population.js';
+import { CSV_FILENAME, CSV_META_FILENAME } from './districts_population.constants.js';
 
 function mkTmpDir() {
   return fssync.mkdtempSync(path.join(os.tmpdir(), 'kiel-etl-'));

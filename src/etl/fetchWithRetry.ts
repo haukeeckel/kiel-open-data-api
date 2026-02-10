@@ -1,6 +1,6 @@
 const DEFAULT_RETRIES = 3;
 const DEFAULT_INITIAL_DELAY_MS = 500;
-import { sleep } from '../utils/sleep';
+import { sleep } from '../utils/sleep.js';
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 

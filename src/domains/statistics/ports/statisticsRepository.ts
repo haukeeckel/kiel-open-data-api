@@ -5,7 +5,7 @@ import type {
   RankingResult,
   TimeseriesQuery,
   TimeseriesResult,
-} from '../model/types';
+} from '../model/types.js';
 
 export type StatisticsRepository = {
   getTimeseries(input: TimeseriesQuery): Promise<TimeseriesResult>;

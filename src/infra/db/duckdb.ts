@@ -1,7 +1,7 @@
 import { DuckDBInstance } from '@duckdb/node-api';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { sleep } from '../../utils/sleep';
+import { sleep } from '../../utils/sleep.js';
 
 type LoggerLike = {
   info?: (obj: unknown, msg?: string) => void;

@@ -6,8 +6,8 @@ import {
   sendError,
   sendInternalError,
   sendNotFound,
-} from '../http/errors';
-import { StatisticsValidationError } from '../../domains/statistics/errors/statisticsValidationError';
+} from '../http/errors.js';
+import { StatisticsValidationError } from '../../domains/statistics/errors/statisticsValidationError.js';
 
 type ErrorWithStatus = { statusCode?: number };
 type ErrorWithValidation = { validation?: unknown };
