@@ -17,4 +17,5 @@ main()
   })
   .finally(async () => {
     await flushLogger(log);
+    process.exit();
   });

@@ -46,10 +46,11 @@ export async function importDistrictsPopulation(opts?: {
   try {
     await conn.run(STATISTICS_DDL);
 
+    const safeCsvPath = csvPath.replaceAll("'", "''");
     await conn.run(`
       CREATE OR REPLACE TEMP TABLE raw AS
       SELECT *
-      FROM read_csv_auto('${csvPath}', header=true, delim=';');
+      FROM read_csv_auto('${safeCsvPath}', header=true, delim=';');
     `);
 
     const info = await conn.runAndReadAll(`PRAGMA table_info('raw');`);
@@ -90,22 +91,25 @@ export async function importDistrictsPopulation(opts?: {
         AREA_TYPE,
       ]);
 
-      await conn.run(`
+      await conn.run(
+        `
         INSERT INTO statistics
         SELECT
-          '${INDICATOR}' AS indicator,
-          '${AREA_TYPE}' AS area_type,
+          ? AS indicator,
+          ? AS area_type,
           "Stadtteil" AS area_name,
           CAST(year AS INTEGER) AS year,
           CAST(value AS DOUBLE) AS value,
-          '${UNIT}' AS unit
+          ? AS unit
         FROM (
           SELECT *
           FROM raw
           WHERE "Merkmal" = 'Einwohner insgesamt'
         )
         UNPIVOT(value FOR year IN (${inList}));
-      `);
+        `,
+        [INDICATOR, AREA_TYPE, UNIT],
+      );
 
       await conn.run('COMMIT');
     } catch (err) {
