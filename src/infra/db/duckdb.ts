@@ -16,6 +16,16 @@ type CreateDbOptions = Partial<RetryConfig> & {
   logger?: LoggerLike;
 };
 
+function toError(err: unknown): Error {
+  if (err instanceof Error) {
+    return err;
+  }
+  if (typeof err === 'string') {
+    return new Error(err);
+  }
+  return new Error('Unknown error');
+}
+
 const defaults: RetryConfig = {
   retries: DEFAULT_RETRIES,
   baseDelayMs: 100,
@@ -57,5 +67,5 @@ export async function createDb(dbPath: string, options?: CreateDbOptions): Promi
     }
   }
 
-  throw lastError;
+  throw toError(lastError);
 }
