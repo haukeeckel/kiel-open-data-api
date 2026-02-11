@@ -1,0 +1,51 @@
+import Fastify from 'fastify';
+import { describe, expect, it } from 'vitest';
+
+import { AREA_TYPES, INDICATORS, ORDERS } from '../../domains/statistics/model/types.js';
+import { StatisticsQueryService } from '../../domains/statistics/services/queryService.js';
+
+import servicesPlugin from './services.js';
+
+describe('services plugin', () => {
+  it('decorates statisticsQuery service', async () => {
+    const indicator = INDICATORS[0]!;
+    const areaType = AREA_TYPES[0]!;
+    const order = ORDERS[1]!;
+    const app = Fastify();
+    const statisticsRepository = {
+      getRanking: async () => ({
+        indicator,
+        areaType,
+        year: 2023,
+        order,
+        limit: 1,
+        rows: [],
+      }),
+      listAreas: async () => ({
+        indicator,
+        areaType,
+        rows: [],
+      }),
+      getTimeseries: async () => ({
+        indicator,
+        areaType,
+        area: 'Altstadt',
+        rows: [],
+      }),
+    };
+
+    app.decorate('repos', { statisticsRepository });
+
+    await app.register(servicesPlugin);
+
+    expect(app.services.statisticsQuery).toBeInstanceOf(StatisticsQueryService);
+    const result = await app.services.statisticsQuery.getRanking({
+      indicator,
+      areaType,
+      year: 2023,
+      order,
+      limit: 1,
+    });
+    expect(result).toMatchObject({ limit: 1 });
+  });
+});
