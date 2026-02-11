@@ -80,8 +80,26 @@ cp .env.example .env
   Port to listen on (default: `3000`)
 
 - `DUCKDB_PATH`
-  Path to DuckDB database file (default: `data/kiel.duckdb`)
+  Path to DuckDB database file (default: `data/kiel.<env>.duckdb`, e.g. `data/kiel.development.duckdb`)
   For tests we use `:memory:` to avoid lock conflicts.
+
+- `CORS_ORIGIN`
+  Allowed CORS origin (default: `*` in non-production; required in production)
+
+- `APP_VERSION`
+  App version reported by the API (default: `npm_package_version` or `0.0.0`)
+
+- `RATE_LIMIT_MAX`
+  Max requests per window (default: `100`)
+
+- `RATE_LIMIT_WINDOW_MS`
+  Rate limit window in ms (default: `60000`)
+
+- `SWAGGER_ROUTE_PREFIX`
+  Swagger UI route prefix (default: `/docs`)
+
+- `SWAGGER_UI_ENABLED`
+  Enable Swagger UI (default: `true` for non-production, `false` for production)
 
 ## Data & DuckDB
 
@@ -110,11 +128,11 @@ Import only (expects CSV in cache):
 pnpm etl:import
 ```
 
-### Facts schema
+### Statistics schema
 
 ETL writes into a normalized (tidy) table:
 
-`facts(indicator, area_type, area_name, year, value, unit)`
+`statistics(indicator, area_type, area_name, year, value, unit)`
 
 Example:
 
@@ -133,8 +151,14 @@ Example:
 - `GET /health`
   Health check
 
-- `GET /db-test`
-  DuckDB smoke test (returns `{ rows: [{ answer: 42 }] }`)
+- `GET /v1/timeseries`
+  Time series for a given indicator and area
+
+- `GET /v1/areas`
+  List distinct areas for an indicator and area type
+
+- `GET /v1/ranking`
+  Ranking of areas by value for a given indicator/year
 
 ## Notes
 
