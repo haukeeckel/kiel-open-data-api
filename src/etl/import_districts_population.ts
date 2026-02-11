@@ -5,7 +5,6 @@ import { getEnv } from '../config/env.js';
 import { getDuckDbPath, getCacheDir } from '../config/path.js';
 import { createDb } from '../infra/db/duckdb.js';
 import { applyMigrations } from '../infra/db/migrations.js';
-import { createEtlLogger } from '../logger/etl.js';
 
 import {
   AREA_TYPE,
@@ -17,11 +16,9 @@ import {
   INDICATOR,
   UNIT,
 } from './districts_population.constants.js';
-import { durationMs, type EtlContext, nowMs } from './etlContext.js';
+import { durationMs, nowMs } from './etlContext.js';
+import { getEtlLogger } from './etlLogger.js';
 import { firstCellAsNumber } from './sql.js';
-
-const log = createEtlLogger(getEnv().NODE_ENV);
-const ctx: EtlContext = { dataset: DATASET, step: 'import' };
 
 export async function importDistrictsPopulation(opts?: {
   csvPath?: string;
@@ -34,6 +31,7 @@ export async function importDistrictsPopulation(opts?: {
   const started = nowMs();
 
   const env = getEnv();
+  const { log, ctx } = getEtlLogger('import', DATASET);
   const csvPath = opts?.csvPath ?? path.join(getCacheDir(), CSV_FILENAME);
   const dbPath = opts?.dbPath ?? getDuckDbPath(env);
 
