@@ -1,19 +1,61 @@
-import { resetEnvForTests } from '../../config/env.js';
+import { type Env, resetEnvForTests } from '../../config/env.js';
 
-type TestEnv = {
-  NODE_ENV?: 'test' | 'development' | 'production';
-  DUCKDB_PATH?: string;
+type TestEnv = Partial<
+  Pick<
+    Env,
+    | 'NODE_ENV'
+    | 'PORT'
+    | 'HOST'
+    | 'DUCKDB_PATH'
+    | 'CORS_ORIGIN'
+    | 'APP_VERSION'
+    | 'RATE_LIMIT_MAX'
+    | 'RATE_LIMIT_WINDOW_MS'
+    | 'SWAGGER_ROUTE_PREFIX'
+    | 'SWAGGER_UI_ENABLED'
+  >
+>;
+
+type TestEnvWithUnset = {
+  [K in keyof TestEnv]: TestEnv[K] | undefined;
 };
 
-export function setTestEnv(next: TestEnv) {
-  if (next.NODE_ENV !== undefined) process.env['NODE_ENV'] = next.NODE_ENV;
-  if (next.DUCKDB_PATH !== undefined) process.env['DUCKDB_PATH'] = next.DUCKDB_PATH;
+function applyEnv(next: TestEnvWithUnset) {
+  for (const [key, value] of Object.entries(next)) {
+    if (value === undefined) {
+      delete process.env[key];
+    } else {
+      process.env[key] = String(value);
+    }
+  }
+}
 
+export function setTestEnv(next: TestEnvWithUnset) {
+  applyEnv(next);
   resetEnvForTests();
 }
 
 export function resetTestEnvToDefaults() {
-  process.env['NODE_ENV'] = 'test';
-  process.env['DUCKDB_PATH'] = ':memory:';
-  resetEnvForTests();
+  setTestEnv({ NODE_ENV: 'test', DUCKDB_PATH: ':memory:' });
+}
+
+export function withTestEnv(next: TestEnvWithUnset) {
+  const previous: Record<string, string | undefined> = {};
+  for (const key of Object.keys(next)) {
+    previous[key] = process.env[key];
+  }
+
+  setTestEnv(next);
+
+  return () => {
+    for (const key of Object.keys(next)) {
+      const value = previous[key];
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    }
+    resetEnvForTests();
+  };
 }

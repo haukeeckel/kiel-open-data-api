@@ -5,7 +5,7 @@ import * as path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { setTestEnv } from '../test/helpers/env.js';
+import { withTestEnv } from '../test/helpers/env.js';
 
 import { CSV_FILENAME, CSV_META_FILENAME } from './districts_population.constants.js';
 import { fetchDistrictsPopulation } from './fetch_districts_population.js';
@@ -17,6 +17,7 @@ function mkTmpDir() {
 describe('fetchDistrictsPopulation', () => {
   let tmp: string;
   let cacheDir: string;
+  let restoreEnv: (() => void) | null = null;
 
   beforeEach(async () => {
     tmp = mkTmpDir();
@@ -24,11 +25,13 @@ describe('fetchDistrictsPopulation', () => {
 
     await fs.mkdir(cacheDir, { recursive: true });
 
-    setTestEnv({ NODE_ENV: 'test' });
+    restoreEnv = withTestEnv({ NODE_ENV: 'test' });
     vi.unstubAllGlobals();
   });
 
   afterEach(() => {
+    restoreEnv?.();
+    restoreEnv = null;
     vi.unstubAllGlobals();
     try {
       fssync.rmSync(tmp, { recursive: true, force: true });

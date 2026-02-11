@@ -6,7 +6,7 @@ import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { createDb } from '../infra/db/duckdb.js';
-import { setTestEnv } from '../test/helpers/env.js';
+import { withTestEnv } from '../test/helpers/env.js';
 
 import { CSV_FILENAME } from './districts_population.constants.js';
 import { importDistrictsPopulation } from './import_districts_population.js';
@@ -20,6 +20,7 @@ describe('importDistrictsPopulation', () => {
   let cacheDir: string;
   let csvPath: string;
   let dbPath: string;
+  let restoreEnv: (() => void) | null = null;
 
   beforeEach(async () => {
     tmp = mkTmpDir();
@@ -29,10 +30,12 @@ describe('importDistrictsPopulation', () => {
 
     await fs.mkdir(cacheDir, { recursive: true });
 
-    setTestEnv({ NODE_ENV: 'test' });
+    restoreEnv = withTestEnv({ NODE_ENV: 'test' });
   });
 
   afterEach(() => {
+    restoreEnv?.();
+    restoreEnv = null;
     try {
       fssync.rmSync(tmp, { recursive: true, force: true });
     } catch {}
