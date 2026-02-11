@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { type ZodTypeProvider } from 'fastify-type-provider-zod';
 import { API_NAME } from '../../config/constants.js';
+import { getEnv } from '../../config/env.js';
 
 const RootResponse = z.object({
   name: z.string(),
@@ -26,10 +27,14 @@ export default async function healthRoutes(app: FastifyInstance) {
         },
       },
     },
-    async () => ({
-      name: API_NAME,
-      endpoints: ['/health', '/docs', '/docs/json', '/v1/timeseries', '/v1/areas', '/v1/ranking'],
-    }),
+    async (req) => {
+      const docsPrefix = getEnv().SWAGGER_ROUTE_PREFIX;
+      const apiPaths = Object.keys(req.server.swagger().paths ?? {}).filter((p) => p !== '/');
+      return {
+        name: API_NAME,
+        endpoints: [...apiPaths, docsPrefix, `${docsPrefix}/json`].sort(),
+      };
+    },
   );
 
   r.get(
