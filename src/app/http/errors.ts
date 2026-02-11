@@ -20,8 +20,7 @@ export type ApiErrorBody = {
 };
 
 function requestId(req: FastifyRequest): string {
-  // Fastify sets req.id; fallback just in case
-  return String((req as { id?: unknown }).id ?? 'unknown');
+  return req.id;
 }
 
 export function sendError(
