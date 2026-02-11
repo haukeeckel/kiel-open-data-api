@@ -31,6 +31,28 @@ const migrations: Migration[] = [
       ON statistics(indicator, area_type, area_name, year);
     `,
   },
+  {
+    version: 3,
+    name: 'statistics_columns_not_null',
+    up: `
+      DELETE FROM statistics
+      WHERE indicator IS NULL
+         OR area_type IS NULL
+         OR area_name IS NULL
+         OR year IS NULL
+         OR value IS NULL
+         OR unit IS NULL;
+      DROP INDEX IF EXISTS statistics_idx;
+      ALTER TABLE statistics ALTER COLUMN indicator SET NOT NULL;
+      ALTER TABLE statistics ALTER COLUMN area_type SET NOT NULL;
+      ALTER TABLE statistics ALTER COLUMN area_name SET NOT NULL;
+      ALTER TABLE statistics ALTER COLUMN year SET NOT NULL;
+      ALTER TABLE statistics ALTER COLUMN value SET NOT NULL;
+      ALTER TABLE statistics ALTER COLUMN unit SET NOT NULL;
+      CREATE INDEX statistics_idx
+      ON statistics(indicator, area_type, area_name, year);
+    `,
+  },
 ];
 
 function hashMigration(migration: Migration): string {

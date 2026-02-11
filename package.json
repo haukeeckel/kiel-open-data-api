@@ -16,7 +16,6 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build": "tsc -p tsconfig.json",
     "prepare": "husky",
-    "commit": "cz",
     "etl:fetch": "tsx src/etl/cli/fetch_districts_population.ts",
     "etl:import": "tsx src/etl/cli/import_districts_population.ts",
     "etl:run": "pnpm etl:fetch && pnpm etl:import"
@@ -28,11 +27,6 @@
     "*.ts": [
       "eslint --fix"
     ]
-  },
-  "config": {
-    "commitizen": {
-      "path": "cz-conventional-changelog"
-    }
   },
   "keywords": [],
   "author": "Hauke Eckel",
@@ -48,8 +42,6 @@
     "@eslint/js": "^9.39.2",
     "@types/node": "^25.2.1",
     "@vitest/coverage-v8": "^4.0.18",
-    "commitizen": "^4.3.1",
-    "cz-conventional-changelog": "^3.3.0",
     "eslint": "^9.39.2",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-import": "^2.32.0",
