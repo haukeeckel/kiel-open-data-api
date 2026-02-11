@@ -10,6 +10,10 @@ import { withTestEnv } from '../test/helpers/env.js';
 import { CSV_FILENAME, CSV_META_FILENAME } from './districts_population.constants.js';
 import { fetchDistrictsPopulation } from './fetch_districts_population.js';
 
+vi.mock('../utils/sleep.js', () => ({
+  sleep: vi.fn().mockResolvedValue(undefined),
+}));
+
 function mkTmpDir() {
   return fssync.mkdtempSync(path.join(os.tmpdir(), 'kiel-etl-'));
 }
