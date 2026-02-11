@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import { createEtlLogger } from './etl.js';
 
 describe('createEtlLogger', () => {

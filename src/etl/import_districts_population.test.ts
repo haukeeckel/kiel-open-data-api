@@ -1,12 +1,15 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import * as fssync from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
-import { importDistrictsPopulation } from './import_districts_population.js';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
 import { createDb } from '../infra/db/duckdb.js';
+import { withTestEnv } from '../test/helpers/env.js';
+
 import { CSV_FILENAME } from './districts_population.constants.js';
+import { importDistrictsPopulation } from './import_districts_population.js';
 
 function mkTmpDir() {
   return fssync.mkdtempSync(path.join(os.tmpdir(), 'kiel-etl-'));
@@ -17,6 +20,7 @@ describe('importDistrictsPopulation', () => {
   let cacheDir: string;
   let csvPath: string;
   let dbPath: string;
+  let restoreEnv: (() => void) | null = null;
 
   beforeEach(async () => {
     tmp = mkTmpDir();
@@ -26,10 +30,12 @@ describe('importDistrictsPopulation', () => {
 
     await fs.mkdir(cacheDir, { recursive: true });
 
-    process.env['NODE_ENV'] = 'test';
+    restoreEnv = withTestEnv({ NODE_ENV: 'test' });
   });
 
   afterEach(() => {
+    restoreEnv?.();
+    restoreEnv = null;
     try {
       fssync.rmSync(tmp, { recursive: true, force: true });
     } catch {}

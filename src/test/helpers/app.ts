@@ -1,11 +1,14 @@
+import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import * as crypto from 'node:crypto';
+
 import { DuckDBInstance } from '@duckdb/node-api';
+
 import { buildServer } from '../../app/server.js';
-import { resetEnvForTests } from '../../config/env.js';
-import { applyMigrations } from '../../infra/db/migrations.js';
 import { getCacheDir } from '../../config/path.js';
+import { applyMigrations } from '../../infra/db/migrations.js';
+
+import { setTestEnv } from './env.js';
 
 export function makeTestDbPath() {
   const id = crypto.randomUUID();
@@ -34,37 +37,25 @@ export async function seedStatistics(db: DuckDBInstance) {
   }
 }
 
-export async function makeAppAndSeed() {
+type MakeAppOptions = {
+  registerRoutes?: (app: Awaited<ReturnType<typeof buildServer>>) => void | Promise<void>;
+};
+
+export async function makeAppAndSeed(options: MakeAppOptions = {}) {
   const dbPath = makeTestDbPath();
 
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
-  process.env['NODE_ENV'] = 'test';
-  process.env['DUCKDB_PATH'] = dbPath;
-
-  resetEnvForTests();
+  setTestEnv({ NODE_ENV: 'test', DUCKDB_PATH: dbPath });
 
   // Seed first, then close so the app can open its own instance
   const db = await DuckDBInstance.create(dbPath);
   await seedStatistics(db);
 
   const app = await buildServer();
-
-  app.get('/__boom', async () => {
-    throw new Error('boom');
-  });
-
-  app.get('/__401', async () => {
-    const err = new Error('nope');
-    (err as unknown as { statusCode: number }).statusCode = 401;
-    throw err;
-  });
-
-  app.get('/__409', async () => {
-    const err = new Error('conflict');
-    (err as unknown as { statusCode: number }).statusCode = 409;
-    throw err;
-  });
+  if (options.registerRoutes) {
+    await options.registerRoutes(app);
+  }
 
   await app.ready();
   return { app, dbPath };

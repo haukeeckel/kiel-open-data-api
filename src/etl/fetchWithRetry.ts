@@ -1,29 +1,31 @@
-const DEFAULT_RETRIES = 3;
-const DEFAULT_INITIAL_DELAY_MS = 500;
+import { DEFAULT_RETRIES, type RetryConfig } from '../config/retry.js';
 import { sleep } from '../utils/sleep.js';
 
-const DEFAULT_TIMEOUT_MS = 30_000;
+const defaults: RetryConfig = {
+  retries: DEFAULT_RETRIES,
+  baseDelayMs: 500,
+  maxDelayMs: 30_000,
+};
+
+export type FetchRetryOptions = Partial<RetryConfig> & {
+  timeoutMs?: number;
+  fetchFn?: typeof fetch;
+};
 
 export async function fetchWithRetry(
   url: string,
   init?: RequestInit,
-  opts?: {
-    retries?: number;
-    initialDelayMs?: number;
-    timeoutMs?: number;
-    fetchFn?: typeof fetch;
-  },
+  opts?: FetchRetryOptions,
 ): Promise<Response> {
-  const retries = opts?.retries ?? DEFAULT_RETRIES;
-  const initialDelayMs = opts?.initialDelayMs ?? DEFAULT_INITIAL_DELAY_MS;
-  const timeoutMs = opts?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const { retries, baseDelayMs, maxDelayMs } = { ...defaults, ...opts };
+  const timeoutMs = opts?.timeoutMs ?? 30_000;
   const fetchFn = opts?.fetchFn ?? fetch;
 
   let lastError: unknown;
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     if (attempt > 0) {
-      const delay = initialDelayMs * 2 ** (attempt - 1);
+      const delay = Math.min(maxDelayMs, baseDelayMs * 2 ** (attempt - 1));
       await sleep(delay);
     }
 

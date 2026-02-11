@@ -1,11 +1,18 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import * as fs from 'node:fs/promises';
 import * as fssync from 'node:fs';
+import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
-import { fetchDistrictsPopulation } from './fetch_districts_population.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { withTestEnv } from '../test/helpers/env.js';
+
 import { CSV_FILENAME, CSV_META_FILENAME } from './districts_population.constants.js';
+import { fetchDistrictsPopulation } from './fetch_districts_population.js';
+
+vi.mock('../utils/sleep.js', () => ({
+  sleep: vi.fn().mockResolvedValue(undefined),
+}));
 
 function mkTmpDir() {
   return fssync.mkdtempSync(path.join(os.tmpdir(), 'kiel-etl-'));
@@ -14,6 +21,7 @@ function mkTmpDir() {
 describe('fetchDistrictsPopulation', () => {
   let tmp: string;
   let cacheDir: string;
+  let restoreEnv: (() => void) | null = null;
 
   beforeEach(async () => {
     tmp = mkTmpDir();
@@ -21,11 +29,13 @@ describe('fetchDistrictsPopulation', () => {
 
     await fs.mkdir(cacheDir, { recursive: true });
 
-    process.env['NODE_ENV'] = 'test';
+    restoreEnv = withTestEnv({ NODE_ENV: 'test' });
     vi.unstubAllGlobals();
   });
 
   afterEach(() => {
+    restoreEnv?.();
+    restoreEnv = null;
     vi.unstubAllGlobals();
     try {
       fssync.rmSync(tmp, { recursive: true, force: true });

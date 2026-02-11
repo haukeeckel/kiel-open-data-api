@@ -1,4 +1,5 @@
 import { pino, type Logger } from 'pino';
+
 import { type NodeEnv } from '../config/constants.js';
 
 export function createEtlLogger(nodeEnv: NodeEnv): Logger {

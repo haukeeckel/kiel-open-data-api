@@ -1,16 +1,19 @@
-import type { FastifyInstance } from 'fastify';
 import fp from 'fastify-plugin';
+
+import { StatisticsValidationError } from '../../domains/statistics/errors/statisticsValidationError.js';
 import {
   type ApiErrorCode,
+  type ErrorDetails,
   sendBadRequest,
   sendError,
   sendInternalError,
   sendNotFound,
 } from '../http/errors.js';
-import { StatisticsValidationError } from '../../domains/statistics/errors/statisticsValidationError.js';
+
+import type { FastifyInstance } from 'fastify';
 
 type ErrorWithStatus = { statusCode?: number };
-type ErrorWithValidation = { validation?: unknown };
+type ErrorWithValidation = { validation?: ErrorDetails };
 
 function hasStatusCode(err: unknown): err is ErrorWithStatus {
   return typeof err === 'object' && err !== null && 'statusCode' in err;

@@ -5,7 +5,7 @@ type FlushableLogger = Logger & {
 };
 
 function hasFlush(log: Logger): log is FlushableLogger {
-  return 'flush' in log && typeof (log as unknown as { flush?: unknown }).flush === 'function';
+  return 'flush' in log && typeof log.flush === 'function';
 }
 
 export async function flushLogger(log: Logger): Promise<void> {

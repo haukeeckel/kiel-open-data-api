@@ -1,4 +1,7 @@
+import type { ErrorDetails } from '../../types/errors.js';
 import type { FastifyReply, FastifyRequest } from 'fastify';
+
+export type { ErrorDetails };
 
 export type ApiErrorCode =
   | 'BAD_REQUEST'
@@ -14,20 +17,19 @@ export type ApiErrorBody = {
   error: {
     code: ApiErrorCode;
     message: string;
-    details?: unknown;
+    details?: ErrorDetails;
   };
   requestId: string;
 };
 
 function requestId(req: FastifyRequest): string {
-  // Fastify sets req.id; fallback just in case
-  return String((req as { id?: unknown }).id ?? 'unknown');
+  return req.id;
 }
 
 export function sendError(
   req: FastifyRequest,
   reply: FastifyReply,
-  input: { statusCode: number; code: ApiErrorCode; message: string; details?: unknown },
+  input: { statusCode: number; code: ApiErrorCode; message: string; details?: ErrorDetails },
 ) {
   const body: ApiErrorBody = {
     error: {
@@ -45,13 +47,13 @@ export function sendBadRequest(
   req: FastifyRequest,
   reply: FastifyReply,
   message: string,
-  details?: unknown,
+  details?: ErrorDetails,
 ) {
   return sendError(req, reply, {
     statusCode: 400,
     code: 'BAD_REQUEST',
     message,
-    details,
+    ...(details !== undefined ? { details } : {}),
   });
 }
 

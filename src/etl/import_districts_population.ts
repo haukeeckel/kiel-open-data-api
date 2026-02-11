@@ -1,22 +1,24 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+
 import { getEnv } from '../config/env.js';
-import { durationMs, type EtlContext, nowMs } from './etlContext.js';
-import { firstCellAsNumber } from './sql.js';
-import { createEtlLogger } from '../logger/etl.js';
+import { getDuckDbPath, getCacheDir } from '../config/path.js';
 import { createDb } from '../infra/db/duckdb.js';
 import { applyMigrations } from '../infra/db/migrations.js';
-import { getDuckDbPath, getCacheDir } from '../config/path.js';
+
 import {
   AREA_TYPE,
+  CSV_COL_AREA,
+  CSV_COL_INDICATOR,
   CSV_FILENAME,
+  CSV_FILTER_VALUE,
   DATASET,
   INDICATOR,
   UNIT,
 } from './districts_population.constants.js';
-
-const log = createEtlLogger(getEnv().NODE_ENV);
-const ctx: EtlContext = { dataset: DATASET, step: 'import' };
+import { durationMs, nowMs } from './etlContext.js';
+import { getEtlLogger } from './etlLogger.js';
+import { firstCellAsNumber } from './sql.js';
 
 export async function importDistrictsPopulation(opts?: {
   csvPath?: string;
@@ -29,6 +31,7 @@ export async function importDistrictsPopulation(opts?: {
   const started = nowMs();
 
   const env = getEnv();
+  const { log, ctx } = getEtlLogger('import', DATASET);
   const csvPath = opts?.csvPath ?? path.join(getCacheDir(), CSV_FILENAME);
   const dbPath = opts?.dbPath ?? getDuckDbPath(env);
 
@@ -63,7 +66,7 @@ export async function importDistrictsPopulation(opts?: {
       'etl.import: detected columns',
     );
 
-    const requiredCols = ['Merkmal', 'Stadtteil'];
+    const requiredCols = [CSV_COL_INDICATOR, CSV_COL_AREA];
     const missing = requiredCols.filter((c) => !cols.includes(c));
     if (missing.length > 0) {
       throw new Error(`Missing required columns: ${missing.join(', ')}`);
@@ -98,14 +101,14 @@ export async function importDistrictsPopulation(opts?: {
         SELECT
           ? AS indicator,
           ? AS area_type,
-          "Stadtteil" AS area_name,
+          "${CSV_COL_AREA}" AS area_name,
           CAST(year AS INTEGER) AS year,
           CAST(value AS DOUBLE) AS value,
           ? AS unit
         FROM (
           SELECT *
           FROM raw
-          WHERE "Merkmal" = 'Einwohner insgesamt'
+          WHERE "${CSV_COL_INDICATOR}" = '${CSV_FILTER_VALUE}'
         )
         UNPIVOT(value FOR year IN (${inList}));
         `,

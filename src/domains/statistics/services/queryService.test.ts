@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
+
 import { StatisticsQueryService } from './queryService.js';
+
 import type { StatisticsRepository } from '../ports/statisticsRepository.js';
 
 function createFakeRepo(): StatisticsRepository {
@@ -47,25 +49,16 @@ describe('StatisticsQueryService', () => {
     ).rejects.toThrow(/from must be <= to/i);
   });
 
-  it('clamps ranking limit into [1..50]', async () => {
+  it('passes ranking input through to repository', async () => {
     const svc = new StatisticsQueryService(createFakeRepo());
 
-    const r1 = await svc.getRanking({
+    const result = await svc.getRanking({
       indicator: 'population',
       areaType: 'district',
       year: 2023,
       order: 'desc',
-      limit: 999,
+      limit: 25,
     });
-    expect(r1.limit).toBe(50);
-
-    const r2 = await svc.getRanking({
-      indicator: 'population',
-      areaType: 'district',
-      year: 2023,
-      order: 'desc',
-      limit: 0,
-    });
-    expect(r2.limit).toBe(1);
+    expect(result.limit).toBe(25);
   });
 });

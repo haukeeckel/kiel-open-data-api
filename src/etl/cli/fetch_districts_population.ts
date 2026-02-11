@@ -1,21 +1,21 @@
-import { fetchDistrictsPopulation } from '../fetch_districts_population.js';
-import { createEtlLogger } from '../../logger/etl.js';
 import { flushLogger } from '../../logger/flush.js';
-import { getEnv } from '../../config/env.js';
-
-const log = createEtlLogger(getEnv().NODE_ENV);
+import { DATASET } from '../districts_population.constants.js';
+import { getEtlLogger } from '../etlLogger.js';
+import { fetchDistrictsPopulation } from '../fetch_districts_population.js';
 
 async function main() {
+  const { log } = getEtlLogger('fetch', DATASET);
   const res = await fetchDistrictsPopulation();
   log.info(res, 'etl.fetch: done');
+  await flushLogger(log);
 }
 
 main()
   .catch((err) => {
+    const { log } = getEtlLogger('fetch', DATASET);
     log.error({ err }, 'etl.fetch: fatal');
     process.exitCode = 1;
   })
-  .finally(async () => {
-    await flushLogger(log);
+  .finally(() => {
     process.exit();
   });

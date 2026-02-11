@@ -1,3 +1,5 @@
+export const API_NAME = 'kiel-dashboard-api';
+
 export const NODE_ENVS = ['development', 'test', 'production'] as const;
 export type NodeEnv = (typeof NODE_ENVS)[number];
 

@@ -1,22 +1,23 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { getEnv } from '../config/env.js';
-import type { EtlContext } from './etlContext.js';
-import { durationMs, nowMs } from './etlContext.js';
-import { createEtlLogger } from '../logger/etl.js';
-import { getCacheDir } from '../config/path.js';
-import { CSV_FILENAME, CSV_META_FILENAME, DATASET, URL } from './districts_population.constants.js';
-import { fetchWithRetry } from './fetchWithRetry.js';
 
-const log = createEtlLogger(getEnv().NODE_ENV);
-const ctx: EtlContext = { dataset: DATASET, step: 'fetch' };
+import { getCacheDir } from '../config/path.js';
+
+import { CSV_FILENAME, CSV_META_FILENAME, DATASET, URL } from './districts_population.constants.js';
+import { durationMs, nowMs, type EtlContext } from './etlContext.js';
+import { getEtlLogger } from './etlLogger.js';
+import { fetchWithRetry } from './fetchWithRetry.js';
 
 type Meta = {
   etag?: string;
   lastModified?: string;
 };
 
-async function readMeta(metaPath: string): Promise<Meta> {
+async function readMeta(
+  metaPath: string,
+  log: { debug: (obj: unknown, msg: string) => void },
+  ctx: EtlContext,
+): Promise<Meta> {
   try {
     const raw = await fs.readFile(metaPath, 'utf8');
     return JSON.parse(raw) as Meta;
@@ -36,6 +37,8 @@ export async function fetchDistrictsPopulation(opts?: {
 }): Promise<{ updated: boolean; path: string }> {
   const started = nowMs();
 
+  const { log, ctx } = getEtlLogger('fetch', DATASET);
+
   const cacheDir = opts?.cacheDir ?? getCacheDir();
   const outCsv = path.join(cacheDir, CSV_FILENAME);
   const outMeta = path.join(cacheDir, CSV_META_FILENAME);
@@ -43,7 +46,7 @@ export async function fetchDistrictsPopulation(opts?: {
   log.info({ ...ctx, url: URL, out: outCsv }, 'etl.fetch: start');
 
   await fs.mkdir(cacheDir, { recursive: true });
-  const meta = await readMeta(outMeta);
+  const meta = await readMeta(outMeta, log, ctx);
 
   const headers: Record<string, string> = {};
   if (meta.etag) headers['If-None-Match'] = meta.etag;

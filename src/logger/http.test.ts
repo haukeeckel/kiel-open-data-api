@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import { getLoggerOptions } from './http.js';
 
 describe('getLoggerOptions', () => {

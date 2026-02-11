@@ -1,4 +1,4 @@
-import z from 'zod';
+import { z } from 'zod';
 
 export const ApiError = z.object({
   error: z.object({

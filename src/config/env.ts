@@ -1,24 +1,44 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
 import { z } from 'zod';
+
 import { DEFAULT_HOST, DEFAULT_NODE_ENV, DEFAULT_PORT, NODE_ENVS } from './constants.js';
 
-const EnvSchema = z.object({
-  NODE_ENV: z.enum(NODE_ENVS).default(DEFAULT_NODE_ENV),
-  PORT: z.coerce.number().int().positive().default(DEFAULT_PORT),
-  HOST: z.string().default(DEFAULT_HOST),
-  DUCKDB_PATH: z.string().trim().optional(),
-  CORS_ORIGIN: z.string().default('*'),
-  APP_VERSION: z.string().default(process.env['npm_package_version'] ?? '0.0.0'),
-  RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
-  RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
-});
+const EnvSchema = z
+  .object({
+    NODE_ENV: z.enum(NODE_ENVS).default(DEFAULT_NODE_ENV),
+    PORT: z.coerce.number().int().positive().default(DEFAULT_PORT),
+    HOST: z.string().default(DEFAULT_HOST),
+    DUCKDB_PATH: z.string().trim().optional(),
+    CORS_ORIGIN: z.string().trim().optional(),
+    APP_VERSION: z.string().default(process.env['npm_package_version'] ?? '0.0.0'),
+    RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
+    RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
+    SWAGGER_ROUTE_PREFIX: z.string().default('/docs'),
+    SWAGGER_UI_ENABLED: z.string().optional(),
+  })
+  .refine((env) => env.NODE_ENV !== 'production' || !!env.CORS_ORIGIN, {
+    message: 'CORS_ORIGIN must be set in production',
+    path: ['CORS_ORIGIN'],
+  })
+  .transform((env) => ({
+    ...env,
+    CORS_ORIGIN: env.CORS_ORIGIN || (env.NODE_ENV === 'production' ? '' : '*'),
+    SWAGGER_UI_ENABLED:
+      env.SWAGGER_UI_ENABLED !== undefined
+        ? env.SWAGGER_UI_ENABLED.toLowerCase() === 'true'
+        : env.NODE_ENV !== 'production',
+  }));
 
 export type Env = z.infer<typeof EnvSchema>;
 
 let cachedEnv: Env | null = null;
+const isTestEnv = process.env['NODE_ENV'] === 'test';
 
 export function getEnv(): Env {
   if (cachedEnv) return cachedEnv;
+  if (!isTestEnv) {
+    dotenv.config();
+  }
   cachedEnv = EnvSchema.parse(process.env);
   return cachedEnv;
 }

@@ -1,5 +1,27 @@
-import type { DuckDBConnection } from '@duckdb/node-api';
 import type { StatisticsRepository } from '../../domains/statistics/ports/statisticsRepository.js';
+import type { DuckDBConnection } from '@duckdb/node-api';
+
+function requireValue(row: Record<string, unknown>, key: string): unknown {
+  const value = row[key];
+  if (value === null || value === undefined) {
+    throw new Error(`statistics row missing ${key}`);
+  }
+  return value;
+}
+
+function requireNumber(row: Record<string, unknown>, key: string): number {
+  const value = requireValue(row, key);
+  const num = Number(value);
+  if (!Number.isFinite(num)) {
+    throw new Error(`statistics row invalid ${key}`);
+  }
+  return num;
+}
+
+function requireString(row: Record<string, unknown>, key: string): string {
+  const value = requireValue(row, key);
+  return String(value);
+}
 
 export function createDuckDbStatisticsRepository(conn: DuckDBConnection): StatisticsRepository {
   return {
@@ -24,9 +46,9 @@ export function createDuckDbStatisticsRepository(conn: DuckDBConnection): Statis
 
       const reader = await conn.runAndReadAll(sql, params);
       const rows = reader.getRowObjects().map((r) => ({
-        year: Number(r['year']),
-        value: Number(r['value']),
-        unit: String(r['unit']),
+        year: requireNumber(r, 'year'),
+        value: requireNumber(r, 'value'),
+        unit: requireString(r, 'unit'),
       }));
 
       return {
@@ -46,14 +68,15 @@ export function createDuckDbStatisticsRepository(conn: DuckDBConnection): Statis
       `;
 
       if (input.like) {
-        sql += ` AND lower(area_name) LIKE ?`;
-        params.push(`%${input.like.toLowerCase()}%`);
+        sql += ` AND lower(area_name) LIKE ? ESCAPE '\\'`;
+        const escaped = input.like.toLowerCase().replace(/[%_\\]/g, '\\$&');
+        params.push(`%${escaped}%`);
       }
 
       sql += ` ORDER BY area_name ASC`;
 
       const reader = await conn.runAndReadAll(sql, params);
-      const rows = reader.getRowObjects().map((r) => String(r['area_name']));
+      const rows = reader.getRowObjects().map((r) => requireString(r, 'area_name'));
 
       return { indicator: input.indicator, areaType: input.areaType, rows };
     },
@@ -71,9 +94,9 @@ export function createDuckDbStatisticsRepository(conn: DuckDBConnection): Statis
       );
 
       const rows = reader.getRowObjects().map((r) => ({
-        area: String(r['area_name']),
-        value: Number(r['value']),
-        unit: String(r['unit']),
+        area: requireString(r, 'area_name'),
+        value: requireNumber(r, 'value'),
+        unit: requireString(r, 'unit'),
       }));
 
       return {

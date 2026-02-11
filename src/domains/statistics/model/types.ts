@@ -1,22 +1,32 @@
-export type Order = 'asc' | 'desc';
+export const INDICATORS = ['population'] as const;
+export const AREA_TYPES = ['district'] as const;
+export const ORDERS = ['asc', 'desc'] as const;
+
+export type Indicator = (typeof INDICATORS)[number];
+export type AreaType = (typeof AREA_TYPES)[number];
+export type Order = (typeof ORDERS)[number];
+
+export const RANKING_LIMIT_MIN = 1;
+export const RANKING_LIMIT_MAX = 100;
+export const RANKING_LIMIT_DEFAULT = 50;
 
 export type TimeseriesQuery = {
-  indicator: string;
-  areaType: string;
+  indicator: Indicator;
+  areaType: AreaType;
   area: string;
   from?: number;
   to?: number;
 };
 
 export type AreasQuery = {
-  indicator: string;
-  areaType: string;
+  indicator: Indicator;
+  areaType: AreaType;
   like?: string;
 };
 
 export type RankingQuery = {
-  indicator: string;
-  areaType: string;
+  indicator: Indicator;
+  areaType: AreaType;
   year: number;
   limit: number;
   order: Order;
@@ -35,21 +45,21 @@ export type RankingRow = {
 };
 
 export type TimeseriesResult = {
-  indicator: string;
-  areaType: string;
+  indicator: Indicator;
+  areaType: AreaType;
   area: string;
   rows: TimeseriesRow[];
 };
 
 export type AreasResult = {
-  indicator: string;
-  areaType: string;
+  indicator: Indicator;
+  areaType: AreaType;
   rows: string[];
 };
 
 export type RankingResult = {
-  indicator: string;
-  areaType: string;
+  indicator: Indicator;
+  areaType: AreaType;
   year: number;
   order: Order;
   limit: number;
