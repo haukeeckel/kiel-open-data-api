@@ -45,7 +45,7 @@ export default [
 
       '@typescript-eslint/consistent-type-imports': ['warn', { prefer: 'type-imports' }],
       '@typescript-eslint/consistent-type-definitions': ['warn', 'type'],
-      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-explicit-any': 'error',
     },
   })),
 
