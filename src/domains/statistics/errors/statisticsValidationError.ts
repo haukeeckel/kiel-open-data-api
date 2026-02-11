@@ -1,4 +1,4 @@
-import type { ErrorDetails } from '../../../app/http/errors.js';
+import type { ErrorDetails } from '../../../types/errors.js';
 
 export class StatisticsValidationError extends Error {
   readonly details?: ErrorDetails;

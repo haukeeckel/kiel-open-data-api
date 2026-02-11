@@ -1,4 +1,7 @@
+import type { ErrorDetails } from '../../types/errors.js';
 import type { FastifyReply, FastifyRequest } from 'fastify';
+
+export type { ErrorDetails };
 
 export type ApiErrorCode =
   | 'BAD_REQUEST'
@@ -9,8 +12,6 @@ export type ApiErrorCode =
   | 'UNPROCESSABLE_ENTITY'
   | 'CLIENT_ERROR'
   | 'INTERNAL';
-
-export type ErrorDetails = Record<string, unknown> | unknown[];
 
 export type ApiErrorBody = {
   error: {

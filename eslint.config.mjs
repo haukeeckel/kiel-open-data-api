@@ -85,4 +85,57 @@ export default [
       '@typescript-eslint/await-thenable': 'error',
     },
   },
+
+  // --- Layer boundary rules ---
+  // Domain must not import from app or infra
+  {
+    files: ['src/domains/**/*.ts'],
+    rules: {
+      'import/no-restricted-paths': [
+        'error',
+        {
+          zones: [
+            {
+              target: './src/domains',
+              from: './src/app',
+              message: 'Domain must not import from app layer.',
+            },
+            {
+              target: './src/domains',
+              from: './src/infra',
+              message: 'Domain must not import from infra layer.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  // Config must not import from app, infra, or domains
+  {
+    files: ['src/config/**/*.ts'],
+    rules: {
+      'import/no-restricted-paths': [
+        'error',
+        {
+          zones: [
+            {
+              target: './src/config',
+              from: './src/app',
+              message: 'Config must not import from app layer.',
+            },
+            {
+              target: './src/config',
+              from: './src/infra',
+              message: 'Config must not import from infra layer.',
+            },
+            {
+              target: './src/config',
+              from: './src/domains',
+              message: 'Config must not import from domain layer.',
+            },
+          ],
+        },
+      ],
+    },
+  },
 ];
