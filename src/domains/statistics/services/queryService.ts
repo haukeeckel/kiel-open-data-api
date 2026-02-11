@@ -18,7 +18,6 @@ export class StatisticsQueryService {
   }
 
   async getRanking(input: RankingQuery) {
-    const limit = Math.min(50, Math.max(1, input.limit));
-    return this.repo.getRanking({ ...input, limit });
+    return this.repo.getRanking(input);
   }
 }

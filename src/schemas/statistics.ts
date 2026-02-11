@@ -39,11 +39,20 @@ export const AreasResponse = z.object({
   rows: z.array(z.string()),
 });
 
+export const RANKING_LIMIT_MIN = 1;
+export const RANKING_LIMIT_MAX = 100;
+export const RANKING_LIMIT_DEFAULT = 50;
+
 export const RankingQuery = z.object({
   indicator: Indicator,
   areaType: AreaType,
   year: z.coerce.number().int(),
-  limit: z.coerce.number().int().min(1).max(50).default(10),
+  limit: z.coerce
+    .number()
+    .int()
+    .min(RANKING_LIMIT_MIN)
+    .max(RANKING_LIMIT_MAX)
+    .default(RANKING_LIMIT_DEFAULT),
   order: z.enum(['asc', 'desc']).default('desc'),
 });
 
