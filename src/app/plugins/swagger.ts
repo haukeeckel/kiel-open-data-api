@@ -21,7 +21,9 @@ export default fp(async function swaggerPlugin(app: FastifyInstance) {
     transform: jsonSchemaTransform,
   });
 
-  await app.register(swaggerUi, {
-    routePrefix: env.SWAGGER_ROUTE_PREFIX,
-  });
+  if (env.SWAGGER_UI_ENABLED) {
+    await app.register(swaggerUi, {
+      routePrefix: env.SWAGGER_ROUTE_PREFIX,
+    });
+  }
 });
