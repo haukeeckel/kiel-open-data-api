@@ -10,11 +10,13 @@ export type ApiErrorCode =
   | 'CLIENT_ERROR'
   | 'INTERNAL';
 
+export type ErrorDetails = Record<string, unknown> | unknown[];
+
 export type ApiErrorBody = {
   error: {
     code: ApiErrorCode;
     message: string;
-    details?: unknown;
+    details?: ErrorDetails;
   };
   requestId: string;
 };
@@ -26,7 +28,7 @@ function requestId(req: FastifyRequest): string {
 export function sendError(
   req: FastifyRequest,
   reply: FastifyReply,
-  input: { statusCode: number; code: ApiErrorCode; message: string; details?: unknown },
+  input: { statusCode: number; code: ApiErrorCode; message: string; details?: ErrorDetails },
 ) {
   const body: ApiErrorBody = {
     error: {
@@ -44,13 +46,13 @@ export function sendBadRequest(
   req: FastifyRequest,
   reply: FastifyReply,
   message: string,
-  details?: unknown,
+  details?: ErrorDetails,
 ) {
   return sendError(req, reply, {
     statusCode: 400,
     code: 'BAD_REQUEST',
     message,
-    details,
+    ...(details !== undefined ? { details } : {}),
   });
 }
 

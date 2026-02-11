@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import fp from 'fastify-plugin';
 import {
   type ApiErrorCode,
+  type ErrorDetails,
   sendBadRequest,
   sendError,
   sendInternalError,
@@ -10,7 +11,7 @@ import {
 import { StatisticsValidationError } from '../../domains/statistics/errors/statisticsValidationError.js';
 
 type ErrorWithStatus = { statusCode?: number };
-type ErrorWithValidation = { validation?: unknown };
+type ErrorWithValidation = { validation?: ErrorDetails };
 
 function hasStatusCode(err: unknown): err is ErrorWithStatus {
   return typeof err === 'object' && err !== null && 'statusCode' in err;

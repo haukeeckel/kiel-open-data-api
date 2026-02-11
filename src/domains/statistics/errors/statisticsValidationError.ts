@@ -1,9 +1,13 @@
-export class StatisticsValidationError extends Error {
-  readonly details?: unknown;
+import type { ErrorDetails } from '../../../app/http/errors.js';
 
-  constructor(message: string, details?: unknown) {
+export class StatisticsValidationError extends Error {
+  readonly details?: ErrorDetails;
+
+  constructor(message: string, details?: ErrorDetails) {
     super(message);
     this.name = 'StatisticsValidationError';
-    this.details = details;
+    if (details !== undefined) {
+      this.details = details;
+    }
   }
 }
