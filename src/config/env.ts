@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
 import { z } from 'zod';
 import { DEFAULT_HOST, DEFAULT_NODE_ENV, DEFAULT_PORT, NODE_ENVS } from './constants.js';
 
@@ -17,9 +17,13 @@ const EnvSchema = z.object({
 export type Env = z.infer<typeof EnvSchema>;
 
 let cachedEnv: Env | null = null;
+const isTestEnv = process.env['NODE_ENV'] === 'test';
 
 export function getEnv(): Env {
   if (cachedEnv) return cachedEnv;
+  if (!isTestEnv) {
+    dotenv.config();
+  }
   cachedEnv = EnvSchema.parse(process.env);
   return cachedEnv;
 }
