@@ -4,12 +4,17 @@ import { sendBadRequest, sendError, sendInternalError, sendNotFound } from './er
 
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
+type ReplyMock = {
+  code: ReturnType<typeof vi.fn>;
+  send: ReturnType<typeof vi.fn>;
+};
+
 function makeReply() {
   const reply = {
     code: vi.fn().mockReturnThis(),
     send: vi.fn(),
   };
-  return reply as unknown as FastifyReply;
+  return reply as ReplyMock & FastifyReply;
 }
 
 function makeRequest(id = 'req-1') {
