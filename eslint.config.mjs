@@ -1,7 +1,8 @@
 import js from '@eslint/js';
-import tseslint from 'typescript-eslint';
 import prettierConfig from 'eslint-config-prettier';
+import importPlugin from 'eslint-plugin-import';
 import prettierPlugin from 'eslint-plugin-prettier';
+import tseslint from 'typescript-eslint';
 
 export default [
   // --- Global ignores ---
@@ -13,12 +14,22 @@ export default [
   {
     files: ['**/*.{js,mjs,cjs}'],
     ...js.configs.recommended,
-    plugins: { prettier: prettierPlugin },
+    plugins: { prettier: prettierPlugin, import: importPlugin },
     rules: {
       ...prettierConfig.rules,
       'prettier/prettier': 'error',
       'no-multiple-empty-lines': ['error', { max: 1, maxEOF: 0, maxBOF: 0 }],
       'no-console': ['warn', { allow: ['warn', 'error'] }],
+      'import/newline-after-import': 'error',
+      'import/no-duplicates': 'error',
+      'import/order': [
+        'error',
+        {
+          alphabetize: { order: 'asc', caseInsensitive: true },
+          'newlines-between': 'always',
+          groups: ['builtin', 'external', 'internal', 'parent', 'sibling', 'index', 'type'],
+        },
+      ],
     },
   },
 
@@ -26,7 +37,7 @@ export default [
   ...tseslint.configs.recommended.map((cfg) => ({
     ...cfg,
     files: ['**/*.ts'],
-    plugins: { ...(cfg.plugins ?? {}), prettier: prettierPlugin },
+    plugins: { ...(cfg.plugins ?? {}), prettier: prettierPlugin, import: importPlugin },
     rules: {
       ...(cfg.rules ?? {}),
       ...prettierConfig.rules,
@@ -46,6 +57,17 @@ export default [
       '@typescript-eslint/consistent-type-imports': ['warn', { prefer: 'type-imports' }],
       '@typescript-eslint/consistent-type-definitions': ['warn', 'type'],
       '@typescript-eslint/no-explicit-any': 'error',
+
+      'import/newline-after-import': 'error',
+      'import/no-duplicates': 'error',
+      'import/order': [
+        'error',
+        {
+          alphabetize: { order: 'asc', caseInsensitive: true },
+          'newlines-between': 'always',
+          groups: ['builtin', 'external', 'internal', 'parent', 'sibling', 'index', 'type'],
+        },
+      ],
     },
   })),
 

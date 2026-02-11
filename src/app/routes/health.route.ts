@@ -1,8 +1,10 @@
-import type { FastifyInstance } from 'fastify';
-import { z } from 'zod';
 import { type ZodTypeProvider } from 'fastify-type-provider-zod';
+import { z } from 'zod';
+
 import { API_NAME } from '../../config/constants.js';
 import { getEnv } from '../../config/env.js';
+
+import type { FastifyInstance } from 'fastify';
 
 const RootResponse = z.object({
   name: z.string(),

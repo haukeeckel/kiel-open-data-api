@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
+
 import { DEFAULT_HOST, DEFAULT_NODE_ENV, DEFAULT_PORT } from './constants.js';
 import { getEnv, resetEnvForTests } from './env.js';
 

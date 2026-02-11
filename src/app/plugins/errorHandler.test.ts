@@ -1,7 +1,9 @@
 import Fastify from 'fastify';
 import { describe, expect, it } from 'vitest';
-import errorHandlerPlugin from './errorHandler.js';
+
 import { StatisticsValidationError } from '../../domains/statistics/errors/statisticsValidationError.js';
+
+import errorHandlerPlugin from './errorHandler.js';
 
 describe('errorHandler plugin', () => {
   it('maps domain validation error to 400', async () => {

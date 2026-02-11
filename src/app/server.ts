@@ -4,14 +4,16 @@ import {
   validatorCompiler,
   type ZodTypeProvider,
 } from 'fastify-type-provider-zod';
+
 import { getEnv } from '../config/env.js';
 import { getLoggerOptions } from '../logger/http.js';
+
 import corsPlugin from './plugins/cors.js';
 import errorHandlerPlugin from './plugins/errorHandler.js';
-import swaggerPlugin from './plugins/swagger.js';
 import rateLimitPlugin from './plugins/rateLimit.js';
 import repositoriesPlugin from './plugins/repositories.js';
 import servicesPlugin from './plugins/services.js';
+import swaggerPlugin from './plugins/swagger.js';
 import healthRoutes from './routes/health.route.js';
 import statisticsRoutes from './routes/statistics.route.js';
 

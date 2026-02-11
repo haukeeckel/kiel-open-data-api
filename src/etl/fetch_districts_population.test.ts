@@ -1,12 +1,14 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import * as fs from 'node:fs/promises';
 import * as fssync from 'node:fs';
+import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
-import { fetchDistrictsPopulation } from './fetch_districts_population.js';
-import { CSV_FILENAME, CSV_META_FILENAME } from './districts_population.constants.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { setTestEnv } from '../test/helpers/env.js';
+
+import { CSV_FILENAME, CSV_META_FILENAME } from './districts_population.constants.js';
+import { fetchDistrictsPopulation } from './fetch_districts_population.js';
 
 function mkTmpDir() {
   return fssync.mkdtempSync(path.join(os.tmpdir(), 'kiel-etl-'));

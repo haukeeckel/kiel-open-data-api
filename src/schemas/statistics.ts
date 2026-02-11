@@ -1,4 +1,5 @@
 import { z } from 'zod';
+
 import {
   AREA_TYPES,
   INDICATORS,

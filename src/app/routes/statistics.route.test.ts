@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
 import { cleanupDuckDbFiles, makeAppAndSeed } from '../../test/helpers/app.js';
 import { type buildServer } from '../server.js';
 

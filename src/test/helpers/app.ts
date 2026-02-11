@@ -1,11 +1,14 @@
+import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import * as crypto from 'node:crypto';
+
 import { DuckDBInstance } from '@duckdb/node-api';
+
 import { buildServer } from '../../app/server.js';
-import { applyMigrations } from '../../infra/db/migrations.js';
-import { setTestEnv } from './env.js';
 import { getCacheDir } from '../../config/path.js';
+import { applyMigrations } from '../../infra/db/migrations.js';
+
+import { setTestEnv } from './env.js';
 
 export function makeTestDbPath() {
   const id = crypto.randomUUID();

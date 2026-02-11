@@ -1,5 +1,6 @@
-import type { FastifyInstance } from 'fastify';
 import fp from 'fastify-plugin';
+
+import { StatisticsValidationError } from '../../domains/statistics/errors/statisticsValidationError.js';
 import {
   type ApiErrorCode,
   type ErrorDetails,
@@ -8,7 +9,8 @@ import {
   sendInternalError,
   sendNotFound,
 } from '../http/errors.js';
-import { StatisticsValidationError } from '../../domains/statistics/errors/statisticsValidationError.js';
+
+import type { FastifyInstance } from 'fastify';
 
 type ErrorWithStatus = { statusCode?: number };
 type ErrorWithValidation = { validation?: ErrorDetails };

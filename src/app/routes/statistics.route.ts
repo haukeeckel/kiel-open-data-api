@@ -1,11 +1,14 @@
-import type { FastifyInstance } from 'fastify';
 import { type ZodTypeProvider } from 'fastify-type-provider-zod';
+
+import { toAreasQuery, toRankingQuery, toTimeseriesQuery } from '../mappers/statistics.mapper.js';
+
 import {
   areasRouteSchema,
   rankingRouteSchema,
   timeseriesRouteSchema,
 } from './statistics.schema.js';
-import { toAreasQuery, toRankingQuery, toTimeseriesQuery } from '../mappers/statistics.mapper.js';
+
+import type { FastifyInstance } from 'fastify';
 
 export default async function statisticsRoutes(app: FastifyInstance) {
   const r = app.withTypeProvider<ZodTypeProvider>();

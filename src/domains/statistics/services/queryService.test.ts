@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
+
 import { StatisticsQueryService } from './queryService.js';
+
 import type { StatisticsRepository } from '../ports/statisticsRepository.js';
 
 function createFakeRepo(): StatisticsRepository {

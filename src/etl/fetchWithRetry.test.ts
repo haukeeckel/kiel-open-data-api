@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+
 import { fetchWithRetry, type FetchRetryOptions } from './fetchWithRetry.js';
 
 const TEST_URL = 'https://example.com/data.csv';

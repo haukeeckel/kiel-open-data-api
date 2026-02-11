@@ -3,12 +3,12 @@ import type {
   AreasQuery,
   RankingQuery,
 } from '../../domains/statistics/model/types.js';
-import type { z } from 'zod';
 import type {
   TimeseriesQuery as TimeseriesSchema,
   AreasQuery as AreasSchema,
   RankingQuery as RankingSchema,
 } from '../../schemas/statistics.js';
+import type { z } from 'zod';
 
 export function toTimeseriesQuery(query: z.infer<typeof TimeseriesSchema>): TimeseriesQuery {
   return {

@@ -1,5 +1,6 @@
-import type { FastifyServerOptions } from 'fastify';
 import { type NodeEnv } from '../config/constants.js';
+
+import type { FastifyServerOptions } from 'fastify';
 
 type LoggerOption = Exclude<FastifyServerOptions['logger'], undefined>;
 

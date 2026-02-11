@@ -1,9 +1,11 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api';
-import { createDuckDbStatisticsRepository } from './statisticsRepository.duckdb.js';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+
 import { applyMigrations } from './migrations.js';
-import type { StatisticsRepository } from '../../domains/statistics/ports/statisticsRepository.js';
+import { createDuckDbStatisticsRepository } from './statisticsRepository.duckdb.js';
+
 import type { Indicator } from '../../domains/statistics/model/types.js';
+import type { StatisticsRepository } from '../../domains/statistics/ports/statisticsRepository.js';
 
 describe('DuckDbStatisticsRepository', () => {
   let conn: DuckDBConnection;

@@ -1,3 +1,4 @@
+import { ApiError } from '../../schemas/api.js';
 import {
   AreasQuery,
   AreasResponse,
@@ -6,7 +7,6 @@ import {
   TimeseriesQuery,
   TimeseriesResponse,
 } from '../../schemas/statistics.js';
-import { ApiError } from '../../schemas/api.js';
 
 export const timeseriesRouteSchema = {
   schema: {

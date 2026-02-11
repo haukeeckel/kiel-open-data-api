@@ -1,7 +1,7 @@
-import { fetchDistrictsPopulation } from '../fetch_districts_population.js';
+import { getEnv } from '../../config/env.js';
 import { createEtlLogger } from '../../logger/etl.js';
 import { flushLogger } from '../../logger/flush.js';
-import { getEnv } from '../../config/env.js';
+import { fetchDistrictsPopulation } from '../fetch_districts_population.js';
 
 const log = createEtlLogger(getEnv().NODE_ENV);
 

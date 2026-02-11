@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { type buildServer } from '../server.js';
+
 import { cleanupDuckDbFiles, makeAppAndSeed } from '../../test/helpers/app.js';
+import { type buildServer } from '../server.js';
 
 describe('cors', () => {
   let app: Awaited<ReturnType<typeof buildServer>>;

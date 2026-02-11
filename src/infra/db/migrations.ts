@@ -1,5 +1,6 @@
-import type { DuckDBConnection } from '@duckdb/node-api';
 import * as crypto from 'node:crypto';
+
+import type { DuckDBConnection } from '@duckdb/node-api';
 
 type Migration = {
   version: number;

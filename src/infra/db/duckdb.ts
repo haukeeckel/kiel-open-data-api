@@ -1,6 +1,8 @@
-import { DuckDBInstance } from '@duckdb/node-api';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+
+import { DuckDBInstance } from '@duckdb/node-api';
+
 import { DEFAULT_RETRIES, type RetryConfig } from '../../config/retry.js';
 import { sleep } from '../../utils/sleep.js';
 

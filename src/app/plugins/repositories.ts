@@ -1,10 +1,12 @@
-import type { FastifyInstance } from 'fastify';
 import fp from 'fastify-plugin';
+
 import { getEnv } from '../../config/env.js';
 import { getDuckDbPath } from '../../config/path.js';
 import { createDb } from '../../infra/db/duckdb.js';
 import { applyMigrations } from '../../infra/db/migrations.js';
 import { createDuckDbStatisticsRepository } from '../../infra/db/statisticsRepository.duckdb.js';
+
+import type { FastifyInstance } from 'fastify';
 
 export default fp(async function repositoriesPlugin(app: FastifyInstance) {
   const dbPath = getDuckDbPath(getEnv());
