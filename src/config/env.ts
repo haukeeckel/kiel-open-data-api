@@ -9,15 +9,20 @@ const EnvSchema = z
     PORT: z.coerce.number().int().positive().default(DEFAULT_PORT),
     HOST: z.string().default(DEFAULT_HOST),
     DUCKDB_PATH: z.string().trim().optional(),
-    CORS_ORIGIN: z.string().default('*'),
+    CORS_ORIGIN: z.string().trim().optional(),
     APP_VERSION: z.string().default(process.env['npm_package_version'] ?? '0.0.0'),
     RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
     RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
     SWAGGER_ROUTE_PREFIX: z.string().default('/docs'),
     SWAGGER_UI_ENABLED: z.string().optional(),
   })
+  .refine((env) => env.NODE_ENV !== 'production' || !!env.CORS_ORIGIN, {
+    message: 'CORS_ORIGIN must be set in production',
+    path: ['CORS_ORIGIN'],
+  })
   .transform((env) => ({
     ...env,
+    CORS_ORIGIN: env.CORS_ORIGIN || (env.NODE_ENV === 'production' ? '' : '*'),
     SWAGGER_UI_ENABLED:
       env.SWAGGER_UI_ENABLED !== undefined
         ? env.SWAGGER_UI_ENABLED.toLowerCase() === 'true'
