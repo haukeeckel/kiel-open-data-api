@@ -3,13 +3,14 @@ import type {
   AreasQuery,
   RankingQuery,
 } from '../../domains/statistics/model/types.js';
-import {
-  type RankingQueryInput,
-  type AreasQueryInput,
-  type TimeseriesQueryInput,
+import type { z } from 'zod';
+import type {
+  TimeseriesQuery as TimeseriesSchema,
+  AreasQuery as AreasSchema,
+  RankingQuery as RankingSchema,
 } from '../../schemas/statistics.js';
 
-export function toTimeseriesQuery(query: TimeseriesQueryInput): TimeseriesQuery {
+export function toTimeseriesQuery(query: z.infer<typeof TimeseriesSchema>): TimeseriesQuery {
   return {
     indicator: query.indicator,
     areaType: query.areaType,
@@ -19,7 +20,7 @@ export function toTimeseriesQuery(query: TimeseriesQueryInput): TimeseriesQuery 
   };
 }
 
-export function toAreasQuery(query: AreasQueryInput): AreasQuery {
+export function toAreasQuery(query: z.infer<typeof AreasSchema>): AreasQuery {
   return {
     indicator: query.indicator,
     areaType: query.areaType,
@@ -27,7 +28,7 @@ export function toAreasQuery(query: AreasQueryInput): AreasQuery {
   };
 }
 
-export function toRankingQuery(query: RankingQueryInput): RankingQuery {
+export function toRankingQuery(query: z.infer<typeof RankingSchema>): RankingQuery {
   return {
     indicator: query.indicator,
     areaType: query.areaType,

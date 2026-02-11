@@ -1,7 +1,12 @@
 import { z } from 'zod';
-
-export const INDICATORS = ['population'] as const;
-export const AREA_TYPES = ['district'] as const;
+import {
+  AREA_TYPES,
+  INDICATORS,
+  ORDERS,
+  RANKING_LIMIT_DEFAULT,
+  RANKING_LIMIT_MAX,
+  RANKING_LIMIT_MIN,
+} from '../domains/statistics/model/types.js';
 
 const Indicator = z.enum(INDICATORS);
 const AreaType = z.enum(AREA_TYPES);
@@ -39,10 +44,6 @@ export const AreasResponse = z.object({
   rows: z.array(z.string()),
 });
 
-export const RANKING_LIMIT_MIN = 1;
-export const RANKING_LIMIT_MAX = 100;
-export const RANKING_LIMIT_DEFAULT = 50;
-
 export const RankingQuery = z.object({
   indicator: Indicator,
   areaType: AreaType,
@@ -53,14 +54,14 @@ export const RankingQuery = z.object({
     .min(RANKING_LIMIT_MIN)
     .max(RANKING_LIMIT_MAX)
     .default(RANKING_LIMIT_DEFAULT),
-  order: z.enum(['asc', 'desc']).default('desc'),
+  order: z.enum(ORDERS).default('desc'),
 });
 
 export const RankingResponse = z.object({
   indicator: z.string(),
   areaType: z.string(),
   year: z.number().int(),
-  order: z.enum(['asc', 'desc']),
+  order: z.enum(ORDERS),
   limit: z.number().int(),
   rows: z.array(
     z.object({
@@ -70,7 +71,3 @@ export const RankingResponse = z.object({
     }),
   ),
 });
-
-export type TimeseriesQueryInput = z.infer<typeof TimeseriesQuery>;
-export type AreasQueryInput = z.infer<typeof AreasQuery>;
-export type RankingQueryInput = z.infer<typeof RankingQuery>;

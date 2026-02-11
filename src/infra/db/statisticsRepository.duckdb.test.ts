@@ -3,6 +3,7 @@ import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api';
 import { createDuckDbStatisticsRepository } from './statisticsRepository.duckdb.js';
 import { applyMigrations } from './migrations.js';
 import type { StatisticsRepository } from '../../domains/statistics/ports/statisticsRepository.js';
+import type { Indicator } from '../../domains/statistics/model/types.js';
 
 describe('DuckDbStatisticsRepository', () => {
   let conn: DuckDBConnection;
@@ -118,7 +119,7 @@ describe('DuckDbStatisticsRepository', () => {
 
     it('returns empty rows for non-existent indicator', async () => {
       const result = await repo.listAreas({
-        indicator: 'unknown',
+        indicator: 'unknown' as Indicator,
         areaType: 'district',
       });
 
