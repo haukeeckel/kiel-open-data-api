@@ -20,6 +20,6 @@ export default fp(async function swaggerPlugin(app: FastifyInstance) {
   });
 
   await app.register(swaggerUi, {
-    routePrefix: '/docs',
+    routePrefix: env.SWAGGER_ROUTE_PREFIX,
   });
 });
