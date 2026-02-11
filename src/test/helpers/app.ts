@@ -37,7 +37,11 @@ export async function seedStatistics(db: DuckDBInstance) {
   }
 }
 
-export async function makeAppAndSeed() {
+type MakeAppOptions = {
+  registerRoutes?: (app: Awaited<ReturnType<typeof buildServer>>) => void | Promise<void>;
+};
+
+export async function makeAppAndSeed(options: MakeAppOptions = {}) {
   const dbPath = makeTestDbPath();
 
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
@@ -49,22 +53,9 @@ export async function makeAppAndSeed() {
   await seedStatistics(db);
 
   const app = await buildServer();
-
-  app.get('/__boom', async () => {
-    throw new Error('boom');
-  });
-
-  app.get('/__401', async () => {
-    const err = new Error('nope');
-    (err as unknown as { statusCode: number }).statusCode = 401;
-    throw err;
-  });
-
-  app.get('/__409', async () => {
-    const err = new Error('conflict');
-    (err as unknown as { statusCode: number }).statusCode = 409;
-    throw err;
-  });
+  if (options.registerRoutes) {
+    await options.registerRoutes(app);
+  }
 
   await app.ready();
   return { app, dbPath };

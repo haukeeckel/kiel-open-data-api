@@ -8,7 +8,25 @@ describe('statistics endpoints', () => {
   let dbPath: string;
 
   beforeEach(async () => {
-    const res = await makeAppAndSeed();
+    const res = await makeAppAndSeed({
+      registerRoutes: (appInstance) => {
+        appInstance.get('/__boom', async () => {
+          throw new Error('boom');
+        });
+
+        appInstance.get('/__401', async () => {
+          const err = new Error('nope');
+          Object.assign(err, { statusCode: 401 });
+          throw err;
+        });
+
+        appInstance.get('/__409', async () => {
+          const err = new Error('conflict');
+          Object.assign(err, { statusCode: 409 });
+          throw err;
+        });
+      },
+    });
     app = res.app;
     dbPath = res.dbPath;
   });
