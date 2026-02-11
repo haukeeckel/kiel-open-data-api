@@ -4,12 +4,14 @@ import fp from 'fastify-plugin';
 import { jsonSchemaTransform } from 'fastify-type-provider-zod';
 
 import { API_NAME } from '../../config/constants.js';
-import { getEnv } from '../../config/env.js';
+import { type Env, getEnv } from '../../config/env.js';
 
 import type { FastifyInstance } from 'fastify';
 
-export default fp(async function swaggerPlugin(app: FastifyInstance) {
-  const env = getEnv();
+export type SwaggerPluginOptions = { env?: Env };
+
+export default fp<SwaggerPluginOptions>(async function swaggerPlugin(app: FastifyInstance, opts) {
+  const env = opts?.env ?? getEnv();
   await app.register(swagger, {
     openapi: {
       info: {

@@ -21,7 +21,7 @@ import { getDuckDbPath } from '../../config/path.js';
 import { createDb } from '../../infra/db/duckdb.js';
 import { applyMigrations } from '../../infra/db/migrations.js';
 import { createDuckDbStatisticsRepository } from '../../infra/db/statisticsRepository.duckdb.js';
-import { withTestEnv } from '../../test/helpers/env.js';
+import { makeEnv } from '../../test/helpers/makeEnv.js';
 
 import repositoriesPlugin from './repositories.js';
 
@@ -31,7 +31,7 @@ describe('repositories plugin', () => {
   });
 
   it('creates db, applies migrations, and decorates repos', async () => {
-    const restoreEnv = withTestEnv({ NODE_ENV: 'test' });
+    const env = makeEnv({ NODE_ENV: 'test' });
 
     const conn = { closeSync: vi.fn() };
     const db = { connect: vi.fn().mockResolvedValue(conn), closeSync: vi.fn() };
@@ -41,21 +41,17 @@ describe('repositories plugin', () => {
     (createDuckDbStatisticsRepository as ReturnType<typeof vi.fn>).mockReturnValue(repo);
 
     const app = Fastify();
-    try {
-      await app.register(repositoriesPlugin);
+    await app.register(repositoriesPlugin, { env });
 
-      expect(getDuckDbPath).toHaveBeenCalled();
-      expect(createDb).toHaveBeenCalledWith('/tmp/kiel-test.duckdb', expect.any(Object));
-      expect(db.connect).toHaveBeenCalled();
-      expect(applyMigrations).toHaveBeenCalledWith(conn);
-      expect(app.repos.statisticsRepository).toBe(repo);
-      expect(app.dbConn).toBe(conn);
+    expect(getDuckDbPath).toHaveBeenCalled();
+    expect(createDb).toHaveBeenCalledWith('/tmp/kiel-test.duckdb', expect.any(Object));
+    expect(db.connect).toHaveBeenCalled();
+    expect(applyMigrations).toHaveBeenCalledWith(conn);
+    expect(app.repos.statisticsRepository).toBe(repo);
+    expect(app.dbConn).toBe(conn);
 
-      await app.close();
-      expect(conn.closeSync).toHaveBeenCalled();
-      expect(db.closeSync).toHaveBeenCalled();
-    } finally {
-      restoreEnv();
-    }
+    await app.close();
+    expect(conn.closeSync).toHaveBeenCalled();
+    expect(db.closeSync).toHaveBeenCalled();
   });
 });

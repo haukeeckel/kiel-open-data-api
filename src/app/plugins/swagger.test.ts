@@ -1,71 +1,52 @@
-import swagger from '@fastify/swagger';
-import swaggerUi from '@fastify/swagger-ui';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import Fastify from 'fastify';
+import { describe, expect, it } from 'vitest';
 
 import { API_NAME } from '../../config/constants.js';
-import { withTestEnv } from '../../test/helpers/env.js';
+import { makeEnv } from '../../test/helpers/makeEnv.js';
 
 import swaggerPlugin from './swagger.js';
 
-vi.mock('@fastify/swagger', () => ({
-  default: vi.fn(),
-}));
-
-vi.mock('@fastify/swagger-ui', () => ({
-  default: vi.fn(),
-}));
-
 describe('swagger plugin', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('registers swagger with api metadata', async () => {
-    const restoreEnv = withTestEnv({
+  it('exposes swagger spec with api metadata', async () => {
+    const env = makeEnv({
       APP_VERSION: '1.2.3',
       SWAGGER_UI_ENABLED: false,
     });
 
-    try {
-      const app = { register: vi.fn(async () => {}) };
-      await swaggerPlugin(app as never);
+    const app = Fastify();
+    await app.register(swaggerPlugin, { env });
+    await app.ready();
 
-      const swaggerMock = vi.mocked(swagger);
-      expect(app.register).toHaveBeenCalledWith(swaggerMock, expect.any(Object));
-      const [, optsArg] = (app.register as ReturnType<typeof vi.fn>).mock.calls[0] ?? [];
-      expect(optsArg).toMatchObject({
-        openapi: {
-          info: {
-            title: API_NAME,
-            description: 'Open data API for Kiel dashboard',
-            version: '1.2.3',
-          },
-        },
-      });
-      expect(app.register).not.toHaveBeenCalledWith(vi.mocked(swaggerUi), expect.anything());
-    } finally {
-      restoreEnv();
-    }
+    const spec = app.swagger();
+    expect(spec.info).toMatchObject({
+      title: API_NAME,
+      description: 'Open data API for Kiel dashboard',
+      version: '1.2.3',
+    });
+
+    await app.close();
   });
 
-  it('registers swagger ui when enabled', async () => {
-    const restoreEnv = withTestEnv({
+  it('serves swagger ui when enabled', async () => {
+    const env = makeEnv({
       SWAGGER_UI_ENABLED: true,
       SWAGGER_ROUTE_PREFIX: '/docs',
     });
 
-    try {
-      const app = { register: vi.fn(async () => {}) };
-      await swaggerPlugin(app as never);
+    const app = Fastify();
+    await app.register(swaggerPlugin, { env });
+    await app.ready();
 
-      expect(app.register).toHaveBeenCalledWith(vi.mocked(swagger), expect.any(Object));
-      const swaggerUiMock = vi.mocked(swaggerUi);
-      expect(app.register).toHaveBeenCalledWith(
-        swaggerUiMock,
-        expect.objectContaining({ routePrefix: '/docs' }),
-      );
-    } finally {
-      restoreEnv();
-    }
+    const uiRes = await app.inject({ method: 'GET', url: '/docs' });
+    expect(uiRes.statusCode).toBe(200);
+    expect(uiRes.headers['content-type']).toMatch(/text\/html/i);
+
+    const jsonRes = await app.inject({ method: 'GET', url: '/docs/json' });
+    expect(jsonRes.statusCode).toBe(200);
+    expect(jsonRes.json()).toMatchObject({
+      info: { title: API_NAME },
+    });
+
+    await app.close();
   });
 });
