@@ -53,6 +53,15 @@ const migrations: Migration[] = [
       ON statistics(indicator, area_type, area_name, year);
     `,
   },
+  {
+    version: 4,
+    name: 'statistics_unique_constraint',
+    up: `
+      DROP INDEX IF EXISTS statistics_idx;
+      CREATE UNIQUE INDEX IF NOT EXISTS statistics_unique_idx
+      ON statistics(indicator, area_type, area_name, year);
+    `,
+  },
 ];
 
 function hashMigration(migration: Migration): string {

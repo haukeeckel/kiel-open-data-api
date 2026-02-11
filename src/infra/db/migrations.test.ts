@@ -27,6 +27,24 @@ describe('applyMigrations', () => {
     }
   });
 
+  it('rejects duplicate rows for indicator/area_type/area_name/year', async () => {
+    const db = await DuckDBInstance.create(':memory:');
+    const conn = await db.connect();
+
+    try {
+      await applyMigrations(conn);
+
+      const row = ['population', 'district', 'Altstadt', 2023, 1200, 'persons'] as const;
+      await conn.runAndReadAll(`INSERT INTO statistics VALUES (?,?,?,?,?,?);`, [...row]);
+
+      await expect(
+        conn.runAndReadAll(`INSERT INTO statistics VALUES (?,?,?,?,?,?);`, [...row]),
+      ).rejects.toThrow(/(unique|constraint)/i);
+    } finally {
+      conn.closeSync();
+    }
+  });
+
   it('applies all migrations and is idempotent', async () => {
     const db = await DuckDBInstance.create(':memory:');
     const conn = await db.connect();
