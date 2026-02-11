@@ -46,8 +46,9 @@ export function createDuckDbStatisticsRepository(conn: DuckDBConnection): Statis
       `;
 
       if (input.like) {
-        sql += ` AND lower(area_name) LIKE ?`;
-        params.push(`%${input.like.toLowerCase()}%`);
+        sql += ` AND lower(area_name) LIKE ? ESCAPE '\\'`;
+        const escaped = input.like.toLowerCase().replace(/[%_\\]/g, '\\$&');
+        params.push(`%${escaped}%`);
       }
 
       sql += ` ORDER BY area_name ASC`;
