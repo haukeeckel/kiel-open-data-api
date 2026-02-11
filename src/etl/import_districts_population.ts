@@ -9,7 +9,10 @@ import { applyMigrations } from '../infra/db/migrations.js';
 import { getDuckDbPath, getCacheDir } from '../config/path.js';
 import {
   AREA_TYPE,
+  CSV_COL_AREA,
+  CSV_COL_INDICATOR,
   CSV_FILENAME,
+  CSV_FILTER_VALUE,
   DATASET,
   INDICATOR,
   UNIT,
@@ -63,7 +66,7 @@ export async function importDistrictsPopulation(opts?: {
       'etl.import: detected columns',
     );
 
-    const requiredCols = ['Merkmal', 'Stadtteil'];
+    const requiredCols = [CSV_COL_INDICATOR, CSV_COL_AREA];
     const missing = requiredCols.filter((c) => !cols.includes(c));
     if (missing.length > 0) {
       throw new Error(`Missing required columns: ${missing.join(', ')}`);
@@ -98,14 +101,14 @@ export async function importDistrictsPopulation(opts?: {
         SELECT
           ? AS indicator,
           ? AS area_type,
-          "Stadtteil" AS area_name,
+          "${CSV_COL_AREA}" AS area_name,
           CAST(year AS INTEGER) AS year,
           CAST(value AS DOUBLE) AS value,
           ? AS unit
         FROM (
           SELECT *
           FROM raw
-          WHERE "Merkmal" = 'Einwohner insgesamt'
+          WHERE "${CSV_COL_INDICATOR}" = '${CSV_FILTER_VALUE}'
         )
         UNPIVOT(value FOR year IN (${inList}));
         `,

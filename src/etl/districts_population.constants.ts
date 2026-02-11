@@ -8,3 +8,7 @@ export const CSV_META_FILENAME = 'kiel_bevoelkerung_stadtteile.meta.json';
 export const INDICATOR = 'population';
 export const AREA_TYPE = 'district';
 export const UNIT = 'persons';
+
+export const CSV_COL_INDICATOR = 'Merkmal';
+export const CSV_COL_AREA = 'Stadtteil';
+export const CSV_FILTER_VALUE = 'Einwohner insgesamt';
