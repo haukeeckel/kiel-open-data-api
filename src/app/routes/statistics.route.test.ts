@@ -368,6 +368,39 @@ describe('statistics endpoints', () => {
       });
     });
 
+    it('supports foreign_age_groups indicator with default total category', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/timeseries?indicator=foreign_age_groups&areaType=district&area=Altstadt',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        indicator: 'foreign_age_groups',
+        areaType: 'district',
+        area: 'Altstadt',
+        rows: [
+          { year: 2022, value: 212, unit: 'persons', category: 'total' },
+          { year: 2023, value: 212, unit: 'persons', category: 'total' },
+        ],
+      });
+    });
+
+    it('supports foreign_age_groups indicator with explicit category filter', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/timeseries?indicator=foreign_age_groups&areaType=district&area=Altstadt&category=age_0_2',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        indicator: 'foreign_age_groups',
+        areaType: 'district',
+        area: 'Altstadt',
+        rows: [{ year: 2023, value: 4, unit: 'persons', category: 'age_0_2' }],
+      });
+    });
+
     it('returns 400 when from is greater than to', async () => {
       const res = await app.inject({
         method: 'GET',
@@ -522,6 +555,16 @@ describe('statistics endpoints', () => {
       expect(res.statusCode).toBe(200);
       expect(res.json().rows).toEqual(['Altstadt', 'Vorstadt']);
     });
+
+    it('supports foreign_age_groups indicator with default total category', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/areas?indicator=foreign_age_groups&areaType=district',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json().rows).toEqual(['Altstadt', 'Vorstadt']);
+    });
   });
 
   describe('GET /v1/categories', () => {
@@ -670,6 +713,42 @@ describe('statistics endpoints', () => {
         indicator: 'foreign_nationalities_selected',
         areaType: 'district',
         rows: ['bulgaria', 'iraq', 'poland', 'russia', 'syria', 'total', 'turkey', 'ukraine'],
+      });
+    });
+
+    it('returns distinct categories for foreign_age_groups indicator and areaType', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/categories?indicator=foreign_age_groups&areaType=district',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        indicator: 'foreign_age_groups',
+        areaType: 'district',
+        rows: [
+          'age_0_2',
+          'age_10_11',
+          'age_12_14',
+          'age_15_17',
+          'age_18_20',
+          'age_21_24',
+          'age_25_29',
+          'age_30_34',
+          'age_35_39',
+          'age_3_5',
+          'age_40_44',
+          'age_45_49',
+          'age_50_54',
+          'age_55_59',
+          'age_60_64',
+          'age_65_69',
+          'age_6_9',
+          'age_70_74',
+          'age_75_79',
+          'age_80_plus',
+          'total',
+        ],
       });
     });
   });
@@ -954,6 +1033,46 @@ describe('statistics endpoints', () => {
         ],
       });
     });
+
+    it('returns ranking for foreign_age_groups indicator with default total category', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/ranking?indicator=foreign_age_groups&areaType=district&year=2023&limit=2&order=desc',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        indicator: 'foreign_age_groups',
+        areaType: 'district',
+        year: 2023,
+        order: 'desc',
+        limit: 2,
+        rows: [
+          { area: 'Vorstadt', value: 324, unit: 'persons', category: 'total' },
+          { area: 'Altstadt', value: 212, unit: 'persons', category: 'total' },
+        ],
+      });
+    });
+
+    it('returns ranking for foreign_age_groups indicator with category filter', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/ranking?indicator=foreign_age_groups&areaType=district&year=2023&category=age_80_plus&limit=2&order=desc',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        indicator: 'foreign_age_groups',
+        areaType: 'district',
+        year: 2023,
+        order: 'desc',
+        limit: 2,
+        rows: [
+          { area: 'Vorstadt', value: 7, unit: 'persons', category: 'age_80_plus' },
+          { area: 'Altstadt', value: 3, unit: 'persons', category: 'age_80_plus' },
+        ],
+      });
+    });
   });
 
   describe('GET /v1/indicators', () => {
@@ -965,6 +1084,7 @@ describe('statistics endpoints', () => {
         rows: [
           'age_groups',
           'area_hectares',
+          'foreign_age_groups',
           'foreign_nationalities_selected',
           'gender',
           'households',
