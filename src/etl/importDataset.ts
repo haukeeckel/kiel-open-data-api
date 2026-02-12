@@ -126,13 +126,14 @@ async function importUnpivotYears(args: {
     const categorySlug = row.category.slug;
     const parsedValueExpr = row.valueExpression ? row.valueExpression : 'value';
     if (config.areaColumn) {
+      const areaExpr = config.areaExpression ?? quoteIdentifier(config.areaColumn);
       await conn.run(
         `
         INSERT INTO statistics
         SELECT
           ? AS indicator,
           ? AS area_type,
-          ${quoteIdentifier(config.areaColumn)} AS area_name,
+          ${areaExpr} AS area_name,
           CAST(${sqlYearExpr} AS INTEGER) AS year,
           TRY_CAST(${parsedValueExpr} AS DOUBLE) AS value,
           ? AS unit,
@@ -303,13 +304,14 @@ async function importUnpivotCategories(args: {
       : '';
 
     if (config.areaColumn) {
+      const areaExpr = config.areaExpression ?? quoteIdentifier(config.areaColumn);
       await conn.run(
         `
         INSERT INTO statistics
         SELECT
           ? AS indicator,
           ? AS area_type,
-          ${quoteIdentifier(config.areaColumn)} AS area_name,
+          ${areaExpr} AS area_name,
           CAST(${sqlYearExpr} AS INTEGER) AS year,
           CAST(${valueExpr} AS DOUBLE) AS value,
           ? AS unit,

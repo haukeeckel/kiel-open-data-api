@@ -335,6 +335,39 @@ describe('statistics endpoints', () => {
       });
     });
 
+    it('supports foreign_nationalities_selected indicator with default total category', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/timeseries?indicator=foreign_nationalities_selected&areaType=district&area=Altstadt',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        indicator: 'foreign_nationalities_selected',
+        areaType: 'district',
+        area: 'Altstadt',
+        rows: [
+          { year: 2022, value: 64, unit: 'persons', category: 'total' },
+          { year: 2023, value: 71, unit: 'persons', category: 'total' },
+        ],
+      });
+    });
+
+    it('supports foreign_nationalities_selected indicator with explicit category filter', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/timeseries?indicator=foreign_nationalities_selected&areaType=district&area=Altstadt&category=turkey',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        indicator: 'foreign_nationalities_selected',
+        areaType: 'district',
+        area: 'Altstadt',
+        rows: [{ year: 2023, value: 8, unit: 'persons', category: 'turkey' }],
+      });
+    });
+
     it('returns 400 when from is greater than to', async () => {
       const res = await app.inject({
         method: 'GET',
@@ -479,6 +512,16 @@ describe('statistics endpoints', () => {
       expect(res.statusCode).toBe(200);
       expect(res.json().rows).toEqual(['Altstadt', 'Vorstadt']);
     });
+
+    it('supports foreign_nationalities_selected indicator with default total category', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/areas?indicator=foreign_nationalities_selected&areaType=district',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json().rows).toEqual(['Altstadt', 'Vorstadt']);
+    });
   });
 
   describe('GET /v1/categories', () => {
@@ -613,6 +656,20 @@ describe('statistics endpoints', () => {
         indicator: 'religion',
         areaType: 'district',
         rows: ['catholic', 'evangelical', 'other_or_none', 'total'],
+      });
+    });
+
+    it('returns distinct categories for foreign_nationalities_selected indicator and areaType', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/categories?indicator=foreign_nationalities_selected&areaType=district',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        indicator: 'foreign_nationalities_selected',
+        areaType: 'district',
+        rows: ['bulgaria', 'iraq', 'poland', 'russia', 'syria', 'total', 'turkey', 'ukraine'],
       });
     });
   });
@@ -857,6 +914,46 @@ describe('statistics endpoints', () => {
         ],
       });
     });
+
+    it('returns ranking for foreign_nationalities_selected indicator with default total category', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/ranking?indicator=foreign_nationalities_selected&areaType=district&year=2023&limit=2&order=desc',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        indicator: 'foreign_nationalities_selected',
+        areaType: 'district',
+        year: 2023,
+        order: 'desc',
+        limit: 2,
+        rows: [
+          { area: 'Vorstadt', value: 75, unit: 'persons', category: 'total' },
+          { area: 'Altstadt', value: 71, unit: 'persons', category: 'total' },
+        ],
+      });
+    });
+
+    it('returns ranking for foreign_nationalities_selected indicator with category filter', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/ranking?indicator=foreign_nationalities_selected&areaType=district&year=2023&category=ukraine&limit=2&order=desc',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        indicator: 'foreign_nationalities_selected',
+        areaType: 'district',
+        year: 2023,
+        order: 'desc',
+        limit: 2,
+        rows: [
+          { area: 'Altstadt', value: 21, unit: 'persons', category: 'ukraine' },
+          { area: 'Vorstadt', value: 16, unit: 'persons', category: 'ukraine' },
+        ],
+      });
+    });
   });
 
   describe('GET /v1/indicators', () => {
@@ -868,6 +965,7 @@ describe('statistics endpoints', () => {
         rows: [
           'age_groups',
           'area_hectares',
+          'foreign_nationalities_selected',
           'gender',
           'households',
           'marital_status',
