@@ -25,7 +25,7 @@ export const DISTRICTS_MIGRANT_GENDER: DatasetConfig = {
         category: { slug: 'total', label: 'Einwohner mit Migrationshintergrund insgesamt' },
       },
       {
-        valueColumn: 'männlich',
+        valueColumns: ['männlich', 'm�nnlich', 'maennlich'],
         category: { slug: 'male', label: 'Maennlich' },
       },
       {

@@ -242,18 +242,37 @@ async function importUnpivotCategories(args: {
     throw new Error(`Unsupported CSV format: ${format.type}`);
   }
 
+  const resolveValueColumn = (column: (typeof format.columns)[number]): string | undefined => {
+    if (column.valueColumn) return column.valueColumn;
+    if (!column.valueColumns || column.valueColumns.length === 0) return undefined;
+    return column.valueColumns.find((candidate) => cols.includes(candidate));
+  };
+
   const requiredCols = [format.yearColumn];
   if (config.areaColumn) requiredCols.push(config.areaColumn);
   if (format.filterColumn) requiredCols.push(format.filterColumn);
   requiredCols.push(
     ...format.columns
-      .map((column) => column.valueColumn)
+      .map((column) => resolveValueColumn(column) ?? column.valueColumn)
       .filter((value): value is string => value !== undefined),
   );
 
   const missing = requiredCols.filter((col) => !cols.includes(col));
+  const missingAlternatives = format.columns
+    .filter(
+      (column) =>
+        !column.valueExpression &&
+        !column.valueColumn &&
+        column.valueColumns &&
+        column.valueColumns.length > 0 &&
+        resolveValueColumn(column) === undefined,
+    )
+    .map((column) => `[${column.valueColumns?.join(' | ')}] for ${column.category.slug}`);
   if (missing.length > 0) {
     throw new Error(`Missing required columns: ${missing.join(', ')}`);
+  }
+  if (missingAlternatives.length > 0) {
+    throw new Error(`Missing required columns: ${missingAlternatives.join(', ')}`);
   }
 
   const yearValuesReader = await conn.runAndReadAll(
@@ -270,7 +289,7 @@ async function importUnpivotCategories(args: {
   const sqlYearExpr = yearValueExpr({ yearValues, parseYear: format.yearParser });
 
   for (const column of format.columns) {
-    if (!column.valueColumn && !column.valueExpression) {
+    if (!column.valueColumn && !column.valueColumns && !column.valueExpression) {
       throw new Error(
         `Dataset ${config.id} requires valueColumn or valueExpression for category ${column.category.slug}`,
       );
@@ -304,15 +323,16 @@ async function importUnpivotCategories(args: {
   }
 
   for (const column of format.columns) {
-    if (!column.valueColumn && !column.valueExpression) continue;
+    if (!column.valueColumn && !column.valueColumns && !column.valueExpression) continue;
     const indicator = column.indicator ?? format.indicator;
     const unit = column.unit ?? format.unit;
     if (!indicator || !unit) continue;
 
     const categorySlug = column.category.slug;
+    const resolvedValueColumn = resolveValueColumn(column);
     const valueExpr = column.valueExpression
       ? column.valueExpression
-      : quoteIdentifier(column.valueColumn ?? '');
+      : quoteIdentifier(resolvedValueColumn ?? column.valueColumn ?? '');
     const filterParts: string[] = [];
     const filterParams: Array<string | number> = [];
 

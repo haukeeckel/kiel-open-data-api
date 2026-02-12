@@ -382,7 +382,7 @@ describe('importDataset', () => {
   it('imports migrant gender categories with dedupe and trimmed area names', async () => {
     const migrantGenderCsv =
       [
-        'Land;Stadt;Kategorie;Merkmal;Datum;Stadtteilnummer;Stadtteil;insgesamt;männlich;weiblich',
+        'Land;Stadt;Kategorie;Merkmal;Datum;Stadtteilnummer;Stadtteil;insgesamt;m�nnlich;weiblich',
         'de-sh;Kiel;Bevölkerung;Einwohner mit Migrationshintergrund;2022_12_31;1;Altstadt   ;350;190;160',
         'de-sh;Kiel;Bevölkerung;Einwohner mit Migrationshintergrund;2023_12_31;1;Altstadt   ;360;195;165',
         'de-sh;Kiel;Bevölkerung;Einwohner mit Migrationshintergrund;2023_12_31;1;Altstadt   ;364;199;165',
