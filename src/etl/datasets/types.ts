@@ -48,6 +48,7 @@ export type DatasetConfig = {
   csvFilename: string;
   areaType: string;
   areaColumn?: string | undefined;
+  areaExpression?: string | undefined;
   defaultAreaName?: string | undefined;
   format: CsvFormat;
 };
