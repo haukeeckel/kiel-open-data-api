@@ -1,3 +1,4 @@
+import { DISTRICTS_AGE_GROUPS } from './districts_age_groups.js';
 import { DISTRICTS_GENDER } from './districts_gender.js';
 import { DISTRICTS_HOUSEHOLDS_TYPE_SIZE } from './districts_households_type_size.js';
 import { DISTRICTS_MARITAL_STATUS } from './districts_marital_status.js';
@@ -9,6 +10,7 @@ const ALL_DATASETS: readonly DatasetConfig[] = [
   DISTRICTS_HOUSEHOLDS_TYPE_SIZE,
   DISTRICTS_MARITAL_STATUS,
   DISTRICTS_GENDER,
+  DISTRICTS_AGE_GROUPS,
 ];
 
 export function getDataset(id: string): DatasetConfig {
