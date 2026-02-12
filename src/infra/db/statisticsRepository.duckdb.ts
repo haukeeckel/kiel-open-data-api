@@ -28,10 +28,13 @@ export function createDuckDbStatisticsRepository(conn: DuckDBConnection): Statis
     async getTimeseries(input) {
       const params: Array<string | number> = [input.indicator, input.areaType, input.area];
       let sql = `
-        SELECT year, value, unit
+        SELECT year, value, unit, category
         FROM statistics
         WHERE indicator = ? AND area_type = ? AND area_name = ?
       `;
+
+      sql += ` AND category = ?`;
+      params.push(input.category ?? 'total');
 
       if (input.from !== undefined) {
         sql += ` AND year >= ?`;
@@ -49,6 +52,7 @@ export function createDuckDbStatisticsRepository(conn: DuckDBConnection): Statis
         year: requireNumber(r, 'year'),
         value: requireNumber(r, 'value'),
         unit: requireString(r, 'unit'),
+        category: requireString(r, 'category'),
       }));
 
       return {
@@ -67,6 +71,9 @@ export function createDuckDbStatisticsRepository(conn: DuckDBConnection): Statis
         WHERE indicator = ? AND area_type = ?
       `;
 
+      sql += ` AND category = ?`;
+      params.push(input.category ?? 'total');
+
       if (input.like) {
         sql += ` AND lower(area_name) LIKE ? ESCAPE '\\'`;
         const escaped = input.like.toLowerCase().replace(/[%_\\]/g, '\\$&');
@@ -84,19 +91,20 @@ export function createDuckDbStatisticsRepository(conn: DuckDBConnection): Statis
     async getRanking(input) {
       const reader = await conn.runAndReadAll(
         `
-        SELECT area_name, value, unit
+        SELECT area_name, value, unit, category
         FROM statistics
-        WHERE indicator = ? AND area_type = ? AND year = ?
+        WHERE indicator = ? AND area_type = ? AND year = ? AND category = ?
         ORDER BY value ${input.order === 'asc' ? 'ASC' : 'DESC'}
         LIMIT ?
         `,
-        [input.indicator, input.areaType, input.year, input.limit],
+        [input.indicator, input.areaType, input.year, input.category ?? 'total', input.limit],
       );
 
       const rows = reader.getRowObjects().map((r) => ({
         area: requireString(r, 'area_name'),
         value: requireNumber(r, 'value'),
         unit: requireString(r, 'unit'),
+        category: requireString(r, 'category'),
       }));
 
       return {

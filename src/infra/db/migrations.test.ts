@@ -11,7 +11,7 @@ describe('applyMigrations', () => {
     try {
       await applyMigrations(conn);
 
-      const valid = ['population', 'district', 'Altstadt', 2023, 1200, 'persons'] as const;
+      const valid = ['population', 'district', 'Altstadt', 2023, 1200, 'persons', 'total'] as const;
 
       for (let i = 0; i < valid.length; i++) {
         const row = [...valid];
@@ -34,11 +34,11 @@ describe('applyMigrations', () => {
     try {
       await applyMigrations(conn);
 
-      const row = ['population', 'district', 'Altstadt', 2023, 1200, 'persons'] as const;
-      await conn.runAndReadAll(`INSERT INTO statistics VALUES (?,?,?,?,?,?);`, [...row]);
+      const row = ['population', 'district', 'Altstadt', 2023, 1200, 'persons', 'total'] as const;
+      await conn.runAndReadAll(`INSERT INTO statistics VALUES (?,?,?,?,?,?,?);`, [...row]);
 
       await expect(
-        conn.runAndReadAll(`INSERT INTO statistics VALUES (?,?,?,?,?,?);`, [...row]),
+        conn.runAndReadAll(`INSERT INTO statistics VALUES (?,?,?,?,?,?,?);`, [...row]),
       ).rejects.toThrow(/(unique|constraint)/i);
     } finally {
       conn.closeSync();
