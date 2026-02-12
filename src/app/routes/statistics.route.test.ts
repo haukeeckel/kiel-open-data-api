@@ -182,6 +182,39 @@ describe('statistics endpoints', () => {
       });
     });
 
+    it('supports gender indicator with default total category', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/timeseries?indicator=gender&areaType=district&area=Altstadt',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        indicator: 'gender',
+        areaType: 'district',
+        area: 'Altstadt',
+        rows: [
+          { year: 2022, value: 1213, unit: 'persons', category: 'total' },
+          { year: 2023, value: 1220, unit: 'persons', category: 'total' },
+        ],
+      });
+    });
+
+    it('supports gender indicator with explicit category filter', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/timeseries?indicator=gender&areaType=district&area=Altstadt&category=male',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        indicator: 'gender',
+        areaType: 'district',
+        area: 'Altstadt',
+        rows: [{ year: 2023, value: 638, unit: 'persons', category: 'male' }],
+      });
+    });
+
     it('returns 400 when from is greater than to', async () => {
       const res = await app.inject({
         method: 'GET',
@@ -272,6 +305,16 @@ describe('statistics endpoints', () => {
       expect(res.statusCode).toBe(200);
       expect(res.json().rows).toEqual(['Altstadt', 'Vorstadt']);
     });
+
+    it('supports gender indicator with default total category', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/areas?indicator=gender&areaType=district',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json().rows).toEqual(['Altstadt', 'Vorstadt']);
+    });
   });
 
   describe('GET /v1/categories', () => {
@@ -300,6 +343,20 @@ describe('statistics endpoints', () => {
         indicator: 'marital_status',
         areaType: 'district',
         rows: ['divorced', 'married', 'single', 'total', 'widowed'],
+      });
+    });
+
+    it('returns distinct gender categories for indicator and areaType', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/categories?indicator=gender&areaType=district',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        indicator: 'gender',
+        areaType: 'district',
+        rows: ['female', 'male', 'total'],
       });
     });
   });
@@ -381,6 +438,46 @@ describe('statistics endpoints', () => {
         rows: [
           { area: 'Vorstadt', value: 1648, unit: 'persons', category: 'total' },
           { area: 'Altstadt', value: 1220, unit: 'persons', category: 'total' },
+        ],
+      });
+    });
+
+    it('returns ranking for gender indicator with default total category', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/ranking?indicator=gender&areaType=district&year=2023&limit=2&order=desc',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        indicator: 'gender',
+        areaType: 'district',
+        year: 2023,
+        order: 'desc',
+        limit: 2,
+        rows: [
+          { area: 'Vorstadt', value: 1648, unit: 'persons', category: 'total' },
+          { area: 'Altstadt', value: 1220, unit: 'persons', category: 'total' },
+        ],
+      });
+    });
+
+    it('returns ranking for gender indicator with explicit category filter', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/ranking?indicator=gender&areaType=district&year=2023&category=male&limit=2&order=desc',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        indicator: 'gender',
+        areaType: 'district',
+        year: 2023,
+        order: 'desc',
+        limit: 2,
+        rows: [
+          { area: 'Vorstadt', value: 829, unit: 'persons', category: 'male' },
+          { area: 'Altstadt', value: 638, unit: 'persons', category: 'male' },
         ],
       });
     });
