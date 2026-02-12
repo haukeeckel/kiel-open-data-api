@@ -133,6 +133,7 @@ Run a single dataset by id:
 ```bash
 pnpm etl:run:dataset districts_population
 pnpm etl:run:dataset districts_households_type_size
+pnpm etl:run:dataset districts_marital_status
 ```
 
 ### Statistics schema
