@@ -85,7 +85,17 @@ export async function seedStatistics(db: DuckDBInstance) {
       ('unemployed_rate','district','Altstadt',2018,2.3,'percent', 'total'),
       ('unemployed_rate','district','Altstadt',2019,1.6,'percent', 'total'),
       ('unemployed_rate','district','Vorstadt',2018,3.8,'percent', 'total'),
-      ('unemployed_rate','district','Vorstadt',2019,4.2,'percent', 'total');
+      ('unemployed_rate','district','Vorstadt',2019,4.2,'percent', 'total'),
+      ('religion','district','Altstadt',2022,1200,'persons', 'total'),
+      ('religion','district','Altstadt',2023,1220,'persons', 'total'),
+      ('religion','district','Vorstadt',2022,1600,'persons', 'total'),
+      ('religion','district','Vorstadt',2023,1648,'persons', 'total'),
+      ('religion','district','Altstadt',2023,344,'persons', 'evangelical'),
+      ('religion','district','Altstadt',2023,89,'persons', 'catholic'),
+      ('religion','district','Altstadt',2023,787,'persons', 'other_or_none'),
+      ('religion','district','Vorstadt',2023,414,'persons', 'evangelical'),
+      ('religion','district','Vorstadt',2023,95,'persons', 'catholic'),
+      ('religion','district','Vorstadt',2023,1139,'persons', 'other_or_none');
       `,
     );
   } finally {

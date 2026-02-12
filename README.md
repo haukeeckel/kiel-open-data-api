@@ -139,6 +139,7 @@ pnpm etl:run:dataset districts_age_groups
 pnpm etl:run:dataset districts_area_hectares
 pnpm etl:run:dataset districts_unemployed_count
 pnpm etl:run:dataset districts_unemployed_rate
+pnpm etl:run:dataset districts_religion
 ```
 
 ### Statistics schema
