@@ -401,6 +401,39 @@ describe('statistics endpoints', () => {
       });
     });
 
+    it('supports foreign_gender indicator with default total category', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/timeseries?indicator=foreign_gender&areaType=district&area=Altstadt',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        indicator: 'foreign_gender',
+        areaType: 'district',
+        area: 'Altstadt',
+        rows: [
+          { year: 2022, value: 200, unit: 'persons', category: 'total' },
+          { year: 2023, value: 212, unit: 'persons', category: 'total' },
+        ],
+      });
+    });
+
+    it('supports foreign_gender indicator with explicit category filter', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/timeseries?indicator=foreign_gender&areaType=district&area=Altstadt&category=male',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        indicator: 'foreign_gender',
+        areaType: 'district',
+        area: 'Altstadt',
+        rows: [{ year: 2023, value: 127, unit: 'persons', category: 'male' }],
+      });
+    });
+
     it('returns 400 when from is greater than to', async () => {
       const res = await app.inject({
         method: 'GET',
@@ -560,6 +593,16 @@ describe('statistics endpoints', () => {
       const res = await app.inject({
         method: 'GET',
         url: '/v1/areas?indicator=foreign_age_groups&areaType=district',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json().rows).toEqual(['Altstadt', 'Vorstadt']);
+    });
+
+    it('supports foreign_gender indicator with default total category', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/areas?indicator=foreign_gender&areaType=district',
       });
 
       expect(res.statusCode).toBe(200);
@@ -749,6 +792,20 @@ describe('statistics endpoints', () => {
           'age_80_plus',
           'total',
         ],
+      });
+    });
+
+    it('returns distinct categories for foreign_gender indicator and areaType', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/categories?indicator=foreign_gender&areaType=district',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        indicator: 'foreign_gender',
+        areaType: 'district',
+        rows: ['female', 'male', 'total'],
       });
     });
   });
@@ -1073,6 +1130,46 @@ describe('statistics endpoints', () => {
         ],
       });
     });
+
+    it('returns ranking for foreign_gender indicator with default total category', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/ranking?indicator=foreign_gender&areaType=district&year=2023&limit=2&order=desc',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        indicator: 'foreign_gender',
+        areaType: 'district',
+        year: 2023,
+        order: 'desc',
+        limit: 2,
+        rows: [
+          { area: 'Vorstadt', value: 324, unit: 'persons', category: 'total' },
+          { area: 'Altstadt', value: 212, unit: 'persons', category: 'total' },
+        ],
+      });
+    });
+
+    it('returns ranking for foreign_gender indicator with category filter', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/ranking?indicator=foreign_gender&areaType=district&year=2023&category=female&limit=2&order=desc',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        indicator: 'foreign_gender',
+        areaType: 'district',
+        year: 2023,
+        order: 'desc',
+        limit: 2,
+        rows: [
+          { area: 'Vorstadt', value: 164, unit: 'persons', category: 'female' },
+          { area: 'Altstadt', value: 85, unit: 'persons', category: 'female' },
+        ],
+      });
+    });
   });
 
   describe('GET /v1/indicators', () => {
@@ -1085,6 +1182,7 @@ describe('statistics endpoints', () => {
           'age_groups',
           'area_hectares',
           'foreign_age_groups',
+          'foreign_gender',
           'foreign_nationalities_selected',
           'gender',
           'households',
