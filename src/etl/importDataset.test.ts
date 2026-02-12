@@ -11,6 +11,7 @@ import { withTestEnv } from '../test/helpers/env.js';
 import { DISTRICTS_AGE_GROUPS } from './datasets/districts_age_groups.js';
 import { DISTRICTS_AREA_HECTARES } from './datasets/districts_area_hectares.js';
 import { DISTRICTS_FOREIGN_AGE_GROUPS } from './datasets/districts_foreign_age_groups.js';
+import { DISTRICTS_FOREIGN_GENDER } from './datasets/districts_foreign_gender.js';
 import { DISTRICTS_FOREIGN_NATIONALITIES_SELECTED } from './datasets/districts_foreign_nationalities_selected.js';
 import { DISTRICTS_GENDER } from './datasets/districts_gender.js';
 import { DISTRICTS_HOUSEHOLDS_TYPE_SIZE } from './datasets/districts_households_type_size.js';
@@ -280,6 +281,97 @@ describe('importDataset', () => {
         ['gender', 'district', 'Altstadt', 2022, 'total'],
       );
       expect(Number(altstadt2022Reader.getRowObjects()[0]?.['value'])).toBe(1213);
+    } finally {
+      conn.closeSync();
+    }
+  });
+
+  it('imports foreign gender categories with dedupe and trimmed area names', async () => {
+    const foreignGenderCsv =
+      [
+        'Land;Stadt;Kategorie;Merkmal;Datum;Stadtteilnummer;Stadtteil;insgesamt;maennlich;weiblich',
+        'de-sh;Kiel;Bevoelkerung;Auslaender;2022_12_31;1;Altstadt   ;200;120;80',
+        'de-sh;Kiel;Bevoelkerung;Auslaender;2023_12_31;1;Altstadt   ;210;125;85',
+        'de-sh;Kiel;Bevoelkerung;Auslaender;2023_12_31;1;Altstadt   ;212;127;85',
+        'de-sh;Kiel;Bevoelkerung;Auslaender;2022_12_31;2;Vorstadt;320;158;162',
+        'de-sh;Kiel;Bevoelkerung;Auslaender;2023_12_31;2;Vorstadt;324;160;164',
+        'de-sh;Kiel;Bevoelkerung;Nicht relevant;2023_12_31;2;Vorstadt;9999;1;1',
+      ].join('\n') + '\n';
+
+    const foreignGenderCsvPath = path.join(cacheDir, DISTRICTS_FOREIGN_GENDER.csvFilename);
+    await fs.writeFile(foreignGenderCsvPath, foreignGenderCsv, 'utf8');
+
+    const first = await importDataset(DISTRICTS_FOREIGN_GENDER, {
+      csvPath: foreignGenderCsvPath,
+      dbPath,
+    });
+    const second = await importDataset(DISTRICTS_FOREIGN_GENDER, {
+      csvPath: foreignGenderCsvPath,
+      dbPath,
+    });
+
+    expect(first.imported).toBe(12);
+    expect(second.imported).toBe(12);
+
+    const db = await createDb(dbPath);
+    const conn = await db.connect();
+    try {
+      const categoriesReader = await conn.runAndReadAll(
+        `
+        SELECT category
+        FROM statistics
+        WHERE indicator = ? AND area_type = ?
+        GROUP BY category
+        ORDER BY category ASC;
+        `,
+        ['foreign_gender', 'district'],
+      );
+      const categories = categoriesReader.getRowObjects().map((r) => String(r['category']));
+      expect(categories).toEqual(['female', 'male', 'total']);
+
+      const yearsReader = await conn.runAndReadAll(
+        `
+        SELECT DISTINCT year
+        FROM statistics
+        WHERE indicator = ? AND area_type = ? AND category = ?
+        ORDER BY year ASC;
+        `,
+        ['foreign_gender', 'district', 'total'],
+      );
+      const years = yearsReader.getRowObjects().map((r) => Number(r['year']));
+      expect(years).toEqual([2022, 2023]);
+
+      const areasReader = await conn.runAndReadAll(
+        `
+        SELECT DISTINCT area_name
+        FROM statistics
+        WHERE indicator = ? AND area_type = ?
+        ORDER BY area_name ASC;
+        `,
+        ['foreign_gender', 'district'],
+      );
+      const areas = areasReader.getRowObjects().map((r) => String(r['area_name']));
+      expect(areas).toEqual(['Altstadt', 'Vorstadt']);
+
+      const totalReader = await conn.runAndReadAll(
+        `
+        SELECT value
+        FROM statistics
+        WHERE indicator = ? AND area_type = ? AND area_name = ? AND year = ? AND category = ?;
+        `,
+        ['foreign_gender', 'district', 'Altstadt', 2023, 'total'],
+      );
+      expect(Number(totalReader.getRowObjects()[0]?.['value'])).toBe(212);
+
+      const maleReader = await conn.runAndReadAll(
+        `
+        SELECT value
+        FROM statistics
+        WHERE indicator = ? AND area_type = ? AND area_name = ? AND year = ? AND category = ?;
+        `,
+        ['foreign_gender', 'district', 'Altstadt', 2023, 'male'],
+      );
+      expect(Number(maleReader.getRowObjects()[0]?.['value'])).toBe(127);
     } finally {
       conn.closeSync();
     }
