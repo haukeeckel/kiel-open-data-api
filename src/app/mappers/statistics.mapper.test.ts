@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { toAreasQuery, toRankingQuery, toTimeseriesQuery } from './statistics.mapper.js';
+import {
+  toAreasQuery,
+  toCategoriesQuery,
+  toRankingQuery,
+  toTimeseriesQuery,
+} from './statistics.mapper.js';
 
 describe('statistics mappers', () => {
   it('maps timeseries query and omits optional fields', () => {
@@ -54,5 +59,14 @@ describe('statistics mappers', () => {
     } as const;
 
     expect(toRankingQuery(input)).toEqual(input);
+  });
+
+  it('maps categories query', () => {
+    const input = {
+      indicator: 'households',
+      areaType: 'district',
+    } as const;
+
+    expect(toCategoriesQuery(input)).toEqual(input);
   });
 });

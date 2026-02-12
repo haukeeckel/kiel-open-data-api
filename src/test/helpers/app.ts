@@ -25,11 +25,15 @@ export async function seedStatistics(db: DuckDBInstance) {
 
     await conn.run(
       `
-      INSERT INTO statistics (indicator, area_type, area_name, year, value, unit) VALUES
-      ('population','district','Altstadt',2022,1213,'persons'),
-      ('population','district','Altstadt',2023,1220,'persons'),
-      ('population','district','Gaarden-Ost',2023,18000,'persons'),
-      ('population','district','Schreventeich',2023,9000,'persons');
+      INSERT INTO statistics (indicator, area_type, area_name, year, value, unit, category) VALUES
+      ('population','district','Altstadt',2022,1213,'persons', 'total'),
+      ('population','district','Altstadt',2023,1220,'persons', 'total'),
+      ('population','district','Gaarden-Ost',2023,18000,'persons', 'total'),
+      ('population','district','Schreventeich',2023,9000,'persons', 'total'),
+      ('households','district','Altstadt',2023,810,'households', 'total'),
+      ('households','district','Altstadt',2023,505,'households', 'single_person'),
+      ('households','district','Gaarden-Ost',2023,6050,'households', 'total'),
+      ('households','district','Gaarden-Ost',2023,3220,'households', 'single_person');
       `,
     );
   } finally {

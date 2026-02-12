@@ -39,6 +39,7 @@ describe('openapi', () => {
     expect(body.paths).toHaveProperty('/health');
     expect(body.paths).toHaveProperty('/v1/timeseries');
     expect(body.paths).toHaveProperty('/v1/areas');
+    expect(body.paths).toHaveProperty('/v1/categories');
     expect(body.paths).toHaveProperty('/v1/ranking');
   });
 });

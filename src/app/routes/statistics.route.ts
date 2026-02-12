@@ -1,9 +1,15 @@
 import { type ZodTypeProvider } from 'fastify-type-provider-zod';
 
-import { toAreasQuery, toRankingQuery, toTimeseriesQuery } from '../mappers/statistics.mapper.js';
+import {
+  toAreasQuery,
+  toCategoriesQuery,
+  toRankingQuery,
+  toTimeseriesQuery,
+} from '../mappers/statistics.mapper.js';
 
 import {
   areasRouteSchema,
+  categoriesRouteSchema,
   rankingRouteSchema,
   timeseriesRouteSchema,
 } from './statistics.schema.js';
@@ -15,6 +21,10 @@ export default async function statisticsRoutes(app: FastifyInstance) {
 
   r.get('/areas', areasRouteSchema, async (req) => {
     return app.services.statisticsQuery.listAreas(toAreasQuery(req.query));
+  });
+
+  r.get('/categories', categoriesRouteSchema, async (req) => {
+    return app.services.statisticsQuery.listCategories(toCategoriesQuery(req.query));
   });
 
   r.get('/timeseries', timeseriesRouteSchema, async (req) => {
