@@ -14,6 +14,7 @@ export type TimeseriesQuery = {
   indicator: Indicator;
   areaType: AreaType;
   area: string;
+  category?: string;
   from?: number;
   to?: number;
 };
@@ -21,6 +22,7 @@ export type TimeseriesQuery = {
 export type AreasQuery = {
   indicator: Indicator;
   areaType: AreaType;
+  category?: string;
   like?: string;
 };
 
@@ -28,6 +30,7 @@ export type RankingQuery = {
   indicator: Indicator;
   areaType: AreaType;
   year: number;
+  category?: string;
   limit: number;
   order: Order;
 };
@@ -36,12 +39,14 @@ export type TimeseriesRow = {
   year: number;
   value: number;
   unit: string;
+  category: string;
 };
 
 export type RankingRow = {
   area: string;
   value: number;
   unit: string;
+  category: string;
 };
 
 export type TimeseriesResult = {

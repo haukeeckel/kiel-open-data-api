@@ -16,6 +16,7 @@ export const TimeseriesQuery = z.object({
   indicator: Indicator,
   areaType: AreaType,
   area: z.string().min(1),
+  category: z.string().min(1).optional(),
   from: z.coerce.number().int().optional(),
   to: z.coerce.number().int().optional(),
 });
@@ -29,6 +30,7 @@ export const TimeseriesResponse = z.object({
       year: z.number().int(),
       value: z.number(),
       unit: z.string(),
+      category: z.string(),
     }),
   ),
 });
@@ -36,6 +38,7 @@ export const TimeseriesResponse = z.object({
 export const AreasQuery = z.object({
   indicator: Indicator,
   areaType: AreaType,
+  category: z.string().min(1).optional(),
   like: z.string().min(1).optional(),
 });
 
@@ -49,6 +52,7 @@ export const RankingQuery = z.object({
   indicator: Indicator,
   areaType: AreaType,
   year: z.coerce.number().int(),
+  category: z.string().min(1).optional(),
   limit: z.coerce
     .number()
     .int()
@@ -69,6 +73,7 @@ export const RankingResponse = z.object({
       area: z.string(),
       value: z.number(),
       unit: z.string(),
+      category: z.string(),
     }),
   ),
 });
