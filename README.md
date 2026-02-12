@@ -141,6 +141,7 @@ pnpm etl:run:dataset districts_unemployed_count
 pnpm etl:run:dataset districts_unemployed_rate
 pnpm etl:run:dataset districts_religion
 pnpm etl:run:dataset districts_foreign_nationalities_selected
+pnpm etl:run:dataset districts_foreign_age_groups
 ```
 
 ### Statistics schema
