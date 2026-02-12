@@ -137,6 +137,7 @@ pnpm etl:run:dataset districts_marital_status
 pnpm etl:run:dataset districts_gender
 pnpm etl:run:dataset districts_age_groups
 pnpm etl:run:dataset districts_area_hectares
+pnpm etl:run:dataset districts_unemployed_count
 ```
 
 ### Statistics schema
