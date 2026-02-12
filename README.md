@@ -141,11 +141,9 @@ pnpm etl:run:dataset districts_unemployed_count
 pnpm etl:run:dataset districts_unemployed_rate
 pnpm etl:run:dataset districts_religion
 pnpm etl:run:dataset districts_foreign_nationalities_selected
-<<<<<<< Updated upstream
 pnpm etl:run:dataset districts_foreign_age_groups
-=======
 pnpm etl:run:dataset districts_foreign_gender
->>>>>>> Stashed changes
+pnpm etl:run:dataset districts_foreign_count
 ```
 
 ### Statistics schema
