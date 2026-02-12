@@ -284,6 +284,24 @@ describe('statistics endpoints', () => {
       });
     });
 
+    it('supports unemployed_rate indicator with default total category', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/timeseries?indicator=unemployed_rate&areaType=district&area=Altstadt',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        indicator: 'unemployed_rate',
+        areaType: 'district',
+        area: 'Altstadt',
+        rows: [
+          { year: 2018, value: 2.3, unit: 'percent', category: 'total' },
+          { year: 2019, value: 1.6, unit: 'percent', category: 'total' },
+        ],
+      });
+    });
+
     it('returns 400 when from is greater than to', async () => {
       const res = await app.inject({
         method: 'GET',
@@ -408,6 +426,16 @@ describe('statistics endpoints', () => {
       expect(res.statusCode).toBe(200);
       expect(res.json().rows).toEqual(['Altstadt', 'Vorstadt']);
     });
+
+    it('supports unemployed_rate indicator with default total category', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/areas?indicator=unemployed_rate&areaType=district',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json().rows).toEqual(['Altstadt', 'Vorstadt']);
+    });
   });
 
   describe('GET /v1/categories', () => {
@@ -512,6 +540,20 @@ describe('statistics endpoints', () => {
       expect(res.statusCode).toBe(200);
       expect(res.json()).toEqual({
         indicator: 'unemployed_count',
+        areaType: 'district',
+        rows: ['total'],
+      });
+    });
+
+    it('returns distinct categories for unemployed_rate indicator and areaType', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/categories?indicator=unemployed_rate&areaType=district',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        indicator: 'unemployed_rate',
         areaType: 'district',
         rows: ['total'],
       });
@@ -718,6 +760,26 @@ describe('statistics endpoints', () => {
         ],
       });
     });
+
+    it('returns ranking for unemployed_rate indicator with default total category', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/ranking?indicator=unemployed_rate&areaType=district&year=2019&limit=2&order=desc',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        indicator: 'unemployed_rate',
+        areaType: 'district',
+        year: 2019,
+        order: 'desc',
+        limit: 2,
+        rows: [
+          { area: 'Vorstadt', value: 4.2, unit: 'percent', category: 'total' },
+          { area: 'Altstadt', value: 1.6, unit: 'percent', category: 'total' },
+        ],
+      });
+    });
   });
 
   describe('GET /v1/indicators', () => {
@@ -734,6 +796,7 @@ describe('statistics endpoints', () => {
           'marital_status',
           'population',
           'unemployed_count',
+          'unemployed_rate',
         ],
       });
     });

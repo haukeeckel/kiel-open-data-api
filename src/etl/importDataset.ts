@@ -96,6 +96,11 @@ async function importUnpivotYears(args: {
   const inList = yearCols.map((col) => quoteIdentifier(col)).join(', ');
   const indicatorColumn = quoteIdentifier(format.indicatorColumn);
   const sqlYearExpr = yearExpr(config, yearCols);
+  const projectedColumns = [
+    indicatorColumn,
+    ...(config.areaColumn ? [quoteIdentifier(config.areaColumn)] : []),
+    ...yearCols.map((col) => `CAST(${quoteIdentifier(col)} AS VARCHAR) AS ${quoteIdentifier(col)}`),
+  ].join(',\n          ');
 
   for (const row of format.rows) {
     const categorySlug = row.category.slug;
@@ -119,6 +124,7 @@ async function importUnpivotYears(args: {
 
   for (const row of format.rows) {
     const categorySlug = row.category.slug;
+    const parsedValueExpr = row.valueExpression ? row.valueExpression : 'value';
     if (config.areaColumn) {
       await conn.run(
         `
@@ -128,15 +134,16 @@ async function importUnpivotYears(args: {
           ? AS area_type,
           ${quoteIdentifier(config.areaColumn)} AS area_name,
           CAST(${sqlYearExpr} AS INTEGER) AS year,
-          CAST(value AS DOUBLE) AS value,
+          TRY_CAST(${parsedValueExpr} AS DOUBLE) AS value,
           ? AS unit,
           ? AS category
         FROM (
-          SELECT *
+          SELECT ${projectedColumns}
           FROM raw
           WHERE ${indicatorColumn} = ?
         )
-        UNPIVOT(value FOR year IN (${inList}));
+        UNPIVOT(value FOR year IN (${inList}))
+        WHERE TRY_CAST(${parsedValueExpr} AS DOUBLE) IS NOT NULL;
         `,
         [row.indicator, config.areaType, row.unit, categorySlug, row.filterValue],
       );
@@ -149,15 +156,16 @@ async function importUnpivotYears(args: {
           ? AS area_type,
           ? AS area_name,
           CAST(${sqlYearExpr} AS INTEGER) AS year,
-          CAST(value AS DOUBLE) AS value,
+          TRY_CAST(${parsedValueExpr} AS DOUBLE) AS value,
           ? AS unit,
           ? AS category
         FROM (
-          SELECT *
+          SELECT ${projectedColumns}
           FROM raw
           WHERE ${indicatorColumn} = ?
         )
-        UNPIVOT(value FOR year IN (${inList}));
+        UNPIVOT(value FOR year IN (${inList}))
+        WHERE TRY_CAST(${parsedValueExpr} AS DOUBLE) IS NOT NULL;
         `,
         [
           row.indicator,
