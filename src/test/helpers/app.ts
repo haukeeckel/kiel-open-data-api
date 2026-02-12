@@ -81,7 +81,11 @@ export async function seedStatistics(db: DuckDBInstance) {
       ('unemployed_count','district','Altstadt',2022,14,'persons', 'total'),
       ('unemployed_count','district','Altstadt',2023,16,'persons', 'total'),
       ('unemployed_count','district','Vorstadt',2022,43,'persons', 'total'),
-      ('unemployed_count','district','Vorstadt',2023,43,'persons', 'total');
+      ('unemployed_count','district','Vorstadt',2023,43,'persons', 'total'),
+      ('unemployed_rate','district','Altstadt',2018,2.3,'percent', 'total'),
+      ('unemployed_rate','district','Altstadt',2019,1.6,'percent', 'total'),
+      ('unemployed_rate','district','Vorstadt',2018,3.8,'percent', 'total'),
+      ('unemployed_rate','district','Vorstadt',2019,4.2,'percent', 'total');
       `,
     );
   } finally {
