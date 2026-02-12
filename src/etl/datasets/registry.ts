@@ -7,6 +7,7 @@ import { DISTRICTS_FOREIGN_NATIONALITIES_SELECTED } from './districts_foreign_na
 import { DISTRICTS_GENDER } from './districts_gender.js';
 import { DISTRICTS_HOUSEHOLDS_TYPE_SIZE } from './districts_households_type_size.js';
 import { DISTRICTS_MARITAL_STATUS } from './districts_marital_status.js';
+import { DISTRICTS_MIGRANT_GENDER } from './districts_migrant_gender.js';
 import { DISTRICTS_POPULATION } from './districts_population.js';
 import { DISTRICTS_RELIGION } from './districts_religion.js';
 import { DISTRICTS_UNEMPLOYED_COUNT } from './districts_unemployed_count.js';
@@ -24,6 +25,7 @@ const ALL_DATASETS: readonly DatasetConfig[] = [
   DISTRICTS_FOREIGN_NATIONALITIES_SELECTED,
   DISTRICTS_AGE_GROUPS,
   DISTRICTS_AREA_HECTARES,
+  DISTRICTS_MIGRANT_GENDER,
   DISTRICTS_UNEMPLOYED_COUNT,
   DISTRICTS_UNEMPLOYED_RATE,
   DISTRICTS_RELIGION,

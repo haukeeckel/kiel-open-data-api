@@ -17,6 +17,7 @@ import { DISTRICTS_FOREIGN_NATIONALITIES_SELECTED } from './datasets/districts_f
 import { DISTRICTS_GENDER } from './datasets/districts_gender.js';
 import { DISTRICTS_HOUSEHOLDS_TYPE_SIZE } from './datasets/districts_households_type_size.js';
 import { DISTRICTS_MARITAL_STATUS } from './datasets/districts_marital_status.js';
+import { DISTRICTS_MIGRANT_GENDER } from './datasets/districts_migrant_gender.js';
 import { DISTRICTS_POPULATION } from './datasets/districts_population.js';
 import { DISTRICTS_RELIGION } from './datasets/districts_religion.js';
 import { DISTRICTS_UNEMPLOYED_COUNT } from './datasets/districts_unemployed_count.js';
@@ -373,6 +374,87 @@ describe('importDataset', () => {
         ['foreign_gender', 'district', 'Altstadt', 2023, 'male'],
       );
       expect(Number(maleReader.getRowObjects()[0]?.['value'])).toBe(127);
+    } finally {
+      conn.closeSync();
+    }
+  });
+
+  it('imports migrant gender categories with dedupe and trimmed area names', async () => {
+    const migrantGenderCsv =
+      [
+        'Land;Stadt;Kategorie;Merkmal;Datum;Stadtteilnummer;Stadtteil;insgesamt;m�nnlich;weiblich',
+        'de-sh;Kiel;Bevölkerung;Einwohner mit Migrationshintergrund;2022_12_31;1;Altstadt   ;350;190;160',
+        'de-sh;Kiel;Bevölkerung;Einwohner mit Migrationshintergrund;2023_12_31;1;Altstadt   ;360;195;165',
+        'de-sh;Kiel;Bevölkerung;Einwohner mit Migrationshintergrund;2023_12_31;1;Altstadt   ;364;199;165',
+        'de-sh;Kiel;Bevölkerung;Einwohner mit Migrationshintergrund;2022_12_31;2;Vorstadt;500;245;255',
+        'de-sh;Kiel;Bevölkerung;Einwohner mit Migrationshintergrund;2023_12_31;2;Vorstadt;518;253;265',
+        'de-sh;Kiel;Bevölkerung;Nicht relevant;2023_12_31;2;Vorstadt;9999;1;1',
+      ].join('\n') + '\n';
+
+    const migrantGenderCsvPath = path.join(cacheDir, DISTRICTS_MIGRANT_GENDER.csvFilename);
+    await fs.writeFile(migrantGenderCsvPath, migrantGenderCsv, 'utf8');
+
+    const first = await importDataset(DISTRICTS_MIGRANT_GENDER, {
+      csvPath: migrantGenderCsvPath,
+      dbPath,
+    });
+    const second = await importDataset(DISTRICTS_MIGRANT_GENDER, {
+      csvPath: migrantGenderCsvPath,
+      dbPath,
+    });
+
+    expect(first.imported).toBe(12);
+    expect(second.imported).toBe(12);
+
+    const db = await createDb(dbPath);
+    const conn = await db.connect();
+    try {
+      const categoriesReader = await conn.runAndReadAll(
+        `
+        SELECT category
+        FROM statistics
+        WHERE indicator = ? AND area_type = ?
+        GROUP BY category
+        ORDER BY category ASC;
+        `,
+        ['migrant_gender', 'district'],
+      );
+      const categories = categoriesReader.getRowObjects().map((r) => String(r['category']));
+      expect(categories).toEqual(['female', 'male', 'total']);
+
+      const yearsReader = await conn.runAndReadAll(
+        `
+        SELECT DISTINCT year
+        FROM statistics
+        WHERE indicator = ? AND area_type = ? AND category = ?
+        ORDER BY year ASC;
+        `,
+        ['migrant_gender', 'district', 'total'],
+      );
+      const years = yearsReader.getRowObjects().map((r) => Number(r['year']));
+      expect(years).toEqual([2022, 2023]);
+
+      const areasReader = await conn.runAndReadAll(
+        `
+        SELECT DISTINCT area_name
+        FROM statistics
+        WHERE indicator = ? AND area_type = ?
+        ORDER BY area_name ASC;
+        `,
+        ['migrant_gender', 'district'],
+      );
+      const areas = areasReader.getRowObjects().map((r) => String(r['area_name']));
+      expect(areas).toEqual(['Altstadt', 'Vorstadt']);
+
+      const totalReader = await conn.runAndReadAll(
+        `
+        SELECT value
+        FROM statistics
+        WHERE indicator = ? AND area_type = ? AND area_name = ? AND year = ? AND category = ?;
+        `,
+        ['migrant_gender', 'district', 'Altstadt', 2023, 'total'],
+      );
+      expect(Number(totalReader.getRowObjects()[0]?.['value'])).toBe(364);
     } finally {
       conn.closeSync();
     }

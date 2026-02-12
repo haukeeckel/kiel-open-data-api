@@ -19,6 +19,7 @@ export type UnpivotYearsFormat = {
 
 export type UnpivotCategoriesColumn = {
   valueColumn?: string | undefined;
+  valueColumns?: readonly string[] | undefined;
   valueExpression?: string | undefined;
   category: {
     slug: string;
