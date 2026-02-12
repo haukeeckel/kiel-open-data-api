@@ -36,6 +36,11 @@ describe('config path helpers', () => {
     expect(getDuckDbPath(env)).toBe(path.resolve(process.cwd(), 'data', 'custom.duckdb'));
   });
 
+  it('resolves relative DUCKDB_PATH with path segments from cwd', () => {
+    const env = makeEnv({ DUCKDB_PATH: './data/kiel_dashboard.duckdb' });
+    expect(getDuckDbPath(env)).toBe(path.resolve(process.cwd(), 'data', 'kiel_dashboard.duckdb'));
+  });
+
   it('keeps absolute DUCKDB_PATH', () => {
     const env = makeEnv({ DUCKDB_PATH: '/tmp/custom.duckdb' });
     expect(getDuckDbPath(env)).toBe(path.resolve('/tmp/custom.duckdb'));

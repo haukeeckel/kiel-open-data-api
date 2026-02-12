@@ -2,7 +2,10 @@ export type UnpivotYearsRow = {
   filterValue: string;
   indicator: string;
   unit: string;
-  category: string;
+  category: {
+    slug: string;
+    label?: string | undefined;
+  };
 };
 
 export type UnpivotYearsFormat = {
@@ -13,7 +16,29 @@ export type UnpivotYearsFormat = {
   rows: readonly UnpivotYearsRow[];
 };
 
-export type CsvFormat = UnpivotYearsFormat;
+export type UnpivotCategoriesColumn = {
+  valueColumn?: string | undefined;
+  valueExpression?: string | undefined;
+  category: {
+    slug: string;
+    label?: string | undefined;
+  };
+  indicator?: string | undefined;
+  unit?: string | undefined;
+};
+
+export type UnpivotCategoriesFormat = {
+  type: 'unpivot_categories';
+  yearColumn: string;
+  yearParser?: ((value: string) => number) | undefined;
+  filterColumn?: string | undefined;
+  filterValue?: string | undefined;
+  indicator?: string | undefined;
+  unit?: string | undefined;
+  columns: readonly UnpivotCategoriesColumn[];
+};
+
+export type CsvFormat = UnpivotYearsFormat | UnpivotCategoriesFormat;
 
 export type DatasetConfig = {
   id: string;
