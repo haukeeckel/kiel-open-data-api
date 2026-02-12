@@ -4,6 +4,7 @@ import { DISTRICTS_GENDER } from './districts_gender.js';
 import { DISTRICTS_HOUSEHOLDS_TYPE_SIZE } from './districts_households_type_size.js';
 import { DISTRICTS_MARITAL_STATUS } from './districts_marital_status.js';
 import { DISTRICTS_POPULATION } from './districts_population.js';
+import { DISTRICTS_UNEMPLOYED_COUNT } from './districts_unemployed_count.js';
 import { type DatasetConfig } from './types.js';
 
 const ALL_DATASETS: readonly DatasetConfig[] = [
@@ -13,6 +14,7 @@ const ALL_DATASETS: readonly DatasetConfig[] = [
   DISTRICTS_GENDER,
   DISTRICTS_AGE_GROUPS,
   DISTRICTS_AREA_HECTARES,
+  DISTRICTS_UNEMPLOYED_COUNT,
 ];
 
 export function getDataset(id: string): DatasetConfig {
