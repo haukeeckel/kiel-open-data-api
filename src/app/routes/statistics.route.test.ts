@@ -246,20 +246,14 @@ describe('statistics endpoints', () => {
       });
     });
 
-    it('returns 400 for invalid query parameters (zod)', async () => {
+    it('returns empty rows for unknown areaType', async () => {
       const res = await app.inject({
         method: 'GET',
         url: '/v1/areas?indicator=population&areaType=unknown&like=gaard',
       });
 
-      expect(res.statusCode).toBe(400);
-      expect(res.json()).toMatchObject({
-        error: {
-          code: 'BAD_REQUEST',
-          message: 'Invalid query parameters',
-        },
-        requestId: expect.any(String),
-      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toMatchObject({ rows: [] });
     });
 
     it('returns distinct areas sorted', async () => {
@@ -479,6 +473,28 @@ describe('statistics endpoints', () => {
           { area: 'Vorstadt', value: 829, unit: 'persons', category: 'male' },
           { area: 'Altstadt', value: 638, unit: 'persons', category: 'male' },
         ],
+      });
+    });
+  });
+
+  describe('GET /v1/indicators', () => {
+    it('returns distinct indicators sorted', async () => {
+      const res = await app.inject({ method: 'GET', url: '/v1/indicators' });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        rows: ['gender', 'households', 'marital_status', 'population'],
+      });
+    });
+  });
+
+  describe('GET /v1/area-types', () => {
+    it('returns distinct area types sorted', async () => {
+      const res = await app.inject({ method: 'GET', url: '/v1/area-types' });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        rows: ['district'],
       });
     });
   });

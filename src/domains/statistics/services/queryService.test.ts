@@ -44,6 +44,12 @@ function createFakeRepo(): StatisticsRepository {
         ],
       };
     },
+    async listIndicators() {
+      return { rows: ['households', 'population'] };
+    },
+    async listAreaTypes() {
+      return { rows: ['district'] };
+    },
   };
 }
 
@@ -113,5 +119,19 @@ describe('StatisticsQueryService', () => {
     expect(result.rows).toEqual([
       { area: 'Altstadt', value: 2, unit: 'persons', category: 'single_person' },
     ]);
+  });
+
+  it('passes listIndicators through to repository', async () => {
+    const svc = new StatisticsQueryService(createFakeRepo());
+
+    const result = await svc.listIndicators();
+    expect(result.rows).toEqual(['households', 'population']);
+  });
+
+  it('passes listAreaTypes through to repository', async () => {
+    const svc = new StatisticsQueryService(createFakeRepo());
+
+    const result = await svc.listAreaTypes();
+    expect(result.rows).toEqual(['district']);
   });
 });

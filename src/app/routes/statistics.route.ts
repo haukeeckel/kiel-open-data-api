@@ -8,8 +8,10 @@ import {
 } from '../mappers/statistics.mapper.js';
 
 import {
+  areaTypesRouteSchema,
   areasRouteSchema,
   categoriesRouteSchema,
+  indicatorsRouteSchema,
   rankingRouteSchema,
   timeseriesRouteSchema,
 } from './statistics.schema.js';
@@ -27,11 +29,19 @@ export default async function statisticsRoutes(app: FastifyInstance) {
     return app.services.statisticsQuery.listCategories(toCategoriesQuery(req.query));
   });
 
-  r.get('/timeseries', timeseriesRouteSchema, async (req) => {
-    return app.services.statisticsQuery.getTimeseries(toTimeseriesQuery(req.query));
+  r.get('/indicators', indicatorsRouteSchema, async () => {
+    return app.services.statisticsQuery.listIndicators();
+  });
+
+  r.get('/area-types', areaTypesRouteSchema, async () => {
+    return app.services.statisticsQuery.listAreaTypes();
   });
 
   r.get('/ranking', rankingRouteSchema, async (req) => {
     return app.services.statisticsQuery.getRanking(toRankingQuery(req.query));
+  });
+
+  r.get('/timeseries', timeseriesRouteSchema, async (req) => {
+    return app.services.statisticsQuery.getTimeseries(toTimeseriesQuery(req.query));
   });
 }

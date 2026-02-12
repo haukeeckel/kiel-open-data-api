@@ -4,7 +4,6 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { applyMigrations } from './migrations.js';
 import { createDuckDbStatisticsRepository } from './statisticsRepository.duckdb.js';
 
-import type { Indicator } from '../../domains/statistics/model/types.js';
 import type { StatisticsRepository } from '../../domains/statistics/ports/statisticsRepository.js';
 
 describe('DuckDbStatisticsRepository', () => {
@@ -127,7 +126,7 @@ describe('DuckDbStatisticsRepository', () => {
 
     it('returns empty rows for non-existent indicator', async () => {
       const result = await repo.listAreas({
-        indicator: 'unknown' as Indicator,
+        indicator: 'unknown',
         areaType: 'district',
       });
 
@@ -239,6 +238,22 @@ describe('DuckDbStatisticsRepository', () => {
       });
 
       expect(result.rows).toEqual(['single_person', 'total']);
+    });
+  });
+
+  describe('listIndicators', () => {
+    it('returns distinct indicators sorted', async () => {
+      const result = await repo.listIndicators();
+
+      expect(result.rows).toEqual(['households', 'population']);
+    });
+  });
+
+  describe('listAreaTypes', () => {
+    it('returns distinct area types sorted', async () => {
+      const result = await repo.listAreaTypes();
+
+      expect(result.rows).toEqual(['district']);
     });
   });
 });

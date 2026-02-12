@@ -1,9 +1,11 @@
 import { ApiError } from '../../schemas/api.js';
 import {
+  AreaTypesResponse,
   AreasQuery,
   AreasResponse,
   CategoriesQuery,
   CategoriesResponse,
+  IndicatorsResponse,
   RankingQuery,
   RankingResponse,
   TimeseriesQuery,
@@ -57,6 +59,28 @@ export const rankingRouteSchema = {
     response: {
       200: RankingResponse,
       400: ApiError,
+      500: ApiError,
+    },
+  },
+};
+
+export const indicatorsRouteSchema = {
+  schema: {
+    tags: ['statistics'],
+    description: 'List all available indicators',
+    response: {
+      200: IndicatorsResponse,
+      500: ApiError,
+    },
+  },
+};
+
+export const areaTypesRouteSchema = {
+  schema: {
+    tags: ['statistics'],
+    description: 'List all available area types',
+    response: {
+      200: AreaTypesResponse,
       500: ApiError,
     },
   },
