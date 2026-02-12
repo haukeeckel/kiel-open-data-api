@@ -1,16 +1,14 @@
 import { z } from 'zod';
 
 import {
-  AREA_TYPES,
-  INDICATORS,
   ORDERS,
   RANKING_LIMIT_DEFAULT,
   RANKING_LIMIT_MAX,
   RANKING_LIMIT_MIN,
 } from '../domains/statistics/model/types.js';
 
-const Indicator = z.enum(INDICATORS);
-const AreaType = z.enum(AREA_TYPES);
+const Indicator = z.string().min(1);
+const AreaType = z.string().min(1);
 
 export const TimeseriesQuery = z.object({
   indicator: Indicator,

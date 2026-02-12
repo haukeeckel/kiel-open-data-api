@@ -246,20 +246,14 @@ describe('statistics endpoints', () => {
       });
     });
 
-    it('returns 400 for invalid query parameters (zod)', async () => {
+    it('returns empty rows for unknown areaType', async () => {
       const res = await app.inject({
         method: 'GET',
         url: '/v1/areas?indicator=population&areaType=unknown&like=gaard',
       });
 
-      expect(res.statusCode).toBe(400);
-      expect(res.json()).toMatchObject({
-        error: {
-          code: 'BAD_REQUEST',
-          message: 'Invalid query parameters',
-        },
-        requestId: expect.any(String),
-      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toMatchObject({ rows: [] });
     });
 
     it('returns distinct areas sorted', async () => {

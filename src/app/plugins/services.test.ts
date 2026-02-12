@@ -1,15 +1,15 @@
 import Fastify from 'fastify';
 import { describe, expect, it } from 'vitest';
 
-import { AREA_TYPES, INDICATORS, ORDERS } from '../../domains/statistics/model/types.js';
+import { ORDERS } from '../../domains/statistics/model/types.js';
 import { StatisticsQueryService } from '../../domains/statistics/services/queryService.js';
 
 import servicesPlugin from './services.js';
 
 describe('services plugin', () => {
   it('decorates statisticsQuery service', async () => {
-    const indicator = INDICATORS[0]!;
-    const areaType = AREA_TYPES[0]!;
+    const indicator = 'population';
+    const areaType = 'district';
     const order = ORDERS[1]!;
     const app = Fastify();
     const statisticsRepository = {
