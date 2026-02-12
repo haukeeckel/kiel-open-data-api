@@ -13,7 +13,7 @@ export const DISTRICTS_MARITAL_STATUS: DatasetConfig = {
       const year = value.match(/\d{4}/)?.[0];
       return year ? Number(year) : Number.NaN;
     },
-    indicator: 'district_marital_status',
+    indicator: 'marital_status',
     unit: 'persons',
     columns: [
       {

@@ -167,12 +167,12 @@ describe('statistics endpoints', () => {
     it('supports marital status indicator with default total category', async () => {
       const res = await app.inject({
         method: 'GET',
-        url: '/v1/timeseries?indicator=district_marital_status&areaType=district&area=Altstadt',
+        url: '/v1/timeseries?indicator=marital_status&areaType=district&area=Altstadt',
       });
 
       expect(res.statusCode).toBe(200);
       expect(res.json()).toEqual({
-        indicator: 'district_marital_status',
+        indicator: 'marital_status',
         areaType: 'district',
         area: 'Altstadt',
         rows: [
@@ -266,7 +266,7 @@ describe('statistics endpoints', () => {
     it('supports marital status indicator with default total category', async () => {
       const res = await app.inject({
         method: 'GET',
-        url: '/v1/areas?indicator=district_marital_status&areaType=district',
+        url: '/v1/areas?indicator=marital_status&areaType=district',
       });
 
       expect(res.statusCode).toBe(200);
@@ -292,12 +292,12 @@ describe('statistics endpoints', () => {
     it('returns distinct marital status categories for indicator and areaType', async () => {
       const res = await app.inject({
         method: 'GET',
-        url: '/v1/categories?indicator=district_marital_status&areaType=district',
+        url: '/v1/categories?indicator=marital_status&areaType=district',
       });
 
       expect(res.statusCode).toBe(200);
       expect(res.json()).toEqual({
-        indicator: 'district_marital_status',
+        indicator: 'marital_status',
         areaType: 'district',
         rows: ['divorced', 'married', 'single', 'total', 'widowed'],
       });
@@ -368,12 +368,12 @@ describe('statistics endpoints', () => {
     it('returns ranking for marital status indicator with default total category', async () => {
       const res = await app.inject({
         method: 'GET',
-        url: '/v1/ranking?indicator=district_marital_status&areaType=district&year=2023&limit=2&order=desc',
+        url: '/v1/ranking?indicator=marital_status&areaType=district&year=2023&limit=2&order=desc',
       });
 
       expect(res.statusCode).toBe(200);
       expect(res.json()).toEqual({
-        indicator: 'district_marital_status',
+        indicator: 'marital_status',
         areaType: 'district',
         year: 2023,
         order: 'desc',

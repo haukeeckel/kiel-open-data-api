@@ -190,14 +190,14 @@ describe('importDataset', () => {
         GROUP BY category
         ORDER BY category ASC;
         `,
-        ['district_marital_status', 'district'],
+        ['marital_status', 'district'],
       );
       const categories = categoriesReader.getRowObjects().map((r) => String(r['category']));
       expect(categories).toEqual(['divorced', 'married', 'single', 'total', 'widowed']);
 
       const totalRowsReader = await conn.runAndReadAll(
         `SELECT COUNT(*) AS c FROM statistics WHERE indicator = ? AND area_type = ? AND category = ?;`,
-        ['district_marital_status', 'district', 'total'],
+        ['marital_status', 'district', 'total'],
       );
       expect(Number(totalRowsReader.getRowObjects()[0]?.['c'])).toBe(4);
     } finally {

@@ -34,14 +34,14 @@ export async function seedStatistics(db: DuckDBInstance) {
       ('households','district','Altstadt',2023,505,'households', 'single_person'),
       ('households','district','Gaarden-Ost',2023,6050,'households', 'total'),
       ('households','district','Gaarden-Ost',2023,3220,'households', 'single_person'),
-      ('district_marital_status','district','Altstadt',2022,1183,'persons', 'total'),
-      ('district_marital_status','district','Altstadt',2023,1220,'persons', 'total'),
-      ('district_marital_status','district','Vorstadt',2023,1648,'persons', 'total'),
-      ('district_marital_status','district','Altstadt',2023,702,'persons', 'single'),
-      ('district_marital_status','district','Altstadt',2023,339,'persons', 'married'),
-      ('district_marital_status','district','Altstadt',2023,94,'persons', 'widowed'),
-      ('district_marital_status','district','Altstadt',2023,85,'persons', 'divorced'),
-      ('district_marital_status','district','Vorstadt',2023,1038,'persons', 'single');
+      ('marital_status','district','Altstadt',2022,1183,'persons', 'total'),
+      ('marital_status','district','Altstadt',2023,1220,'persons', 'total'),
+      ('marital_status','district','Vorstadt',2023,1648,'persons', 'total'),
+      ('marital_status','district','Altstadt',2023,702,'persons', 'single'),
+      ('marital_status','district','Altstadt',2023,339,'persons', 'married'),
+      ('marital_status','district','Altstadt',2023,94,'persons', 'widowed'),
+      ('marital_status','district','Altstadt',2023,85,'persons', 'divorced'),
+      ('marital_status','district','Vorstadt',2023,1038,'persons', 'single');
       `,
     );
   } finally {
