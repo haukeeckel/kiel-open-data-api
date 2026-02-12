@@ -434,6 +434,24 @@ describe('statistics endpoints', () => {
       });
     });
 
+    it('supports foreign_count indicator with default total category', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/timeseries?indicator=foreign_count&areaType=district&area=Altstadt',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        indicator: 'foreign_count',
+        areaType: 'district',
+        area: 'Altstadt',
+        rows: [
+          { year: 2022, value: 214, unit: 'persons', category: 'total' },
+          { year: 2023, value: 212, unit: 'persons', category: 'total' },
+        ],
+      });
+    });
+
     it('returns 400 when from is greater than to', async () => {
       const res = await app.inject({
         method: 'GET',
@@ -603,6 +621,16 @@ describe('statistics endpoints', () => {
       const res = await app.inject({
         method: 'GET',
         url: '/v1/areas?indicator=foreign_gender&areaType=district',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json().rows).toEqual(['Altstadt', 'Vorstadt']);
+    });
+
+    it('supports foreign_count indicator with default total category', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/areas?indicator=foreign_count&areaType=district',
       });
 
       expect(res.statusCode).toBe(200);
@@ -806,6 +834,20 @@ describe('statistics endpoints', () => {
         indicator: 'foreign_gender',
         areaType: 'district',
         rows: ['female', 'male', 'total'],
+      });
+    });
+
+    it('returns distinct categories for foreign_count indicator and areaType', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/categories?indicator=foreign_count&areaType=district',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        indicator: 'foreign_count',
+        areaType: 'district',
+        rows: ['total'],
       });
     });
   });
@@ -1170,6 +1212,26 @@ describe('statistics endpoints', () => {
         ],
       });
     });
+
+    it('returns ranking for foreign_count indicator with default total category', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/ranking?indicator=foreign_count&areaType=district&year=2023&limit=2&order=desc',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        indicator: 'foreign_count',
+        areaType: 'district',
+        year: 2023,
+        order: 'desc',
+        limit: 2,
+        rows: [
+          { area: 'Vorstadt', value: 324, unit: 'persons', category: 'total' },
+          { area: 'Altstadt', value: 212, unit: 'persons', category: 'total' },
+        ],
+      });
+    });
   });
 
   describe('GET /v1/indicators', () => {
@@ -1182,6 +1244,7 @@ describe('statistics endpoints', () => {
           'age_groups',
           'area_hectares',
           'foreign_age_groups',
+          'foreign_count',
           'foreign_gender',
           'foreign_nationalities_selected',
           'gender',

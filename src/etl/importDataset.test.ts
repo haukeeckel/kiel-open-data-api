@@ -11,6 +11,7 @@ import { withTestEnv } from '../test/helpers/env.js';
 import { DISTRICTS_AGE_GROUPS } from './datasets/districts_age_groups.js';
 import { DISTRICTS_AREA_HECTARES } from './datasets/districts_area_hectares.js';
 import { DISTRICTS_FOREIGN_AGE_GROUPS } from './datasets/districts_foreign_age_groups.js';
+import { DISTRICTS_FOREIGN_COUNT } from './datasets/districts_foreign_count.js';
 import { DISTRICTS_FOREIGN_GENDER } from './datasets/districts_foreign_gender.js';
 import { DISTRICTS_FOREIGN_NATIONALITIES_SELECTED } from './datasets/districts_foreign_nationalities_selected.js';
 import { DISTRICTS_GENDER } from './datasets/districts_gender.js';
@@ -372,6 +373,84 @@ describe('importDataset', () => {
         ['foreign_gender', 'district', 'Altstadt', 2023, 'male'],
       );
       expect(Number(maleReader.getRowObjects()[0]?.['value'])).toBe(127);
+    } finally {
+      conn.closeSync();
+    }
+  });
+
+  it('imports foreign count from year columns with trimmed area names', async () => {
+    const foreignCountCsv =
+      [
+        'Kategorie;Merkmal;Stadtteilnummer;Stadtteil;2022;2023',
+        'Bevoelkerung;Auslaender;1;Altstadt   ;214;212',
+        'Bevoelkerung;Auslaender;2;Vorstadt      ;288;324',
+        'Bevoelkerung;Nicht relevant;2;Vorstadt;999;999',
+      ].join('\n') + '\n';
+
+    const foreignCountCsvPath = path.join(cacheDir, DISTRICTS_FOREIGN_COUNT.csvFilename);
+    await fs.writeFile(foreignCountCsvPath, foreignCountCsv, 'utf8');
+
+    const first = await importDataset(DISTRICTS_FOREIGN_COUNT, {
+      csvPath: foreignCountCsvPath,
+      dbPath,
+    });
+    const second = await importDataset(DISTRICTS_FOREIGN_COUNT, {
+      csvPath: foreignCountCsvPath,
+      dbPath,
+    });
+
+    expect(first.imported).toBe(4);
+    expect(second.imported).toBe(4);
+
+    const db = await createDb(dbPath);
+    const conn = await db.connect();
+    try {
+      const categoriesReader = await conn.runAndReadAll(
+        `
+        SELECT category
+        FROM statistics
+        WHERE indicator = ? AND area_type = ?
+        GROUP BY category
+        ORDER BY category ASC;
+        `,
+        ['foreign_count', 'district'],
+      );
+      const categories = categoriesReader.getRowObjects().map((r) => String(r['category']));
+      expect(categories).toEqual(['total']);
+
+      const yearsReader = await conn.runAndReadAll(
+        `
+        SELECT DISTINCT year
+        FROM statistics
+        WHERE indicator = ? AND area_type = ? AND category = ?
+        ORDER BY year ASC;
+        `,
+        ['foreign_count', 'district', 'total'],
+      );
+      const years = yearsReader.getRowObjects().map((r) => Number(r['year']));
+      expect(years).toEqual([2022, 2023]);
+
+      const areasReader = await conn.runAndReadAll(
+        `
+        SELECT DISTINCT area_name
+        FROM statistics
+        WHERE indicator = ? AND area_type = ?
+        ORDER BY area_name ASC;
+        `,
+        ['foreign_count', 'district'],
+      );
+      const areas = areasReader.getRowObjects().map((r) => String(r['area_name']));
+      expect(areas).toEqual(['Altstadt', 'Vorstadt']);
+
+      const valueReader = await conn.runAndReadAll(
+        `
+        SELECT value
+        FROM statistics
+        WHERE indicator = ? AND area_type = ? AND area_name = ? AND year = ? AND category = ?;
+        `,
+        ['foreign_count', 'district', 'Altstadt', 2023, 'total'],
+      );
+      expect(Number(valueReader.getRowObjects()[0]?.['value'])).toBe(212);
     } finally {
       conn.closeSync();
     }
