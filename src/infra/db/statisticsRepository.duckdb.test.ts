@@ -45,8 +45,8 @@ describe('DuckDbStatisticsRepository', () => {
         areaType: 'district',
         area: 'Altstadt',
         rows: [
-          { year: 2022, value: 1213, unit: 'persons' },
-          { year: 2023, value: 1220, unit: 'persons' },
+          { year: 2022, value: 1213, unit: 'persons', category: 'total' },
+          { year: 2023, value: 1220, unit: 'persons', category: 'total' },
         ],
       });
     });
@@ -70,7 +70,9 @@ describe('DuckDbStatisticsRepository', () => {
         to: 2023,
       });
 
-      expect(result.rows).toEqual([{ year: 2023, value: 1220, unit: 'persons' }]);
+      expect(result.rows).toEqual([
+        { year: 2023, value: 1220, unit: 'persons', category: 'total' },
+      ]);
     });
 
     it('filters by from only', async () => {
@@ -160,9 +162,9 @@ describe('DuckDbStatisticsRepository', () => {
       });
 
       expect(result.rows).toEqual([
-        { area: 'Gaarden-Ost', value: 18000, unit: 'persons' },
-        { area: 'Schreventeich', value: 9000, unit: 'persons' },
-        { area: 'Altstadt', value: 1220, unit: 'persons' },
+        { area: 'Gaarden-Ost', value: 18000, unit: 'persons', category: 'total' },
+        { area: 'Schreventeich', value: 9000, unit: 'persons', category: 'total' },
+        { area: 'Altstadt', value: 1220, unit: 'persons', category: 'total' },
       ]);
     });
 
@@ -175,7 +177,12 @@ describe('DuckDbStatisticsRepository', () => {
         order: 'asc',
       });
 
-      expect(result.rows[0]).toEqual({ area: 'Altstadt', value: 1220, unit: 'persons' });
+      expect(result.rows[0]).toEqual({
+        area: 'Altstadt',
+        value: 1220,
+        unit: 'persons',
+        category: 'total',
+      });
     });
 
     it('respects limit', async () => {

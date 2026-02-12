@@ -62,6 +62,18 @@ const migrations: Migration[] = [
       ON statistics(indicator, area_type, area_name, year);
     `,
   },
+  {
+    version: 5,
+    name: 'add_category_column',
+    up: `
+      DROP INDEX IF EXISTS statistics_unique_idx;
+      ALTER TABLE statistics ADD COLUMN category TEXT DEFAULT 'total';
+      UPDATE statistics SET category = 'total' WHERE category IS NULL;
+      ALTER TABLE statistics ALTER COLUMN category SET NOT NULL;
+      CREATE UNIQUE INDEX statistics_unique_cat_idx
+      ON statistics(indicator, area_type, area_name, year, category);
+    `,
+  },
 ];
 
 function hashMigration(migration: Migration): string {

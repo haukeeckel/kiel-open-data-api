@@ -104,7 +104,8 @@ export async function importDistrictsPopulation(opts?: {
           "${CSV_COL_AREA}" AS area_name,
           CAST(year AS INTEGER) AS year,
           CAST(value AS DOUBLE) AS value,
-          ? AS unit
+          ? AS unit,
+          'total' AS category
         FROM (
           SELECT *
           FROM raw
