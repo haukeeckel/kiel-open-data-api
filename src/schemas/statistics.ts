@@ -86,3 +86,11 @@ export const RankingResponse = z.object({
     }),
   ),
 });
+
+export const IndicatorsResponse = z.object({
+  rows: z.array(z.string()),
+});
+
+export const AreaTypesResponse = z.object({
+  rows: z.array(z.string()),
+});
