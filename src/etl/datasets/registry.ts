@@ -1,0 +1,23 @@
+import { DISTRICTS_POPULATION } from './districts_population.js';
+import { type DatasetConfig } from './types.js';
+
+const ALL_DATASETS: readonly DatasetConfig[] = [DISTRICTS_POPULATION];
+
+export function getDataset(id: string): DatasetConfig {
+  const dataset = ALL_DATASETS.find((el) => el.id === id);
+
+  if (dataset == undefined) {
+    const known = ALL_DATASETS.map(({ id: datasetId }) => datasetId).join(', ');
+    throw new Error(`Unknown dataset id: ${id}. Known dataset ids: ${known}`);
+  }
+
+  return dataset;
+}
+
+export function getAllDatasets(): readonly DatasetConfig[] {
+  return ALL_DATASETS;
+}
+
+export function getAllDatasetIds(): readonly string[] {
+  return ALL_DATASETS.map(({ id }) => id);
+}
