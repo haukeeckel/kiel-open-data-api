@@ -36,7 +36,17 @@ async function readMeta(
     const raw = await fs.readFile(metaPath, 'utf8');
     return JSON.parse(raw) as Meta;
   } catch (err) {
-    log.debug({ ...ctx, err }, 'etl.fetch: meta not found or invalid; continuing with empty meta');
+    const code =
+      typeof err === 'object' && err !== null && 'code' in err
+        ? (err as { code?: unknown }).code
+        : undefined;
+
+    if (code === 'ENOENT') {
+      log.debug({ ...ctx, metaPath }, 'etl.fetch: meta not found; continuing with empty meta');
+      return {};
+    }
+
+    log.debug({ ...ctx, err, metaPath }, 'etl.fetch: meta invalid; continuing with empty meta');
     return {};
   }
 }
@@ -47,6 +57,13 @@ async function writeMeta(metaPath: string, meta: Meta) {
 
 function normalizeUrl(url: string): string {
   return url.trim().replace(/\/+$/, '');
+}
+
+function fileNameFromUrl(url: string): string {
+  const cleaned = normalizeUrl(url);
+  const withoutQuery = cleaned.split('?')[0]?.split('#')[0] ?? cleaned;
+  const parts = withoutQuery.split('/');
+  return parts[parts.length - 1] ?? '';
 }
 
 function parseCatalogEntries(raw: unknown): Array<Record<string, unknown>> {
@@ -71,10 +88,14 @@ function hasMatchingResourceUrl(entry: Record<string, unknown>, datasetUrl: stri
   if (!Array.isArray(resources)) return false;
 
   const target = normalizeUrl(datasetUrl);
+  const targetFile = fileNameFromUrl(datasetUrl);
   return resources.some((res) => {
     if (typeof res !== 'object' || res === null || Array.isArray(res)) return false;
     const url = (res as { url?: unknown }).url;
-    return typeof url === 'string' && normalizeUrl(url) === target;
+    if (typeof url !== 'string') return false;
+    const normalized = normalizeUrl(url);
+    if (normalized === target) return true;
+    return targetFile.length > 0 && fileNameFromUrl(normalized) === targetFile;
   });
 }
 
