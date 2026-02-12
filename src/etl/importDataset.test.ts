@@ -10,6 +10,7 @@ import { withTestEnv } from '../test/helpers/env.js';
 
 import { DISTRICTS_AGE_GROUPS } from './datasets/districts_age_groups.js';
 import { DISTRICTS_AREA_HECTARES } from './datasets/districts_area_hectares.js';
+import { DISTRICTS_FOREIGN_NATIONALITIES_SELECTED } from './datasets/districts_foreign_nationalities_selected.js';
 import { DISTRICTS_GENDER } from './datasets/districts_gender.js';
 import { DISTRICTS_HOUSEHOLDS_TYPE_SIZE } from './datasets/districts_households_type_size.js';
 import { DISTRICTS_MARITAL_STATUS } from './datasets/districts_marital_status.js';
@@ -603,6 +604,107 @@ describe('importDataset', () => {
         ['religion', 'district', 'Altstadt', 2023, 'total'],
       );
       expect(Number(totalReader.getRowObjects()[0]?.['value'])).toBe(1220);
+    } finally {
+      conn.closeSync();
+    }
+  });
+
+  it('imports selected foreign nationalities with trimmed area and empty values as zero', async () => {
+    const foreignNationalitiesCsv =
+      [
+        'Land;Stadt;Kategorie;Jahr;Stadtteil;Tuerkei;Polen;Irak;Russland;Ukraine;Syrien;Bulgarien',
+        'de-sh;Kiel;Bevoelkerung;2022;Altstadt   ;7;3;8;15;20;6;5',
+        'de-sh;Kiel;Bevoelkerung;2023;Altstadt        ;8;4;9;16;21;7;6',
+        'de-sh;Kiel;Bevoelkerung;2022;Vorstadt      ;10;7;4;20;14;10;',
+        'de-sh;Kiel;Bevoelkerung;2023;Vorstadt      ;11;8;5;22;16;12;1',
+      ].join('\n') + '\n';
+
+    const foreignNationalitiesCsvPath = path.join(
+      cacheDir,
+      DISTRICTS_FOREIGN_NATIONALITIES_SELECTED.csvFilename,
+    );
+    await fs.writeFile(foreignNationalitiesCsvPath, foreignNationalitiesCsv, 'utf8');
+
+    const first = await importDataset(DISTRICTS_FOREIGN_NATIONALITIES_SELECTED, {
+      csvPath: foreignNationalitiesCsvPath,
+      dbPath,
+    });
+    const second = await importDataset(DISTRICTS_FOREIGN_NATIONALITIES_SELECTED, {
+      csvPath: foreignNationalitiesCsvPath,
+      dbPath,
+    });
+
+    expect(first.imported).toBe(32);
+    expect(second.imported).toBe(32);
+
+    const db = await createDb(dbPath);
+    const conn = await db.connect();
+    try {
+      const categoriesReader = await conn.runAndReadAll(
+        `
+        SELECT category
+        FROM statistics
+        WHERE indicator = ? AND area_type = ?
+        GROUP BY category
+        ORDER BY category ASC;
+        `,
+        ['foreign_nationalities_selected', 'district'],
+      );
+      const categories = categoriesReader.getRowObjects().map((r) => String(r['category']));
+      expect(categories).toEqual([
+        'bulgaria',
+        'iraq',
+        'poland',
+        'russia',
+        'syria',
+        'total',
+        'turkey',
+        'ukraine',
+      ]);
+
+      const yearsReader = await conn.runAndReadAll(
+        `
+        SELECT DISTINCT year
+        FROM statistics
+        WHERE indicator = ? AND area_type = ? AND category = ?
+        ORDER BY year ASC;
+        `,
+        ['foreign_nationalities_selected', 'district', 'total'],
+      );
+      const years = yearsReader.getRowObjects().map((r) => Number(r['year']));
+      expect(years).toEqual([2022, 2023]);
+
+      const areasReader = await conn.runAndReadAll(
+        `
+        SELECT DISTINCT area_name
+        FROM statistics
+        WHERE indicator = ? AND area_type = ?
+        ORDER BY area_name ASC;
+        `,
+        ['foreign_nationalities_selected', 'district'],
+      );
+      const areas = areasReader.getRowObjects().map((r) => String(r['area_name']));
+      expect(areas).toEqual(['Altstadt', 'Vorstadt']);
+
+      const zeroReader = await conn.runAndReadAll(
+        `
+        SELECT value
+        FROM statistics
+        WHERE indicator = ? AND area_type = ? AND area_name = ? AND year = ? AND category = ?;
+        `,
+        ['foreign_nationalities_selected', 'district', 'Vorstadt', 2022, 'bulgaria'],
+      );
+      expect(Number(zeroReader.getRowObjects()[0]?.['value'])).toBe(0);
+
+      const totalReader = await conn.runAndReadAll(
+        `
+        SELECT value
+        FROM statistics
+        WHERE indicator = ? AND area_type = ? AND area_name = ? AND year = ? AND category = ?;
+        `,
+        ['foreign_nationalities_selected', 'district', 'Altstadt', 2023, 'total'],
+      );
+      expect(Number(totalReader.getRowObjects()[0]?.['value'])).toBe(71);
     } finally {
       conn.closeSync();
     }
