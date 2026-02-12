@@ -147,7 +147,15 @@ export async function seedStatistics(db: DuckDBInstance) {
       ('foreign_count','district','Altstadt',2022,214,'persons', 'total'),
       ('foreign_count','district','Altstadt',2023,212,'persons', 'total'),
       ('foreign_count','district','Vorstadt',2022,288,'persons', 'total'),
-      ('foreign_count','district','Vorstadt',2023,324,'persons', 'total');
+      ('foreign_count','district','Vorstadt',2023,324,'persons', 'total'),
+      ('migrant_gender','district','Altstadt',2022,350,'persons', 'total'),
+      ('migrant_gender','district','Altstadt',2023,364,'persons', 'total'),
+      ('migrant_gender','district','Vorstadt',2022,500,'persons', 'total'),
+      ('migrant_gender','district','Vorstadt',2023,518,'persons', 'total'),
+      ('migrant_gender','district','Altstadt',2023,199,'persons', 'male'),
+      ('migrant_gender','district','Altstadt',2023,165,'persons', 'female'),
+      ('migrant_gender','district','Vorstadt',2023,253,'persons', 'male'),
+      ('migrant_gender','district','Vorstadt',2023,265,'persons', 'female');
       `,
     );
   } finally {
