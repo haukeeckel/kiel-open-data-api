@@ -43,10 +43,26 @@ describe('fetchDataset', () => {
 
   it('writes csv and meta on 200 OK', async () => {
     const csv = 'Merkmal;Stadtteil;2023\nEinwohner insgesamt;Altstadt;1220\n';
+    const catalog = [
+      {
+        name: 'de-sh-kiel_stadtteile',
+        resources: [
+          {
+            url: 'https://www.kiel.de/de/kiel_zukunft/statistik_kieler_zahlen/open_data/kiel_bevoelkerung_stadtteile.csv',
+            format: 'csv',
+          },
+        ],
+      },
+    ];
 
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => {
+      vi.fn(async (input: string | URL | Request) => {
+        const url = String(input);
+        if (url.includes('Kiel_open_data.json')) {
+          return new Response(JSON.stringify(catalog), { status: 200 });
+        }
+
         return new Response(csv, {
           status: 200,
           headers: {
@@ -69,18 +85,43 @@ describe('fetchDataset', () => {
     expect(meta).toEqual({
       etag: '"abc"',
       lastModified: 'Wed, 01 Jan 2025 00:00:00 GMT',
+      kielOpenData: {
+        name: 'de-sh-kiel_stadtteile',
+        resources: [
+          {
+            url: 'https://www.kiel.de/de/kiel_zukunft/statistik_kieler_zahlen/open_data/kiel_bevoelkerung_stadtteile.csv',
+            format: 'csv',
+          },
+        ],
+      },
     });
   });
 
   it('sends conditional headers and returns updated=false on 304', async () => {
     const outMeta = path.join(cacheDir, 'kiel_bevoelkerung_stadtteile.meta.json');
+    const catalog = [
+      {
+        name: 'de-sh-kiel_stadtteile',
+        resources: [
+          {
+            url: 'https://www.kiel.de/de/kiel_zukunft/statistik_kieler_zahlen/open_data/kiel_bevoelkerung_stadtteile.csv',
+            format: 'csv',
+          },
+        ],
+      },
+    ];
     await fs.writeFile(
       outMeta,
       JSON.stringify({ etag: '"prev"', lastModified: 'Mon, 01 Jan 2024 00:00:00 GMT' }, null, 2),
       'utf8',
     );
 
-    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+    const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('Kiel_open_data.json')) {
+        return new Response(JSON.stringify(catalog), { status: 200 });
+      }
+
       expect(init?.headers).toMatchObject({
         'If-None-Match': '"prev"',
         'If-Modified-Since': 'Mon, 01 Jan 2024 00:00:00 GMT',
@@ -102,6 +143,21 @@ describe('fetchDataset', () => {
     expect(res).toEqual({
       updated: false,
       path: path.join(cacheDir, 'kiel_bevoelkerung_stadtteile.csv'),
+    });
+
+    const meta = JSON.parse(await fs.readFile(outMeta, 'utf8'));
+    expect(meta).toEqual({
+      etag: '"prev"',
+      lastModified: 'Mon, 01 Jan 2024 00:00:00 GMT',
+      kielOpenData: {
+        name: 'de-sh-kiel_stadtteile',
+        resources: [
+          {
+            url: 'https://www.kiel.de/de/kiel_zukunft/statistik_kieler_zahlen/open_data/kiel_bevoelkerung_stadtteile.csv',
+            format: 'csv',
+          },
+        ],
+      },
     });
   });
 
