@@ -9,6 +9,7 @@ import { createDb } from '../infra/db/duckdb.js';
 import { withTestEnv } from '../test/helpers/env.js';
 
 import { DISTRICTS_AGE_GROUPS } from './datasets/districts_age_groups.js';
+import { DISTRICTS_AREA_HECTARES } from './datasets/districts_area_hectares.js';
 import { DISTRICTS_GENDER } from './datasets/districts_gender.js';
 import { DISTRICTS_HOUSEHOLDS_TYPE_SIZE } from './datasets/districts_households_type_size.js';
 import { DISTRICTS_MARITAL_STATUS } from './datasets/districts_marital_status.js';
@@ -347,6 +348,67 @@ describe('importDataset', () => {
         ['age_groups', 'district', 'Altstadt', 2023, 'total'],
       );
       expect(Number(totalReader.getRowObjects()[0]?.['value'])).toBe(1220);
+    } finally {
+      conn.closeSync();
+    }
+  });
+
+  it('imports area hectares with decimal comma parsing', async () => {
+    const areaCsv =
+      [
+        'Land;Stadt;Kategorie;Merkmal;Jahr;Stadtteilnummer;Stadtteil;Hektar',
+        'de-sh;Kiel;geo;Flaechen in Hektar;2019;1;Altstadt;35,0987',
+        'de-sh;Kiel;geo;Flaechen in Hektar;2020;1;Altstadt;35,0987',
+        'de-sh;Kiel;geo;Flaechen in Hektar;2019;2;Vorstadt;45,8515',
+        'de-sh;Kiel;geo;Flaechen in Hektar;2020;2;Vorstadt;45,8515',
+      ].join('\n') + '\n';
+
+    const areaCsvPath = path.join(cacheDir, DISTRICTS_AREA_HECTARES.csvFilename);
+    await fs.writeFile(areaCsvPath, areaCsv, 'utf8');
+
+    const first = await importDataset(DISTRICTS_AREA_HECTARES, { csvPath: areaCsvPath, dbPath });
+    const second = await importDataset(DISTRICTS_AREA_HECTARES, { csvPath: areaCsvPath, dbPath });
+
+    expect(first.imported).toBe(4);
+    expect(second.imported).toBe(4);
+
+    const db = await createDb(dbPath);
+    const conn = await db.connect();
+    try {
+      const categoriesReader = await conn.runAndReadAll(
+        `
+        SELECT category
+        FROM statistics
+        WHERE indicator = ? AND area_type = ?
+        GROUP BY category
+        ORDER BY category ASC;
+        `,
+        ['area_hectares', 'district'],
+      );
+      const categories = categoriesReader.getRowObjects().map((r) => String(r['category']));
+      expect(categories).toEqual(['total']);
+
+      const yearsReader = await conn.runAndReadAll(
+        `
+        SELECT DISTINCT year
+        FROM statistics
+        WHERE indicator = ? AND area_type = ? AND category = ?
+        ORDER BY year ASC;
+        `,
+        ['area_hectares', 'district', 'total'],
+      );
+      const years = yearsReader.getRowObjects().map((r) => Number(r['year']));
+      expect(years).toEqual([2019, 2020]);
+
+      const valueReader = await conn.runAndReadAll(
+        `
+        SELECT value
+        FROM statistics
+        WHERE indicator = ? AND area_type = ? AND area_name = ? AND year = ? AND category = ?;
+        `,
+        ['area_hectares', 'district', 'Altstadt', 2020, 'total'],
+      );
+      expect(Number(valueReader.getRowObjects()[0]?.['value'])).toBeCloseTo(35.0987, 6);
     } finally {
       conn.closeSync();
     }

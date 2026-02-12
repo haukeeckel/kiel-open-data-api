@@ -248,6 +248,24 @@ describe('statistics endpoints', () => {
       });
     });
 
+    it('supports area_hectares indicator with default total category', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/timeseries?indicator=area_hectares&areaType=district&area=Altstadt',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        indicator: 'area_hectares',
+        areaType: 'district',
+        area: 'Altstadt',
+        rows: [
+          { year: 2019, value: 35.0987, unit: 'hectares', category: 'total' },
+          { year: 2020, value: 35.0987, unit: 'hectares', category: 'total' },
+        ],
+      });
+    });
+
     it('returns 400 when from is greater than to', async () => {
       const res = await app.inject({
         method: 'GET',
@@ -352,6 +370,16 @@ describe('statistics endpoints', () => {
       expect(res.statusCode).toBe(200);
       expect(res.json().rows).toEqual(['Altstadt', 'Vorstadt']);
     });
+
+    it('supports area_hectares indicator with default total category', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/areas?indicator=area_hectares&areaType=district',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json().rows).toEqual(['Altstadt', 'Vorstadt']);
+    });
   });
 
   describe('GET /v1/categories', () => {
@@ -430,6 +458,20 @@ describe('statistics endpoints', () => {
           'age_80_plus',
           'total',
         ],
+      });
+    });
+
+    it('returns distinct area categories for area_hectares indicator and areaType', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/categories?indicator=area_hectares&areaType=district',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        indicator: 'area_hectares',
+        areaType: 'district',
+        rows: ['total'],
       });
     });
   });
@@ -594,6 +636,26 @@ describe('statistics endpoints', () => {
         ],
       });
     });
+
+    it('returns ranking for area_hectares indicator with default total category', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/ranking?indicator=area_hectares&areaType=district&year=2020&limit=2&order=desc',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        indicator: 'area_hectares',
+        areaType: 'district',
+        year: 2020,
+        order: 'desc',
+        limit: 2,
+        rows: [
+          { area: 'Vorstadt', value: 45.8515, unit: 'hectares', category: 'total' },
+          { area: 'Altstadt', value: 35.0987, unit: 'hectares', category: 'total' },
+        ],
+      });
+    });
   });
 
   describe('GET /v1/indicators', () => {
@@ -602,7 +664,14 @@ describe('statistics endpoints', () => {
 
       expect(res.statusCode).toBe(200);
       expect(res.json()).toEqual({
-        rows: ['age_groups', 'gender', 'households', 'marital_status', 'population'],
+        rows: [
+          'age_groups',
+          'area_hectares',
+          'gender',
+          'households',
+          'marital_status',
+          'population',
+        ],
       });
     });
   });
