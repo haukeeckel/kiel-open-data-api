@@ -240,4 +240,20 @@ describe('DuckDbStatisticsRepository', () => {
       expect(result.rows).toEqual(['single_person', 'total']);
     });
   });
+
+  describe('listIndicators', () => {
+    it('returns distinct indicators sorted', async () => {
+      const result = await repo.listIndicators();
+
+      expect(result.rows).toEqual(['households', 'population']);
+    });
+  });
+
+  describe('listAreaTypes', () => {
+    it('returns distinct area types sorted', async () => {
+      const result = await repo.listAreaTypes();
+
+      expect(result.rows).toEqual(['district']);
+    });
+  });
 });

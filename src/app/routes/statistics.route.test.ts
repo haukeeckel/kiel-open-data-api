@@ -476,4 +476,26 @@ describe('statistics endpoints', () => {
       });
     });
   });
+
+  describe('GET /v1/indicators', () => {
+    it('returns distinct indicators sorted', async () => {
+      const res = await app.inject({ method: 'GET', url: '/v1/indicators' });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        rows: ['gender', 'households', 'marital_status', 'population'],
+      });
+    });
+  });
+
+  describe('GET /v1/area-types', () => {
+    it('returns distinct area types sorted', async () => {
+      const res = await app.inject({ method: 'GET', url: '/v1/area-types' });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        rows: ['district'],
+      });
+    });
+  });
 });

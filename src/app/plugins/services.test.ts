@@ -37,6 +37,8 @@ describe('services plugin', () => {
         area: 'Altstadt',
         rows: [],
       }),
+      listIndicators: async () => ({ rows: [indicator] }),
+      listAreaTypes: async () => ({ rows: [areaType] }),
     };
 
     app.decorate('repos', { statisticsRepository });
