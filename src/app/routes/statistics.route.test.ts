@@ -131,8 +131,8 @@ describe('statistics endpoints', () => {
         areaType: 'district',
         area: 'Altstadt',
         rows: [
-          { year: 2022, value: 1213, unit: 'persons' },
-          { year: 2023, value: 1220, unit: 'persons' },
+          { year: 2022, value: 1213, unit: 'persons', category: 'total' },
+          { year: 2023, value: 1220, unit: 'persons', category: 'total' },
         ],
       });
     });
@@ -145,7 +145,7 @@ describe('statistics endpoints', () => {
 
       expect(res.statusCode).toBe(200);
       expect(res.json()).toMatchObject({
-        rows: [{ year: 2023, value: 1220, unit: 'persons' }],
+        rows: [{ year: 2023, value: 1220, unit: 'persons', category: 'total' }],
       });
     });
 
@@ -264,8 +264,8 @@ describe('statistics endpoints', () => {
         order: 'desc',
         limit: 2,
         rows: [
-          { area: 'Gaarden-Ost', value: 18000, unit: 'persons' },
-          { area: 'Schreventeich', value: 9000, unit: 'persons' },
+          { area: 'Gaarden-Ost', value: 18000, unit: 'persons', category: 'total' },
+          { area: 'Schreventeich', value: 9000, unit: 'persons', category: 'total' },
         ],
       });
     });
@@ -277,7 +277,9 @@ describe('statistics endpoints', () => {
       });
 
       expect(res.statusCode).toBe(200);
-      expect(res.json().rows).toEqual([{ area: 'Altstadt', value: 1220, unit: 'persons' }]);
+      expect(res.json().rows).toEqual([
+        { area: 'Altstadt', value: 1220, unit: 'persons', category: 'total' },
+      ]);
     });
   });
 });

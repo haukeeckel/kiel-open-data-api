@@ -11,7 +11,7 @@ function createFakeRepo(): StatisticsRepository {
         indicator: input.indicator,
         areaType: input.areaType,
         area: input.area,
-        rows: [{ year: 2023, value: 1, unit: 'persons' }],
+        rows: [{ year: 2023, value: 1, unit: 'persons', category: 'total' }],
       };
     },
     async listAreas(input) {
@@ -28,7 +28,7 @@ function createFakeRepo(): StatisticsRepository {
         year: input.year,
         order: input.order,
         limit: input.limit,
-        rows: [{ area: 'Altstadt', value: 1, unit: 'persons' }],
+        rows: [{ area: 'Altstadt', value: 1, unit: 'persons', category: 'total' }],
       };
     },
   };
