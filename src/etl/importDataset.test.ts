@@ -14,6 +14,7 @@ import { DISTRICTS_GENDER } from './datasets/districts_gender.js';
 import { DISTRICTS_HOUSEHOLDS_TYPE_SIZE } from './datasets/districts_households_type_size.js';
 import { DISTRICTS_MARITAL_STATUS } from './datasets/districts_marital_status.js';
 import { DISTRICTS_POPULATION } from './datasets/districts_population.js';
+import { DISTRICTS_UNEMPLOYED_COUNT } from './datasets/districts_unemployed_count.js';
 import { importDataset } from './importDataset.js';
 
 function mkTmpDir() {
@@ -409,6 +410,71 @@ describe('importDataset', () => {
         ['area_hectares', 'district', 'Altstadt', 2020, 'total'],
       );
       expect(Number(valueReader.getRowObjects()[0]?.['value'])).toBeCloseTo(35.0987, 6);
+    } finally {
+      conn.closeSync();
+    }
+  });
+
+  it('imports unemployed counts from date-like year columns', async () => {
+    const unemployedCsv =
+      [
+        'Land;Stadt;Kategorie;Merkmal;Stadtteilnummer;Stadtteil;31.12.2023;31.12.2022',
+        'de-sh;Kiel;wirtschaft_arbeit;Arbeitslose;1;Altstadt;16;14',
+        'de-sh;Kiel;wirtschaft_arbeit;Arbeitslose;2;Vorstadt;43;43',
+      ].join('\n') + '\n';
+
+    const unemployedCsvPath = path.join(cacheDir, DISTRICTS_UNEMPLOYED_COUNT.csvFilename);
+    await fs.writeFile(unemployedCsvPath, unemployedCsv, 'utf8');
+
+    const first = await importDataset(DISTRICTS_UNEMPLOYED_COUNT, {
+      csvPath: unemployedCsvPath,
+      dbPath,
+    });
+    const second = await importDataset(DISTRICTS_UNEMPLOYED_COUNT, {
+      csvPath: unemployedCsvPath,
+      dbPath,
+    });
+
+    expect(first.imported).toBe(4);
+    expect(second.imported).toBe(4);
+
+    const db = await createDb(dbPath);
+    const conn = await db.connect();
+    try {
+      const categoriesReader = await conn.runAndReadAll(
+        `
+        SELECT category
+        FROM statistics
+        WHERE indicator = ? AND area_type = ?
+        GROUP BY category
+        ORDER BY category ASC;
+        `,
+        ['unemployed_count', 'district'],
+      );
+      const categories = categoriesReader.getRowObjects().map((r) => String(r['category']));
+      expect(categories).toEqual(['total']);
+
+      const yearsReader = await conn.runAndReadAll(
+        `
+        SELECT DISTINCT year
+        FROM statistics
+        WHERE indicator = ? AND area_type = ? AND category = ?
+        ORDER BY year ASC;
+        `,
+        ['unemployed_count', 'district', 'total'],
+      );
+      const years = yearsReader.getRowObjects().map((r) => Number(r['year']));
+      expect(years).toEqual([2022, 2023]);
+
+      const valueReader = await conn.runAndReadAll(
+        `
+        SELECT value
+        FROM statistics
+        WHERE indicator = ? AND area_type = ? AND area_name = ? AND year = ? AND category = ?;
+        `,
+        ['unemployed_count', 'district', 'Altstadt', 2023, 'total'],
+      );
+      expect(Number(valueReader.getRowObjects()[0]?.['value'])).toBe(16);
     } finally {
       conn.closeSync();
     }
