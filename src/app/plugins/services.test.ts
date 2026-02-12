@@ -26,6 +26,11 @@ describe('services plugin', () => {
         areaType,
         rows: [],
       }),
+      listCategories: async () => ({
+        indicator,
+        areaType,
+        rows: ['total'],
+      }),
       getTimeseries: async () => ({
         indicator,
         areaType,

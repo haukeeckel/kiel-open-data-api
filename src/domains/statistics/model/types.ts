@@ -1,4 +1,4 @@
-export const INDICATORS = ['population'] as const;
+export const INDICATORS = ['population', 'households'] as const;
 export const AREA_TYPES = ['district'] as const;
 export const ORDERS = ['asc', 'desc'] as const;
 
@@ -24,6 +24,11 @@ export type AreasQuery = {
   areaType: AreaType;
   category?: string;
   like?: string;
+};
+
+export type CategoriesQuery = {
+  indicator: Indicator;
+  areaType: AreaType;
 };
 
 export type RankingQuery = {
@@ -57,6 +62,12 @@ export type TimeseriesResult = {
 };
 
 export type AreasResult = {
+  indicator: Indicator;
+  areaType: AreaType;
+  rows: string[];
+};
+
+export type CategoriesResult = {
   indicator: Indicator;
   areaType: AreaType;
   rows: string[];

@@ -19,12 +19,16 @@ describe('DuckDbStatisticsRepository', () => {
     await applyMigrations(conn);
 
     await conn.run(`
-      INSERT INTO statistics (indicator, area_type, area_name, year, value, unit) VALUES
-      ('population', 'district', 'Altstadt',       2022, 1213, 'persons'),
-      ('population', 'district', 'Altstadt',       2023, 1220, 'persons'),
-      ('population', 'district', 'Gaarden-Ost',    2022, 17500, 'persons'),
-      ('population', 'district', 'Gaarden-Ost',    2023, 18000, 'persons'),
-      ('population', 'district', 'Schreventeich',  2023, 9000, 'persons');
+      INSERT INTO statistics (indicator, area_type, area_name, year, value, unit, category) VALUES
+      ('population', 'district', 'Altstadt',       2022, 1213, 'persons', 'total'),
+      ('population', 'district', 'Altstadt',       2023, 1220, 'persons', 'total'),
+      ('population', 'district', 'Gaarden-Ost',    2022, 17500, 'persons', 'total'),
+      ('population', 'district', 'Gaarden-Ost',    2023, 18000, 'persons', 'total'),
+      ('population', 'district', 'Schreventeich',  2023, 9000, 'persons', 'total'),
+      ('households', 'district', 'Altstadt',       2023, 810, 'households', 'total'),
+      ('households', 'district', 'Altstadt',       2023, 505, 'households', 'single_person'),
+      ('households', 'district', 'Gaarden-Ost',    2023, 6050, 'households', 'total'),
+      ('households', 'district', 'Gaarden-Ost',    2023, 3220, 'households', 'single_person');
     `);
   });
 
@@ -224,6 +228,17 @@ describe('DuckDbStatisticsRepository', () => {
       expect(result.year).toBe(2023);
       expect(result.order).toBe('asc');
       expect(result.limit).toBe(5);
+    });
+  });
+
+  describe('listCategories', () => {
+    it('returns distinct categories sorted', async () => {
+      const result = await repo.listCategories({
+        indicator: 'households',
+        areaType: 'district',
+      });
+
+      expect(result.rows).toEqual(['single_person', 'total']);
     });
   });
 });

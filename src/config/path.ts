@@ -13,7 +13,12 @@ export function getDataDir() {
 export function getDuckDbPath(env: Env) {
   if (env.DUCKDB_PATH) {
     const raw = env.DUCKDB_PATH;
-    const absolute = path.isAbsolute(raw) ? raw : path.join(getDataDir(), raw);
+    const hasPathSegment = raw.includes('/') || raw.includes('\\');
+    const absolute = path.isAbsolute(raw)
+      ? raw
+      : hasPathSegment
+        ? path.resolve(process.cwd(), raw)
+        : path.join(getDataDir(), raw);
     return path.resolve(absolute);
   }
 

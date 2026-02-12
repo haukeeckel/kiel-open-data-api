@@ -88,6 +88,21 @@ export function createDuckDbStatisticsRepository(conn: DuckDBConnection): Statis
       return { indicator: input.indicator, areaType: input.areaType, rows };
     },
 
+    async listCategories(input) {
+      const reader = await conn.runAndReadAll(
+        `
+        SELECT DISTINCT category
+        FROM statistics
+        WHERE indicator = ? AND area_type = ?
+        ORDER BY category ASC
+        `,
+        [input.indicator, input.areaType],
+      );
+
+      const rows = reader.getRowObjects().map((r) => requireString(r, 'category'));
+      return { indicator: input.indicator, areaType: input.areaType, rows };
+    },
+
     async getRanking(input) {
       const reader = await conn.runAndReadAll(
         `

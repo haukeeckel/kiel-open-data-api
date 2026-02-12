@@ -22,8 +22,17 @@ async function main() {
     const datasets = resolveDatasets(process.argv.slice(2));
 
     for (const dataset of datasets) {
-      const res = await importDataset(dataset);
-      log.info({ dataset: dataset.id, ...res }, 'etl.import: done');
+      try {
+        const res = await importDataset(dataset);
+        log.info({ dataset: dataset.id, ...res }, 'etl.import: done');
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (message.includes('CSV file not found:')) {
+          log.warn({ dataset: dataset.id, err }, 'etl.import: skipped (csv missing)');
+          continue;
+        }
+        throw err;
+      }
     }
 
     await flushLogger(log);

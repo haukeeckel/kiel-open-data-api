@@ -2,6 +2,8 @@ import { ApiError } from '../../schemas/api.js';
 import {
   AreasQuery,
   AreasResponse,
+  CategoriesQuery,
+  CategoriesResponse,
   RankingQuery,
   RankingResponse,
   TimeseriesQuery,
@@ -28,6 +30,19 @@ export const areasRouteSchema = {
     querystring: AreasQuery,
     response: {
       200: AreasResponse,
+      400: ApiError,
+      500: ApiError,
+    },
+  },
+};
+
+export const categoriesRouteSchema = {
+  schema: {
+    tags: ['statistics'],
+    description: 'List distinct categories for an indicator and area type',
+    querystring: CategoriesQuery,
+    response: {
+      200: CategoriesResponse,
       400: ApiError,
       500: ApiError,
     },

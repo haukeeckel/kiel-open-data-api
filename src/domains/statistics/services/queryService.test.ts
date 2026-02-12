@@ -11,7 +11,10 @@ function createFakeRepo(): StatisticsRepository {
         indicator: input.indicator,
         areaType: input.areaType,
         area: input.area,
-        rows: [{ year: 2023, value: 1, unit: 'persons', category: 'total' }],
+        rows: [
+          { year: 2023, value: 1, unit: 'persons', category: 'total' },
+          { year: 2023, value: 2, unit: 'persons', category: 'single_person' },
+        ],
       };
     },
     async listAreas(input) {
@@ -21,6 +24,13 @@ function createFakeRepo(): StatisticsRepository {
         rows: ['Altstadt'],
       };
     },
+    async listCategories(input) {
+      return {
+        indicator: input.indicator,
+        areaType: input.areaType,
+        rows: ['total'],
+      };
+    },
     async getRanking(input) {
       return {
         indicator: input.indicator,
@@ -28,7 +38,10 @@ function createFakeRepo(): StatisticsRepository {
         year: input.year,
         order: input.order,
         limit: input.limit,
-        rows: [{ area: 'Altstadt', value: 1, unit: 'persons', category: 'total' }],
+        rows: [
+          { area: 'Altstadt', value: 1, unit: 'persons', category: 'total' },
+          { area: 'Altstadt', value: 2, unit: 'persons', category: 'single_person' },
+        ],
       };
     },
   };
@@ -60,5 +73,45 @@ describe('StatisticsQueryService', () => {
       limit: 25,
     });
     expect(result.limit).toBe(25);
+  });
+
+  it('passes categories input through to repository', async () => {
+    const svc = new StatisticsQueryService(createFakeRepo());
+
+    const result = await svc.listCategories({
+      indicator: 'households',
+      areaType: 'district',
+    });
+    expect(result.rows).toEqual(['total']);
+  });
+
+  it('filters timeseries rows to requested category', async () => {
+    const svc = new StatisticsQueryService(createFakeRepo());
+
+    const result = await svc.getTimeseries({
+      indicator: 'households',
+      areaType: 'district',
+      area: 'Altstadt',
+      category: 'single_person',
+    });
+    expect(result.rows).toEqual([
+      { year: 2023, value: 2, unit: 'persons', category: 'single_person' },
+    ]);
+  });
+
+  it('filters ranking rows to requested category', async () => {
+    const svc = new StatisticsQueryService(createFakeRepo());
+
+    const result = await svc.getRanking({
+      indicator: 'households',
+      areaType: 'district',
+      year: 2023,
+      limit: 10,
+      order: 'desc',
+      category: 'single_person',
+    });
+    expect(result.rows).toEqual([
+      { area: 'Altstadt', value: 2, unit: 'persons', category: 'single_person' },
+    ]);
   });
 });

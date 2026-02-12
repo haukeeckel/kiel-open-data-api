@@ -14,7 +14,10 @@ export const DISTRICTS_POPULATION: DatasetConfig = {
         filterValue: 'Einwohner insgesamt',
         indicator: 'population',
         unit: 'persons',
-        category: 'total',
+        category: {
+          slug: 'total',
+          label: 'Einwohner insgesamt',
+        },
       },
     ],
   },

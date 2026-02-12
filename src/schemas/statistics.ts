@@ -48,6 +48,17 @@ export const AreasResponse = z.object({
   rows: z.array(z.string()),
 });
 
+export const CategoriesQuery = z.object({
+  indicator: Indicator,
+  areaType: AreaType,
+});
+
+export const CategoriesResponse = z.object({
+  indicator: z.string(),
+  areaType: z.string(),
+  rows: z.array(z.string()),
+});
+
 export const RankingQuery = z.object({
   indicator: Indicator,
   areaType: AreaType,

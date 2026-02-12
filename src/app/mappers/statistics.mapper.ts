@@ -1,12 +1,14 @@
 import type {
-  TimeseriesQuery,
   AreasQuery,
+  CategoriesQuery,
   RankingQuery,
+  TimeseriesQuery,
 } from '../../domains/statistics/model/types.js';
 import type {
-  TimeseriesQuery as TimeseriesSchema,
   AreasQuery as AreasSchema,
+  CategoriesQuery as CategoriesSchema,
   RankingQuery as RankingSchema,
+  TimeseriesQuery as TimeseriesSchema,
 } from '../../schemas/statistics.js';
 import type { z } from 'zod';
 
@@ -27,6 +29,13 @@ export function toAreasQuery(query: z.infer<typeof AreasSchema>): AreasQuery {
     areaType: query.areaType,
     ...(query.category !== undefined ? { category: query.category } : {}),
     ...(query.like !== undefined ? { like: query.like } : {}),
+  };
+}
+
+export function toCategoriesQuery(query: z.infer<typeof CategoriesSchema>): CategoriesQuery {
+  return {
+    indicator: query.indicator,
+    areaType: query.areaType,
   };
 }
 

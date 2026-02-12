@@ -149,6 +149,21 @@ describe('statistics endpoints', () => {
       });
     });
 
+    it('supports category filter', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/timeseries?indicator=households&areaType=district&area=Altstadt&category=single_person',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        indicator: 'households',
+        areaType: 'district',
+        area: 'Altstadt',
+        rows: [{ year: 2023, value: 505, unit: 'households', category: 'single_person' }],
+      });
+    });
+
     it('returns 400 when from is greater than to', async () => {
       const res = await app.inject({
         method: 'GET',
@@ -218,6 +233,32 @@ describe('statistics endpoints', () => {
 
       expect(res.statusCode).toBe(200);
       expect(res.json().rows).toEqual(['Gaarden-Ost']);
+    });
+
+    it('supports indicator with default total category', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/areas?indicator=households&areaType=district',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json().rows).toEqual(['Altstadt', 'Gaarden-Ost']);
+    });
+  });
+
+  describe('GET /v1/categories', () => {
+    it('returns distinct categories for indicator and areaType', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/categories?indicator=households&areaType=district',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        indicator: 'households',
+        areaType: 'district',
+        rows: ['single_person', 'total'],
+      });
     });
   });
 
