@@ -283,6 +283,16 @@ async function importUnpivotCategories(args: {
       filterParts.push(`${quoteIdentifier(config.areaColumn)} IS NOT NULL`);
     }
     const whereClause = filterParts.length > 0 ? `WHERE ${filterParts.join(' AND ')}` : '';
+    const dedupeClause = format.dedupeByAreaYearKeepLast
+      ? `QUALIFY ROW_NUMBER() OVER (
+           PARTITION BY ${
+             config.areaColumn
+               ? `${quoteIdentifier(config.areaColumn)}, ${quoteIdentifier(format.yearColumn)}`
+               : `${quoteIdentifier(format.yearColumn)}`
+           }
+           ORDER BY rowid DESC
+         ) = 1`
+      : '';
 
     if (config.areaColumn) {
       await conn.run(
@@ -300,6 +310,7 @@ async function importUnpivotCategories(args: {
           SELECT *, ${quoteIdentifier(format.yearColumn)} AS year_raw
           FROM raw
           ${whereClause}
+          ${dedupeClause}
         );
         `,
         [indicator, config.areaType, unit, categorySlug, ...filterParams],
@@ -320,6 +331,7 @@ async function importUnpivotCategories(args: {
           SELECT *, ${quoteIdentifier(format.yearColumn)} AS year_raw
           FROM raw
           ${whereClause}
+          ${dedupeClause}
         );
         `,
         [indicator, config.areaType, config.defaultAreaName, unit, categorySlug, ...filterParams],

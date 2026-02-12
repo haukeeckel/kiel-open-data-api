@@ -253,6 +253,16 @@ describe('importDataset', () => {
       );
       const years = totalYearsReader.getRowObjects().map((r) => Number(r['year']));
       expect(years).toEqual([2022, 2023]);
+
+      const altstadt2022Reader = await conn.runAndReadAll(
+        `
+        SELECT value
+        FROM statistics
+        WHERE indicator = ? AND area_type = ? AND area_name = ? AND year = ? AND category = ?;
+        `,
+        ['gender', 'district', 'Altstadt', 2022, 'total'],
+      );
+      expect(Number(altstadt2022Reader.getRowObjects()[0]?.['value'])).toBe(1213);
     } finally {
       conn.closeSync();
     }

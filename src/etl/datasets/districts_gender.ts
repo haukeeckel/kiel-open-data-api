@@ -9,6 +9,7 @@ export const DISTRICTS_GENDER: DatasetConfig = {
   format: {
     type: 'unpivot_categories',
     yearColumn: 'Datum',
+    dedupeByAreaYearKeepLast: true,
     yearParser: (value) => {
       const year = value.match(/\d{4}/)?.[0];
       return year ? Number(year) : Number.NaN;
