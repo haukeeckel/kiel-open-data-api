@@ -41,7 +41,14 @@ export async function seedStatistics(db: DuckDBInstance) {
       ('marital_status','district','Altstadt',2023,339,'persons', 'married'),
       ('marital_status','district','Altstadt',2023,94,'persons', 'widowed'),
       ('marital_status','district','Altstadt',2023,85,'persons', 'divorced'),
-      ('marital_status','district','Vorstadt',2023,1038,'persons', 'single');
+      ('marital_status','district','Vorstadt',2023,1038,'persons', 'single'),
+      ('gender','district','Altstadt',2022,1213,'persons', 'total'),
+      ('gender','district','Altstadt',2023,1220,'persons', 'total'),
+      ('gender','district','Vorstadt',2023,1648,'persons', 'total'),
+      ('gender','district','Altstadt',2023,638,'persons', 'male'),
+      ('gender','district','Altstadt',2023,582,'persons', 'female'),
+      ('gender','district','Vorstadt',2023,829,'persons', 'male'),
+      ('gender','district','Vorstadt',2023,819,'persons', 'female');
       `,
     );
   } finally {

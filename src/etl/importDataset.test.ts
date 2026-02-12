@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createDb } from '../infra/db/duckdb.js';
 import { withTestEnv } from '../test/helpers/env.js';
 
+import { DISTRICTS_GENDER } from './datasets/districts_gender.js';
 import { DISTRICTS_HOUSEHOLDS_TYPE_SIZE } from './datasets/districts_households_type_size.js';
 import { DISTRICTS_MARITAL_STATUS } from './datasets/districts_marital_status.js';
 import { DISTRICTS_POPULATION } from './datasets/districts_population.js';
@@ -200,6 +201,68 @@ describe('importDataset', () => {
         ['marital_status', 'district', 'total'],
       );
       expect(Number(totalRowsReader.getRowObjects()[0]?.['c'])).toBe(4);
+    } finally {
+      conn.closeSync();
+    }
+  });
+
+  it('imports gender categories and parses year from Datum', async () => {
+    const genderCsv =
+      [
+        'Land;Stadt;Kategorie;Merkmal;Datum;Stadtteilnummer;Stadtteil;insgesamt;maennlich;weiblich',
+        'de-sh;Kiel;Bevoelkerung;Einwohner insgesamt;2022_12_31;1;Altstadt;1213;631;582',
+        'de-sh;Kiel;Bevoelkerung;Einwohner insgesamt;2023_12_31;1;Altstadt;1220;638;582',
+        'de-sh;Kiel;Bevoelkerung;Einwohner insgesamt;2022_12_31;2;Vorstadt;1600;800;800',
+        'de-sh;Kiel;Bevoelkerung;Einwohner insgesamt;2023_12_31;2;Vorstadt;1648;829;819',
+        'de-sh;Kiel;Bevoelkerung;Nicht relevant;2023_12_31;2;Vorstadt;9999;1;1',
+      ].join('\n') + '\n';
+
+    const genderCsvPath = path.join(cacheDir, DISTRICTS_GENDER.csvFilename);
+    await fs.writeFile(genderCsvPath, genderCsv, 'utf8');
+
+    const first = await importDataset(DISTRICTS_GENDER, { csvPath: genderCsvPath, dbPath });
+    const second = await importDataset(DISTRICTS_GENDER, { csvPath: genderCsvPath, dbPath });
+
+    expect(first.imported).toBe(12);
+    expect(second.imported).toBe(12);
+
+    const db = await createDb(dbPath);
+    const conn = await db.connect();
+    try {
+      const categoriesReader = await conn.runAndReadAll(
+        `
+        SELECT category
+        FROM statistics
+        WHERE indicator = ? AND area_type = ?
+        GROUP BY category
+        ORDER BY category ASC;
+        `,
+        ['gender', 'district'],
+      );
+      const categories = categoriesReader.getRowObjects().map((r) => String(r['category']));
+      expect(categories).toEqual(['female', 'male', 'total']);
+
+      const totalYearsReader = await conn.runAndReadAll(
+        `
+        SELECT DISTINCT year
+        FROM statistics
+        WHERE indicator = ? AND area_type = ? AND category = ?
+        ORDER BY year ASC;
+        `,
+        ['gender', 'district', 'total'],
+      );
+      const years = totalYearsReader.getRowObjects().map((r) => Number(r['year']));
+      expect(years).toEqual([2022, 2023]);
+
+      const altstadt2022Reader = await conn.runAndReadAll(
+        `
+        SELECT value
+        FROM statistics
+        WHERE indicator = ? AND area_type = ? AND area_name = ? AND year = ? AND category = ?;
+        `,
+        ['gender', 'district', 'Altstadt', 2022, 'total'],
+      );
+      expect(Number(altstadt2022Reader.getRowObjects()[0]?.['value'])).toBe(1213);
     } finally {
       conn.closeSync();
     }

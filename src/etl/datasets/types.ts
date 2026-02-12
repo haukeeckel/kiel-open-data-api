@@ -31,6 +31,7 @@ export type UnpivotCategoriesFormat = {
   type: 'unpivot_categories';
   yearColumn: string;
   yearParser?: ((value: string) => number) | undefined;
+  dedupeByAreaYearKeepLast?: boolean | undefined;
   filterColumn?: string | undefined;
   filterValue?: string | undefined;
   indicator?: string | undefined;

@@ -12,12 +12,15 @@ import type { DatasetConfig } from './datasets/types.js';
 type Meta = {
   etag?: string;
   lastModified?: string;
+  kielOpenData?: Record<string, unknown>;
 };
 
 export type FetchDatasetOptions = {
   cacheDir?: string | undefined;
   fetchFn?: typeof fetch | undefined;
 };
+
+const KIEL_OPEN_DATA_URL = 'https://www.kiel.de/opendata/Kiel_open_data.json';
 
 function metaFilename(csvFilename: string): string {
   if (!csvFilename.endsWith('.csv')) return `${csvFilename}.meta.json`;
@@ -33,13 +36,102 @@ async function readMeta(
     const raw = await fs.readFile(metaPath, 'utf8');
     return JSON.parse(raw) as Meta;
   } catch (err) {
-    log.debug({ ...ctx, err }, 'etl.fetch: meta not found or invalid; continuing with empty meta');
+    const code =
+      typeof err === 'object' && err !== null && 'code' in err
+        ? (err as { code?: unknown }).code
+        : undefined;
+
+    if (code === 'ENOENT') {
+      log.debug({ ...ctx, metaPath }, 'etl.fetch: meta not found; continuing with empty meta');
+      return {};
+    }
+
+    log.debug({ ...ctx, err, metaPath }, 'etl.fetch: meta invalid; continuing with empty meta');
     return {};
   }
 }
 
 async function writeMeta(metaPath: string, meta: Meta) {
   await fs.writeFile(metaPath, JSON.stringify(meta, null, 2), 'utf8');
+}
+
+function normalizeUrl(url: string): string {
+  return url.trim().replace(/\/+$/, '');
+}
+
+function fileNameFromUrl(url: string): string {
+  const cleaned = normalizeUrl(url);
+  const withoutQuery = cleaned.split('?')[0]?.split('#')[0] ?? cleaned;
+  const parts = withoutQuery.split('/');
+  return parts[parts.length - 1] ?? '';
+}
+
+function parseCatalogEntries(raw: unknown): Array<Record<string, unknown>> {
+  if (Array.isArray(raw)) {
+    return raw.filter(
+      (item): item is Record<string, unknown> =>
+        typeof item === 'object' && item !== null && !Array.isArray(item),
+    );
+  }
+  if (typeof raw !== 'object' || raw === null) return [];
+
+  const maybeResult = (raw as { result?: unknown }).result;
+  if (!Array.isArray(maybeResult)) return [];
+  return maybeResult.filter(
+    (item): item is Record<string, unknown> =>
+      typeof item === 'object' && item !== null && !Array.isArray(item),
+  );
+}
+
+function hasMatchingResourceUrl(entry: Record<string, unknown>, datasetUrl: string): boolean {
+  const resources = entry['resources'];
+  if (!Array.isArray(resources)) return false;
+
+  const target = normalizeUrl(datasetUrl);
+  const targetFile = fileNameFromUrl(datasetUrl);
+  return resources.some((res) => {
+    if (typeof res !== 'object' || res === null || Array.isArray(res)) return false;
+    const url = (res as { url?: unknown }).url;
+    if (typeof url !== 'string') return false;
+    const normalized = normalizeUrl(url);
+    if (normalized === target) return true;
+    return targetFile.length > 0 && fileNameFromUrl(normalized) === targetFile;
+  });
+}
+
+async function fetchKielOpenDataEntry(args: {
+  datasetUrl: string;
+  fetchFn?: typeof fetch | undefined;
+  log: ReturnType<typeof getEtlLogger>['log'];
+  ctx: EtlContext;
+}): Promise<Record<string, unknown> | undefined> {
+  const { datasetUrl, fetchFn, log, ctx } = args;
+  const retryOpts = fetchFn ? { fetchFn } : {};
+
+  try {
+    const res = await fetchWithRetry(KIEL_OPEN_DATA_URL, {}, retryOpts);
+    if (!res.ok) {
+      log.debug(
+        { ...ctx, status: res.status, statusText: res.statusText },
+        'etl.fetch: failed to fetch Kiel_open_data.json',
+      );
+      return undefined;
+    }
+
+    const raw = (await res.json()) as unknown;
+    const entries = parseCatalogEntries(raw);
+    const match = entries.find((entry) => hasMatchingResourceUrl(entry, datasetUrl));
+
+    if (!match) {
+      log.debug({ ...ctx, datasetUrl }, 'etl.fetch: no matching dataset entry in Kiel_open_data');
+      return undefined;
+    }
+
+    return match;
+  } catch (err) {
+    log.debug({ ...ctx, err }, 'etl.fetch: could not enrich meta from Kiel_open_data');
+    return undefined;
+  }
 }
 
 export async function fetchDataset(
@@ -78,6 +170,18 @@ export async function fetchDataset(
   );
 
   if (res.status === 304) {
+    if (meta.kielOpenData === undefined) {
+      const kielOpenData = await fetchKielOpenDataEntry({
+        datasetUrl: config.url,
+        fetchFn: opts?.fetchFn,
+        log,
+        ctx,
+      });
+      if (kielOpenData) {
+        const nextMeta: Meta = { ...meta, kielOpenData };
+        await writeMeta(outMeta, nextMeta);
+      }
+    }
     log.info({ ...ctx, ms: durationMs(started), path: outCsv }, 'etl.fetch: not modified');
     return { updated: false, path: outCsv };
   }
@@ -100,6 +204,13 @@ export async function fetchDataset(
   const lastModified = res.headers.get('last-modified');
   if (etag) nextMeta.etag = etag;
   if (lastModified) nextMeta.lastModified = lastModified;
+  const kielOpenData = await fetchKielOpenDataEntry({
+    datasetUrl: config.url,
+    fetchFn: opts?.fetchFn,
+    log,
+    ctx,
+  });
+  if (kielOpenData) nextMeta.kielOpenData = kielOpenData;
 
   await writeMeta(outMeta, nextMeta);
 
