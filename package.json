@@ -16,9 +16,12 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build": "tsc -p tsconfig.json",
     "prepare": "husky",
-    "etl:fetch": "tsx src/etl/cli/fetch_districts_population.ts",
-    "etl:import": "tsx src/etl/cli/import_districts_population.ts",
-    "etl:run": "pnpm etl:fetch && pnpm etl:import"
+    "etl:fetch": "tsx src/etl/cli/fetch.ts --all",
+    "etl:import": "tsx src/etl/cli/import.ts --all",
+    "etl:run": "tsx src/etl/cli/run.ts --all",
+    "etl:fetch:dataset": "tsx src/etl/cli/fetch.ts",
+    "etl:import:dataset": "tsx src/etl/cli/import.ts",
+    "etl:run:dataset": "tsx src/etl/cli/run.ts"
   },
   "lint-staged": {
     "*.{ts,js,json,md,yml,yaml}": [

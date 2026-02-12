@@ -108,31 +108,38 @@ This project uses DuckDB as an embedded analytics database. The DB file is store
 - `data/kiel.duckdb` (ignored by git)
 - download/cache files under `data/cache/` (ignored by git)
 
-### ETL (Stadtteile Bevölkerung)
+### ETL (Dataset-basiert)
 
-Fetch and import the dataset into DuckDB:
+Fetch and import all configured datasets into DuckDB:
 
 ```bash
 pnpm etl:run
 ```
 
-Fetch only:
+Fetch all datasets only:
 
 ```bash
 pnpm etl:fetch
 ```
 
-Import only (expects CSV in cache):
+Import all datasets only (expects CSVs in cache):
 
 ```bash
 pnpm etl:import
+```
+
+Run a single dataset by id:
+
+```bash
+pnpm etl:run:dataset districts_population
+pnpm etl:run:dataset districts_households_type_size
 ```
 
 ### Statistics schema
 
 ETL writes into a normalized (tidy) table:
 
-`statistics(indicator, area_type, area_name, year, value, unit)`
+`statistics(indicator, area_type, area_name, year, value, unit, category)`
 
 Example:
 
@@ -142,6 +149,7 @@ Example:
 - year: `2023`
 - value: `1220`
 - unit: `persons`
+- category: `total`
 
 ## API Endpoints
 
@@ -156,6 +164,9 @@ Example:
 
 - `GET /v1/areas`
   List distinct areas for an indicator and area type
+
+- `GET /v1/categories`
+  List distinct categories for an indicator and area type
 
 - `GET /v1/ranking`
   Ranking of areas by value for a given indicator/year
