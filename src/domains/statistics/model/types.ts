@@ -1,4 +1,4 @@
-export const INDICATORS = ['population', 'households'] as const;
+export const INDICATORS = ['population', 'households', 'district_marital_status'] as const;
 export const AREA_TYPES = ['district'] as const;
 export const ORDERS = ['asc', 'desc'] as const;
 
