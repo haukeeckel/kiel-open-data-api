@@ -10,6 +10,7 @@ import { withTestEnv } from '../test/helpers/env.js';
 
 import { DISTRICTS_AGE_GROUPS } from './datasets/districts_age_groups.js';
 import { DISTRICTS_AREA_HECTARES } from './datasets/districts_area_hectares.js';
+import { DISTRICTS_FOREIGN_AGE_GROUPS } from './datasets/districts_foreign_age_groups.js';
 import { DISTRICTS_FOREIGN_NATIONALITIES_SELECTED } from './datasets/districts_foreign_nationalities_selected.js';
 import { DISTRICTS_GENDER } from './datasets/districts_gender.js';
 import { DISTRICTS_HOUSEHOLDS_TYPE_SIZE } from './datasets/districts_households_type_size.js';
@@ -88,6 +89,16 @@ describe('importDataset', () => {
     await expect(importDataset(DISTRICTS_POPULATION, { csvPath, dbPath })).rejects.toThrow(
       /Missing required columns.*Merkmal.*Stadtteil/i,
     );
+  });
+
+  it('normalizes spaced headers before required column checks', async () => {
+    const csv =
+      [' Merkmal ; Stadtteil ;2022', 'Einwohner insgesamt;Altstadt;1213'].join('\n') + '\n';
+
+    await fs.writeFile(csvPath, csv, 'utf8');
+
+    const res = await importDataset(DISTRICTS_POPULATION, { csvPath, dbPath });
+    expect(res.imported).toBe(1);
   });
 
   it('throws when CSV file does not exist', async () => {
@@ -705,6 +716,117 @@ describe('importDataset', () => {
         ['foreign_nationalities_selected', 'district', 'Altstadt', 2023, 'total'],
       );
       expect(Number(totalReader.getRowObjects()[0]?.['value'])).toBe(71);
+    } finally {
+      conn.closeSync();
+    }
+  });
+
+  it('imports foreign age groups with trimmed headers and empty values as zero', async () => {
+    const foreignAgeGroupsCsv =
+      [
+        'Land;Stadt;Kategorie;Datum;Stadtteilnummer;Merkmal;Stadtteil;0 bis unter 3;3 bis unter 6; 6 bis unter 10;10 bis unter 12;12 bis unter 15;15 bis unter 18;18 bis unter 21;21 bis unter 25;25 bis unter 30;30 bis unter 35;35 bis unter 40;40 bis unter 45;45 bis unter 50;50 bis unter 55;55 bis unter 60;60 bis unter 65;65 bis unter 70;70 bis unter 75;75 bis unter 80;80 und aelter',
+        'de-sh;Kiel;Bevoelkerung;2022_12_31;1;Einwohner nach Altersgruppen;Altstadt   ;4;2;4;3;;5;6;27;32;30;23;17;15;13;10;5;7;4;2;3',
+        'de-sh;Kiel;Bevoelkerung;2023_12_31;1;Einwohner nach Altersgruppen;Altstadt        ;4;2;4;3;;5;6;27;32;30;23;17;15;13;10;5;7;4;2;3',
+        'de-sh;Kiel;Bevoelkerung;2022_12_31;2;Einwohner nach Altersgruppen;Vorstadt      ;10;15;16;2;8;7;6;22;67;56;28;17;16;16;13;7;4;5;2;7',
+        'de-sh;Kiel;Bevoelkerung;2023_12_31;2;Einwohner nach Altersgruppen;Vorstadt      ;10;15;16;2;8;7;6;22;67;56;28;17;16;16;13;7;4;5;2;7',
+      ].join('\n') + '\n';
+
+    const foreignAgeGroupsCsvPath = path.join(cacheDir, DISTRICTS_FOREIGN_AGE_GROUPS.csvFilename);
+    await fs.writeFile(foreignAgeGroupsCsvPath, foreignAgeGroupsCsv, 'utf8');
+
+    const first = await importDataset(DISTRICTS_FOREIGN_AGE_GROUPS, {
+      csvPath: foreignAgeGroupsCsvPath,
+      dbPath,
+    });
+    const second = await importDataset(DISTRICTS_FOREIGN_AGE_GROUPS, {
+      csvPath: foreignAgeGroupsCsvPath,
+      dbPath,
+    });
+
+    expect(first.imported).toBe(84);
+    expect(second.imported).toBe(84);
+
+    const db = await createDb(dbPath);
+    const conn = await db.connect();
+    try {
+      const categoriesReader = await conn.runAndReadAll(
+        `
+        SELECT category
+        FROM statistics
+        WHERE indicator = ? AND area_type = ?
+        GROUP BY category
+        ORDER BY category ASC;
+        `,
+        ['foreign_age_groups', 'district'],
+      );
+      const categories = categoriesReader.getRowObjects().map((r) => String(r['category']));
+      expect(categories).toEqual([
+        'age_0_2',
+        'age_10_11',
+        'age_12_14',
+        'age_15_17',
+        'age_18_20',
+        'age_21_24',
+        'age_25_29',
+        'age_30_34',
+        'age_35_39',
+        'age_3_5',
+        'age_40_44',
+        'age_45_49',
+        'age_50_54',
+        'age_55_59',
+        'age_60_64',
+        'age_65_69',
+        'age_6_9',
+        'age_70_74',
+        'age_75_79',
+        'age_80_plus',
+        'total',
+      ]);
+
+      const yearsReader = await conn.runAndReadAll(
+        `
+        SELECT DISTINCT year
+        FROM statistics
+        WHERE indicator = ? AND area_type = ? AND category = ?
+        ORDER BY year ASC;
+        `,
+        ['foreign_age_groups', 'district', 'total'],
+      );
+      const years = yearsReader.getRowObjects().map((r) => Number(r['year']));
+      expect(years).toEqual([2022, 2023]);
+
+      const areasReader = await conn.runAndReadAll(
+        `
+        SELECT DISTINCT area_name
+        FROM statistics
+        WHERE indicator = ? AND area_type = ?
+        ORDER BY area_name ASC;
+        `,
+        ['foreign_age_groups', 'district'],
+      );
+      const areas = areasReader.getRowObjects().map((r) => String(r['area_name']));
+      expect(areas).toEqual(['Altstadt', 'Vorstadt']);
+
+      const zeroReader = await conn.runAndReadAll(
+        `
+        SELECT value
+        FROM statistics
+        WHERE indicator = ? AND area_type = ? AND area_name = ? AND year = ? AND category = ?;
+        `,
+        ['foreign_age_groups', 'district', 'Altstadt', 2023, 'age_12_14'],
+      );
+      expect(Number(zeroReader.getRowObjects()[0]?.['value'])).toBe(0);
+
+      const totalReader = await conn.runAndReadAll(
+        `
+        SELECT value
+        FROM statistics
+        WHERE indicator = ? AND area_type = ? AND area_name = ? AND year = ? AND category = ?;
+        `,
+        ['foreign_age_groups', 'district', 'Altstadt', 2023, 'total'],
+      );
+      expect(Number(totalReader.getRowObjects()[0]?.['value'])).toBe(212);
     } finally {
       conn.closeSync();
     }
