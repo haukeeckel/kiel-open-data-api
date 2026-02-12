@@ -2,6 +2,7 @@ export type UnpivotYearsRow = {
   filterValue: string;
   indicator: string;
   unit: string;
+  valueExpression?: string | undefined;
   category: {
     slug: string;
     label?: string | undefined;
