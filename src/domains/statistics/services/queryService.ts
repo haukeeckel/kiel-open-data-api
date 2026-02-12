@@ -35,4 +35,12 @@ export class StatisticsQueryService {
       rows: result.rows.filter((row) => row.category === input.category),
     };
   }
+
+  async listIndicators() {
+    return this.repo.listIndicators();
+  }
+
+  async listAreaTypes() {
+    return this.repo.listAreaTypes();
+  }
 }

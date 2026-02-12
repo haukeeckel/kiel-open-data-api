@@ -1,8 +1,10 @@
 import type {
+  AreaTypesResult,
   AreasQuery,
   AreasResult,
   CategoriesQuery,
   CategoriesResult,
+  IndicatorsResult,
   RankingQuery,
   RankingResult,
   TimeseriesQuery,
@@ -17,4 +19,8 @@ export type StatisticsRepository = {
   listCategories(input: CategoriesQuery): Promise<CategoriesResult>;
 
   getRanking(input: RankingQuery): Promise<RankingResult>;
+
+  listIndicators(): Promise<IndicatorsResult>;
+
+  listAreaTypes(): Promise<AreaTypesResult>;
 };

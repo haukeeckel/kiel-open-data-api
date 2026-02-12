@@ -131,5 +131,21 @@ export function createDuckDbStatisticsRepository(conn: DuckDBConnection): Statis
         rows,
       };
     },
+
+    async listIndicators() {
+      const reader = await conn.runAndReadAll(
+        `SELECT DISTINCT indicator FROM statistics ORDER BY indicator ASC`,
+      );
+      const rows = reader.getRowObjects().map((r) => requireString(r, 'indicator'));
+      return { rows };
+    },
+
+    async listAreaTypes() {
+      const reader = await conn.runAndReadAll(
+        `SELECT DISTINCT area_type FROM statistics ORDER BY area_type ASC`,
+      );
+      const rows = reader.getRowObjects().map((r) => requireString(r, 'area_type'));
+      return { rows };
+    },
   };
 }

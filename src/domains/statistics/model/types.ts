@@ -77,3 +77,11 @@ export type RankingResult = {
   limit: number;
   rows: RankingRow[];
 };
+
+export type IndicatorsResult = {
+  rows: string[];
+};
+
+export type AreaTypesResult = {
+  rows: string[];
+};
