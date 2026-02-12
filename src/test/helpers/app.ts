@@ -95,7 +95,21 @@ export async function seedStatistics(db: DuckDBInstance) {
       ('religion','district','Altstadt',2023,787,'persons', 'other_or_none'),
       ('religion','district','Vorstadt',2023,414,'persons', 'evangelical'),
       ('religion','district','Vorstadt',2023,95,'persons', 'catholic'),
-      ('religion','district','Vorstadt',2023,1139,'persons', 'other_or_none');
+      ('religion','district','Vorstadt',2023,1139,'persons', 'other_or_none'),
+      ('foreign_nationalities_selected','district','Altstadt',2022,64,'persons', 'total'),
+      ('foreign_nationalities_selected','district','Altstadt',2023,71,'persons', 'total'),
+      ('foreign_nationalities_selected','district','Vorstadt',2022,65,'persons', 'total'),
+      ('foreign_nationalities_selected','district','Vorstadt',2023,75,'persons', 'total'),
+      ('foreign_nationalities_selected','district','Altstadt',2023,8,'persons', 'turkey'),
+      ('foreign_nationalities_selected','district','Altstadt',2023,4,'persons', 'poland'),
+      ('foreign_nationalities_selected','district','Altstadt',2023,9,'persons', 'iraq'),
+      ('foreign_nationalities_selected','district','Altstadt',2023,16,'persons', 'russia'),
+      ('foreign_nationalities_selected','district','Altstadt',2023,21,'persons', 'ukraine'),
+      ('foreign_nationalities_selected','district','Altstadt',2023,7,'persons', 'syria'),
+      ('foreign_nationalities_selected','district','Altstadt',2023,6,'persons', 'bulgaria'),
+      ('foreign_nationalities_selected','district','Vorstadt',2023,11,'persons', 'turkey'),
+      ('foreign_nationalities_selected','district','Vorstadt',2023,16,'persons', 'ukraine'),
+      ('foreign_nationalities_selected','district','Vorstadt',2023,1,'persons', 'bulgaria');
       `,
     );
   } finally {
