@@ -24,6 +24,9 @@ export type ImportDatasetResult = {
   dbPath: string;
 };
 
+const MIN_VALID_YEAR = 1900;
+const MAX_VALID_YEAR = 2100;
+
 function quoteIdentifier(identifier: string): string {
   return `"${identifier.replaceAll('"', '""')}"`;
 }
@@ -39,10 +42,16 @@ function parseYearOrThrow(args: {
   formatType: 'unpivot_years' | 'unpivot_categories';
 }): number {
   const parsed = args.parseYear(args.raw);
-  if (!Number.isFinite(parsed)) {
+  if (!Number.isFinite(parsed) || !Number.isInteger(parsed)) {
     throw new Error(
       `Invalid yearParser output for dataset ${args.datasetId} (${args.formatType}): ` +
-        `input=${args.raw}, output=${String(parsed)}`,
+        `input=${args.raw}, output=${String(parsed)}, allowedRange=${MIN_VALID_YEAR}..${MAX_VALID_YEAR}`,
+    );
+  }
+  if (parsed < MIN_VALID_YEAR || parsed > MAX_VALID_YEAR) {
+    throw new Error(
+      `Invalid yearParser output for dataset ${args.datasetId} (${args.formatType}): ` +
+        `input=${args.raw}, output=${String(parsed)}, allowedRange=${MIN_VALID_YEAR}..${MAX_VALID_YEAR}`,
     );
   }
   return parsed;
@@ -340,7 +349,7 @@ async function importUnpivotCategories(args: {
     const unit = column.unit ?? format.unit;
     if (!indicator || !unit) {
       throw new Error(
-        `Dataset ${config.id} requires indicator and unit for unpivot_categories column ${column.valueColumn}`,
+        `Dataset ${config.id} requires indicator and unit for unpivot_categories column ${column.category.slug}`,
       );
     }
 
@@ -364,10 +373,13 @@ async function importUnpivotCategories(args: {
   }
 
   for (const column of format.columns) {
-    if (!column.valueColumn && !column.valueColumns && !column.valueExpression) continue;
     const indicator = column.indicator ?? format.indicator;
     const unit = column.unit ?? format.unit;
-    if (!indicator || !unit) continue;
+    if (!indicator || !unit) {
+      throw new Error(
+        `Dataset ${config.id} requires indicator and unit for unpivot_categories column ${column.category.slug}`,
+      );
+    }
 
     const categorySlug = column.category.slug;
     const resolvedValueColumn = resolveValueColumn(column);
@@ -393,7 +405,7 @@ async function importUnpivotCategories(args: {
                ? `${quoteIdentifier(config.areaColumn)}, ${quoteIdentifier(format.yearColumn)}`
                : `${quoteIdentifier(format.yearColumn)}`
            }
-           ORDER BY rowid DESC
+           ORDER BY _ingest_order DESC
          ) = 1`
       : '';
 
@@ -491,7 +503,9 @@ export async function importDataset(
     await conn.run(
       `
       CREATE OR REPLACE TEMP TABLE raw AS
-      SELECT *
+      SELECT
+        *,
+        row_number() OVER () AS _ingest_order
       FROM read_csv_auto(?, header=true, delim=';');
     `,
       [csvPath],

@@ -5,4 +5,4 @@ data
 .env
 
 .DS_Store
-
+docs/technical-debt.md
