@@ -481,9 +481,16 @@ export async function importDataset(
   const { log, ctx } = getEtlLogger('import', config.id);
   const csvPath = opts?.csvPath ?? path.join(getCacheDir(), config.csvFilename);
   const dbPath = opts?.dbPath ?? getDuckDbPath(env);
+  const csvDelimiter = config.csvDelimiter ?? ';';
+
+  if (csvDelimiter.length !== 1) {
+    throw new Error(
+      `Dataset ${config.id} has invalid csvDelimiter: ${csvDelimiter} (expected single character)`,
+    );
+  }
 
   log.info(
-    { ...ctx, csvPath, areaType: config.areaType, format: config.format.type },
+    { ...ctx, csvPath, areaType: config.areaType, format: config.format.type, csvDelimiter },
     'etl.import: start',
   );
 
@@ -506,9 +513,9 @@ export async function importDataset(
       SELECT
         *,
         row_number() OVER () AS _ingest_order
-      FROM read_csv_auto(?, header=true, delim=';');
+      FROM read_csv_auto(?, header=true, delim=?);
     `,
-      [csvPath],
+      [csvPath, csvDelimiter],
     );
 
     const cols = await normalizeRawHeaders(conn);
