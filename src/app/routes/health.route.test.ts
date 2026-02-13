@@ -64,4 +64,23 @@ describe('api smoke', () => {
     expect(res.statusCode).toBe(200);
     expect(res.json()).toMatchObject({ name: API_NAME });
   });
+
+  it('GET / uses cached endpoints after app ready', async () => {
+    const originalSwagger = app.swagger;
+    app.swagger = (() => {
+      throw new Error('swagger() should not be called at request time');
+    }) as typeof app.swagger;
+
+    try {
+      const first = await app.inject({ method: 'GET', url: '/' });
+      expect(first.statusCode).toBe(200);
+      expect(first.json()).toMatchObject({ name: API_NAME, endpoints: expect.any(Array) });
+
+      const second = await app.inject({ method: 'GET', url: '/' });
+      expect(second.statusCode).toBe(200);
+      expect(second.json()).toMatchObject({ name: API_NAME, endpoints: expect.any(Array) });
+    } finally {
+      app.swagger = originalSwagger;
+    }
+  });
 });

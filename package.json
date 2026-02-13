@@ -1,5 +1,5 @@
 {
-  "name": "kiel-dashboard-api",
+  "name": "kiel-open-data-api",
   "version": "1.0.0",
   "description": "API for Open Data Kiel",
   "main": "dist/server.js",
