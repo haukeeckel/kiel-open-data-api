@@ -45,6 +45,28 @@ describe('applyMigrations', () => {
     }
   });
 
+  it('allows same dimensions with different category but rejects exact duplicates', async () => {
+    const db = await DuckDBInstance.create(':memory:');
+    const conn = await db.connect();
+
+    try {
+      await applyMigrations(conn);
+
+      const base = ['population', 'district', 'Altstadt', 2023, 1200, 'persons'] as const;
+      await conn.runAndReadAll(`INSERT INTO statistics VALUES (?,?,?,?,?,?,?);`, [
+        ...base,
+        'total',
+      ]);
+      await conn.runAndReadAll(`INSERT INTO statistics VALUES (?,?,?,?,?,?,?);`, [...base, 'male']);
+
+      await expect(
+        conn.runAndReadAll(`INSERT INTO statistics VALUES (?,?,?,?,?,?,?);`, [...base, 'male']),
+      ).rejects.toThrow(/(unique|constraint)/i);
+    } finally {
+      conn.closeSync();
+    }
+  });
+
   it('applies all migrations and is idempotent', async () => {
     const db = await DuckDBInstance.create(':memory:');
     const conn = await db.connect();
