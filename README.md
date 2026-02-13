@@ -173,16 +173,19 @@ Example:
   Health check
 
 - `GET /v1/timeseries`
-  Time series for a given indicator and area
+  Time series for a given indicator and area.
+  If `category` is omitted, rows from all categories are returned.
 
 - `GET /v1/areas`
-  List distinct areas for an indicator and area type
+  List distinct areas for an indicator and area type.
+  If `category` is omitted, areas across all categories are returned.
 
 - `GET /v1/categories`
   List distinct categories for an indicator and area type
 
 - `GET /v1/ranking`
-  Ranking of areas by value for a given indicator/year
+  Ranking of areas by value for a given indicator/year.
+  If `category` is omitted, ranking rows can contain mixed categories.
 
 ## Notes
 

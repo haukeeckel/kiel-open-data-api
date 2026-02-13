@@ -7,7 +7,7 @@ import { type buildServer } from '../server.js';
 // Fixtures
 // ---------------------------------------------------------------------------
 
-const TIMESERIES_DEFAULT_CASES = [
+const TIMESERIES_UNFILTERED_CASES = [
   {
     indicator: 'population',
     rows: [
@@ -16,24 +16,10 @@ const TIMESERIES_DEFAULT_CASES = [
     ],
   },
   {
-    indicator: 'marital_status',
+    indicator: 'households',
     rows: [
-      { year: 2022, value: 1183, unit: 'persons', category: 'total' },
-      { year: 2023, value: 1220, unit: 'persons', category: 'total' },
-    ],
-  },
-  {
-    indicator: 'gender',
-    rows: [
-      { year: 2022, value: 1213, unit: 'persons', category: 'total' },
-      { year: 2023, value: 1220, unit: 'persons', category: 'total' },
-    ],
-  },
-  {
-    indicator: 'age_groups',
-    rows: [
-      { year: 2022, value: 1213, unit: 'persons', category: 'total' },
-      { year: 2023, value: 1220, unit: 'persons', category: 'total' },
+      { year: 2023, value: 810, unit: 'households', category: 'total' },
+      { year: 2023, value: 505, unit: 'households', category: 'single_person' },
     ],
   },
   {
@@ -58,45 +44,10 @@ const TIMESERIES_DEFAULT_CASES = [
     ],
   },
   {
-    indicator: 'religion',
-    rows: [
-      { year: 2022, value: 1200, unit: 'persons', category: 'total' },
-      { year: 2023, value: 1220, unit: 'persons', category: 'total' },
-    ],
-  },
-  {
-    indicator: 'foreign_nationalities_selected',
-    rows: [
-      { year: 2022, value: 64, unit: 'persons', category: 'total' },
-      { year: 2023, value: 71, unit: 'persons', category: 'total' },
-    ],
-  },
-  {
-    indicator: 'foreign_age_groups',
-    rows: [
-      { year: 2022, value: 212, unit: 'persons', category: 'total' },
-      { year: 2023, value: 212, unit: 'persons', category: 'total' },
-    ],
-  },
-  {
-    indicator: 'foreign_gender',
-    rows: [
-      { year: 2022, value: 200, unit: 'persons', category: 'total' },
-      { year: 2023, value: 212, unit: 'persons', category: 'total' },
-    ],
-  },
-  {
     indicator: 'foreign_count',
     rows: [
       { year: 2022, value: 214, unit: 'persons', category: 'total' },
       { year: 2023, value: 212, unit: 'persons', category: 'total' },
-    ],
-  },
-  {
-    indicator: 'migrant_gender',
-    rows: [
-      { year: 2022, value: 350, unit: 'persons', category: 'total' },
-      { year: 2023, value: 364, unit: 'persons', category: 'total' },
     ],
   },
 ];
@@ -228,7 +179,7 @@ const CATEGORIES_CASES = [
   { indicator: 'migrant_gender', rows: ['female', 'male', 'total'] },
 ];
 
-const RANKING_DEFAULT_CASES = [
+const RANKING_UNFILTERED_CASES = [
   {
     indicator: 'population',
     year: 2023,
@@ -238,27 +189,11 @@ const RANKING_DEFAULT_CASES = [
     ],
   },
   {
-    indicator: 'marital_status',
+    indicator: 'households',
     year: 2023,
     rows: [
-      { area: 'Vorstadt', value: 1648, unit: 'persons', category: 'total' },
-      { area: 'Altstadt', value: 1220, unit: 'persons', category: 'total' },
-    ],
-  },
-  {
-    indicator: 'gender',
-    year: 2023,
-    rows: [
-      { area: 'Vorstadt', value: 1648, unit: 'persons', category: 'total' },
-      { area: 'Altstadt', value: 1220, unit: 'persons', category: 'total' },
-    ],
-  },
-  {
-    indicator: 'age_groups',
-    year: 2023,
-    rows: [
-      { area: 'Vorstadt', value: 1648, unit: 'persons', category: 'total' },
-      { area: 'Altstadt', value: 1220, unit: 'persons', category: 'total' },
+      { area: 'Gaarden-Ost', value: 6050, unit: 'households', category: 'total' },
+      { area: 'Gaarden-Ost', value: 3220, unit: 'households', category: 'single_person' },
     ],
   },
   {
@@ -286,51 +221,11 @@ const RANKING_DEFAULT_CASES = [
     ],
   },
   {
-    indicator: 'religion',
-    year: 2023,
-    rows: [
-      { area: 'Vorstadt', value: 1648, unit: 'persons', category: 'total' },
-      { area: 'Altstadt', value: 1220, unit: 'persons', category: 'total' },
-    ],
-  },
-  {
-    indicator: 'foreign_nationalities_selected',
-    year: 2023,
-    rows: [
-      { area: 'Vorstadt', value: 75, unit: 'persons', category: 'total' },
-      { area: 'Altstadt', value: 71, unit: 'persons', category: 'total' },
-    ],
-  },
-  {
-    indicator: 'foreign_age_groups',
-    year: 2023,
-    rows: [
-      { area: 'Vorstadt', value: 324, unit: 'persons', category: 'total' },
-      { area: 'Altstadt', value: 212, unit: 'persons', category: 'total' },
-    ],
-  },
-  {
-    indicator: 'foreign_gender',
-    year: 2023,
-    rows: [
-      { area: 'Vorstadt', value: 324, unit: 'persons', category: 'total' },
-      { area: 'Altstadt', value: 212, unit: 'persons', category: 'total' },
-    ],
-  },
-  {
     indicator: 'foreign_count',
     year: 2023,
     rows: [
       { area: 'Vorstadt', value: 324, unit: 'persons', category: 'total' },
       { area: 'Altstadt', value: 212, unit: 'persons', category: 'total' },
-    ],
-  },
-  {
-    indicator: 'migrant_gender',
-    year: 2023,
-    rows: [
-      { area: 'Vorstadt', value: 518, unit: 'persons', category: 'total' },
-      { area: 'Altstadt', value: 364, unit: 'persons', category: 'total' },
     ],
   },
 ];
@@ -537,8 +432,8 @@ describe('statistics endpoints', () => {
       });
     });
 
-    it.each(TIMESERIES_DEFAULT_CASES)(
-      'returns default total rows for $indicator',
+    it.each(TIMESERIES_UNFILTERED_CASES)(
+      'returns unfiltered rows for $indicator when category is omitted',
       async ({ indicator, rows }) => {
         const res = await app.inject({
           method: 'GET',
@@ -614,17 +509,17 @@ describe('statistics endpoints', () => {
       expect(res.json().rows).toEqual(['Gaarden-Ost']);
     });
 
-    it('supports indicator with default total category', async () => {
+    it('returns areas across all categories when category is omitted', async () => {
       const res = await app.inject({
         method: 'GET',
         url: '/v1/areas?indicator=households&areaType=district',
       });
       expect(res.statusCode).toBe(200);
-      expect(res.json().rows).toEqual(['Altstadt', 'Gaarden-Ost']);
+      expect(res.json().rows).toEqual(['Altstadt', 'Gaarden-Ost', 'Wik']);
     });
 
     it.each(AREAS_SAME_DISTRICTS)(
-      'returns areas for %s with default total category',
+      'returns areas for %s when category is omitted',
       async (indicator) => {
         const res = await app.inject({
           method: 'GET',
@@ -684,8 +579,8 @@ describe('statistics endpoints', () => {
       ]);
     });
 
-    it.each(RANKING_DEFAULT_CASES)(
-      'returns ranking for $indicator with default total (desc)',
+    it.each(RANKING_UNFILTERED_CASES)(
+      'returns unfiltered ranking for $indicator when category is omitted (desc)',
       async ({ indicator, year, rows }) => {
         const res = await app.inject({
           method: 'GET',

@@ -15,7 +15,8 @@ import {
 export const timeseriesRouteSchema = {
   schema: {
     tags: ['statistics'],
-    description: 'Get time series for a given indicator and area',
+    description:
+      'Get time series for a given indicator and area (omitting category returns all categories)',
     querystring: TimeseriesQuery,
     response: {
       200: TimeseriesResponse,
@@ -28,7 +29,8 @@ export const timeseriesRouteSchema = {
 export const areasRouteSchema = {
   schema: {
     tags: ['statistics'],
-    description: 'List distinct areas for an indicator and area type',
+    description:
+      'List distinct areas for an indicator and area type (omitting category returns areas across all categories)',
     querystring: AreasQuery,
     response: {
       200: AreasResponse,
@@ -54,7 +56,8 @@ export const categoriesRouteSchema = {
 export const rankingRouteSchema = {
   schema: {
     tags: ['statistics'],
-    description: 'Get ranking of areas by value for a given indicator/year',
+    description:
+      'Get ranking of areas by value for a given indicator/year (omitting category returns mixed categories)',
     querystring: RankingQuery,
     response: {
       200: RankingResponse,
