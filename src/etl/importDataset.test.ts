@@ -1084,4 +1084,119 @@ describe('importDataset', () => {
       conn.closeSync();
     }
   });
+
+  it('rolls back unpivot_years imports and preserves previous data on failure', async () => {
+    const csv =
+      [
+        'Merkmal;Stadtteil;2022;2023',
+        'Einwohner insgesamt;Altstadt;1213;1220',
+        'Einwohner insgesamt;Gaarden-Ost;17900;18000',
+      ].join('\n') + '\n';
+
+    await fs.writeFile(csvPath, csv, 'utf8');
+
+    const first = await importDataset(DISTRICTS_POPULATION, { csvPath, dbPath });
+    expect(first.imported).toBe(4);
+
+    if (DISTRICTS_POPULATION.format.type !== 'unpivot_years') {
+      throw new Error('Expected unpivot_years format for DISTRICTS_POPULATION');
+    }
+
+    const brokenConfig = {
+      ...DISTRICTS_POPULATION,
+      format: {
+        ...DISTRICTS_POPULATION.format,
+        rows: DISTRICTS_POPULATION.format.rows.map((row, index) =>
+          index === 0 ? { ...row, valueExpression: `CAST('not-a-number' AS INTEGER)` } : row,
+        ),
+      },
+    };
+
+    await expect(importDataset(brokenConfig, { csvPath, dbPath })).rejects.toThrow();
+
+    const db = await createDb(dbPath);
+    const conn = await db.connect();
+    try {
+      const countReader = await conn.runAndReadAll(
+        `
+        SELECT COUNT(*) AS c
+        FROM statistics
+        WHERE indicator = ? AND area_type = ? AND category = ?;
+        `,
+        ['population', 'district', 'total'],
+      );
+      expect(Number(countReader.getRowObjects()[0]?.['c'])).toBe(4);
+
+      const valueReader = await conn.runAndReadAll(
+        `
+        SELECT value
+        FROM statistics
+        WHERE indicator = ? AND area_type = ? AND area_name = ? AND year = ? AND category = ?;
+        `,
+        ['population', 'district', 'Altstadt', 2023, 'total'],
+      );
+      expect(Number(valueReader.getRowObjects()[0]?.['value'])).toBe(1220);
+    } finally {
+      conn.closeSync();
+    }
+  });
+
+  it('rolls back unpivot_categories imports and preserves previous data on failure', async () => {
+    const genderCsv =
+      [
+        'Land;Stadt;Kategorie;Merkmal;Datum;Stadtteilnummer;Stadtteil;insgesamt;maennlich;weiblich',
+        'de-sh;Kiel;Bevoelkerung;Einwohner insgesamt;2022_12_31;1;Altstadt;1213;631;582',
+        'de-sh;Kiel;Bevoelkerung;Einwohner insgesamt;2023_12_31;1;Altstadt;1220;638;582',
+        'de-sh;Kiel;Bevoelkerung;Einwohner insgesamt;2022_12_31;2;Vorstadt;1600;800;800',
+        'de-sh;Kiel;Bevoelkerung;Einwohner insgesamt;2023_12_31;2;Vorstadt;1648;829;819',
+      ].join('\n') + '\n';
+
+    const genderCsvPath = path.join(cacheDir, DISTRICTS_GENDER.csvFilename);
+    await fs.writeFile(genderCsvPath, genderCsv, 'utf8');
+
+    const first = await importDataset(DISTRICTS_GENDER, { csvPath: genderCsvPath, dbPath });
+    expect(first.imported).toBe(12);
+
+    if (DISTRICTS_GENDER.format.type !== 'unpivot_categories') {
+      throw new Error('Expected unpivot_categories format for DISTRICTS_GENDER');
+    }
+
+    const brokenConfig = {
+      ...DISTRICTS_GENDER,
+      format: {
+        ...DISTRICTS_GENDER.format,
+        columns: DISTRICTS_GENDER.format.columns.map((column, index) =>
+          index === 0 ? { ...column, valueExpression: `CAST('not-a-number' AS INTEGER)` } : column,
+        ),
+      },
+    };
+
+    await expect(importDataset(brokenConfig, { csvPath: genderCsvPath, dbPath })).rejects.toThrow();
+
+    const db = await createDb(dbPath);
+    const conn = await db.connect();
+    try {
+      const countReader = await conn.runAndReadAll(
+        `
+        SELECT COUNT(*) AS c
+        FROM statistics
+        WHERE indicator = ? AND area_type = ? AND category = ?;
+        `,
+        ['gender', 'district', 'total'],
+      );
+      expect(Number(countReader.getRowObjects()[0]?.['c'])).toBe(4);
+
+      const valueReader = await conn.runAndReadAll(
+        `
+        SELECT value
+        FROM statistics
+        WHERE indicator = ? AND area_type = ? AND area_name = ? AND year = ? AND category = ?;
+        `,
+        ['gender', 'district', 'Altstadt', 2023, 'total'],
+      );
+      expect(Number(valueReader.getRowObjects()[0]?.['value'])).toBe(1220);
+    } finally {
+      conn.closeSync();
+    }
+  });
 });
