@@ -32,6 +32,22 @@ function quoteLiteral(value: string): string {
   return `'${value.replaceAll("'", "''")}'`;
 }
 
+function parseYearOrThrow(args: {
+  raw: string;
+  parseYear: (value: string) => number;
+  datasetId: string;
+  formatType: 'unpivot_years' | 'unpivot_categories';
+}): number {
+  const parsed = args.parseYear(args.raw);
+  if (!Number.isFinite(parsed)) {
+    throw new Error(
+      `Invalid yearParser output for dataset ${args.datasetId} (${args.formatType}): ` +
+        `input=${args.raw}, output=${String(parsed)}`,
+    );
+  }
+  return parsed;
+}
+
 function getYearColumns(columns: readonly string[], config: DatasetConfig): string[] {
   const format = config.format;
   if (format.type !== 'unpivot_years') return [];
@@ -45,20 +61,37 @@ function yearExpr(config: DatasetConfig, yearCols: readonly string[]): string {
   if (!parseYear) return 'year';
 
   const cases = yearCols
-    .map((col) => `WHEN ${quoteLiteral(col)} THEN ${String(parseYear(col))}`)
+    .map((col) => {
+      const parsed = parseYearOrThrow({
+        raw: col,
+        parseYear,
+        datasetId: config.id,
+        formatType: 'unpivot_years',
+      });
+      return `WHEN ${quoteLiteral(col)} THEN ${String(parsed)}`;
+    })
     .join(' ');
   return `CASE year ${cases} ELSE NULL END`;
 }
 
 function yearValueExpr(args: {
+  datasetId: string;
   yearValues: readonly string[];
   parseYear?: ((value: string) => number) | undefined;
 }): string {
-  const { yearValues, parseYear } = args;
+  const { datasetId, yearValues, parseYear } = args;
   if (!parseYear) return 'year_raw';
 
   const cases = yearValues
-    .map((value) => `WHEN ${quoteLiteral(value)} THEN ${String(parseYear(value))}`)
+    .map((value) => {
+      const parsed = parseYearOrThrow({
+        raw: value,
+        parseYear,
+        datasetId,
+        formatType: 'unpivot_categories',
+      });
+      return `WHEN ${quoteLiteral(value)} THEN ${String(parsed)}`;
+    })
     .join(' ');
   return `CASE year_raw ${cases} ELSE NULL END`;
 }
@@ -290,7 +323,11 @@ async function importUnpivotCategories(args: {
     throw new Error(`No year values found in column: ${format.yearColumn}`);
   }
 
-  const sqlYearExpr = yearValueExpr({ yearValues, parseYear: format.yearParser });
+  const sqlYearExpr = yearValueExpr({
+    datasetId: config.id,
+    yearValues,
+    parseYear: format.yearParser,
+  });
 
   for (const column of format.columns) {
     if (!column.valueColumn && !column.valueColumns && !column.valueExpression) {
@@ -451,12 +488,14 @@ export async function importDataset(
   try {
     await applyMigrations(conn);
 
-    const safeCsvPath = csvPath.replaceAll("'", "''");
-    await conn.run(`
+    await conn.run(
+      `
       CREATE OR REPLACE TEMP TABLE raw AS
       SELECT *
-      FROM read_csv_auto('${safeCsvPath}', header=true, delim=';');
-    `);
+      FROM read_csv_auto(?, header=true, delim=';');
+    `,
+      [csvPath],
+    );
 
     const cols = await normalizeRawHeaders(conn);
     const yearCols = getYearColumns(cols, config);
