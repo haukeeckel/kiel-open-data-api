@@ -2,7 +2,7 @@ import fp from 'fastify-plugin';
 
 import { type Env, getEnv } from '../../config/env.js';
 import { getDuckDbPath } from '../../config/path.js';
-import { createDb } from '../../infra/db/duckdb.js';
+import { createDuckDbConnectionManager } from '../../infra/db/duckdbConnectionManager.js';
 import { applyMigrations } from '../../infra/db/migrations.js';
 import { createDuckDbStatisticsRepository } from '../../infra/db/statisticsRepository.duckdb.js';
 
@@ -17,22 +17,20 @@ export default fp<RepositoriesPluginOptions>(async function repositoriesPlugin(
   const env = opts?.env ?? getEnv();
   const dbPath = getDuckDbPath(env);
   const dbLogger = app.log.child({ name: 'db' });
-  const db = await createDb(dbPath, { logger: dbLogger });
-  const conn = await db.connect();
+  const dbManager = createDuckDbConnectionManager({ dbPath, poolSize: 4, logger: dbLogger });
 
   // TODO: consider a dedicated `pnpm migrate` CLI command if migrations
   // become long-running or the app moves to a multi-instance setup.
-  await applyMigrations(conn);
+  await dbManager.withConnection(applyMigrations);
 
-  const statisticsRepository = createDuckDbStatisticsRepository(conn);
+  const statisticsRepository = createDuckDbStatisticsRepository(dbManager);
 
-  app.decorate('dbConn', conn);
+  app.decorate('dbManager', dbManager);
   app.decorate('repos', {
     statisticsRepository,
   });
 
-  app.addHook('onClose', () => {
-    conn.closeSync();
-    db.closeSync();
+  app.addHook('onClose', async () => {
+    await dbManager.close();
   });
 });
