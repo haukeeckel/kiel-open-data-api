@@ -143,8 +143,10 @@ describe('StatisticsQueryService', () => {
     ]);
   });
 
-  it('returns unfiltered timeseries rows when category is omitted', async () => {
-    const svc = new StatisticsQueryService(createFakeRepo());
+  it('omits category in repository call and returns unfiltered timeseries rows', async () => {
+    const repo = createFakeRepo();
+    const getTimeseriesSpy = vi.spyOn(repo, 'getTimeseries');
+    const svc = new StatisticsQueryService(repo);
 
     const result = await svc.getTimeseries({
       indicator: 'households',
@@ -152,14 +154,21 @@ describe('StatisticsQueryService', () => {
       area: 'Altstadt',
     });
 
+    expect(getTimeseriesSpy).toHaveBeenCalledWith({
+      indicator: 'households',
+      areaType: 'district',
+      area: 'Altstadt',
+    });
     expect(result.rows).toEqual([
       { year: 2023, value: 1, unit: 'persons', category: 'total' },
       { year: 2023, value: 2, unit: 'persons', category: 'single_person' },
     ]);
   });
 
-  it('returns unfiltered ranking rows when category is omitted', async () => {
-    const svc = new StatisticsQueryService(createFakeRepo());
+  it('omits category in repository call and returns unfiltered ranking rows', async () => {
+    const repo = createFakeRepo();
+    const getRankingSpy = vi.spyOn(repo, 'getRanking');
+    const svc = new StatisticsQueryService(repo);
 
     const result = await svc.getRanking({
       indicator: 'households',
@@ -169,6 +178,13 @@ describe('StatisticsQueryService', () => {
       order: 'desc',
     });
 
+    expect(getRankingSpy).toHaveBeenCalledWith({
+      indicator: 'households',
+      areaType: 'district',
+      year: 2023,
+      limit: 10,
+      order: 'desc',
+    });
     expect(result.rows).toEqual([
       { area: 'Altstadt', value: 1, unit: 'persons', category: 'total' },
       { area: 'Altstadt', value: 2, unit: 'persons', category: 'single_person' },
