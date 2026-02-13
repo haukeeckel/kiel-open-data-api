@@ -1,6 +1,7 @@
 import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api';
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 
+import { RepositoryInfraError, RepositoryQueryTimeoutError } from './errors.js';
 import { applyMigrations } from './migrations.js';
 import { createDuckDbStatisticsRepository } from './statisticsRepository.duckdb.js';
 
@@ -19,7 +20,7 @@ describe('DuckDbStatisticsRepository', () => {
       healthcheck: async () => true,
       close: async () => undefined,
     };
-    repo = createDuckDbStatisticsRepository(manager);
+    repo = createDuckDbStatisticsRepository(manager, { queryTimeoutMs: 2_000 });
 
     await applyMigrations(conn);
 
@@ -260,6 +261,63 @@ describe('DuckDbStatisticsRepository', () => {
       const result = await repo.listAreaTypes();
 
       expect(result.rows).toEqual(['district']);
+    });
+  });
+
+  describe('error handling', () => {
+    it('interrupts and throws RepositoryQueryTimeoutError on timeout', async () => {
+      const interrupt = vi.fn();
+      const mockConn = {
+        runAndReadAll: vi.fn(() => new Promise(() => undefined)),
+        interrupt,
+      } as unknown as DuckDBConnection;
+
+      const manager: DuckDbConnectionManager = {
+        withConnection: async (fn) => fn(mockConn),
+        healthcheck: async () => true,
+        close: async () => undefined,
+      };
+      const timedRepo = createDuckDbStatisticsRepository(manager, { queryTimeoutMs: 1 });
+
+      await expect(timedRepo.listIndicators()).rejects.toBeInstanceOf(RepositoryQueryTimeoutError);
+      expect(interrupt).toHaveBeenCalledTimes(1);
+    });
+
+    it('wraps db failures in RepositoryInfraError', async () => {
+      const mockConn = {
+        runAndReadAll: vi.fn(async () => {
+          throw new Error('db boom');
+        }),
+        interrupt: vi.fn(),
+      } as unknown as DuckDBConnection;
+
+      const manager: DuckDbConnectionManager = {
+        withConnection: async (fn) => fn(mockConn),
+        healthcheck: async () => true,
+        close: async () => undefined,
+      };
+      const failingRepo = createDuckDbStatisticsRepository(manager, { queryTimeoutMs: 50 });
+
+      await expect(failingRepo.listIndicators()).rejects.toBeInstanceOf(RepositoryInfraError);
+    });
+
+    it('rejects non-string values in requireString path', async () => {
+      const mockReader = {
+        getRowObjects: () => [{ indicator: 123 }],
+      };
+      const mockConn = {
+        runAndReadAll: vi.fn(async () => mockReader),
+        interrupt: vi.fn(),
+      } as unknown as DuckDBConnection;
+
+      const manager: DuckDbConnectionManager = {
+        withConnection: async (fn) => fn(mockConn),
+        healthcheck: async () => true,
+        close: async () => undefined,
+      };
+      const strictRepo = createDuckDbStatisticsRepository(manager, { queryTimeoutMs: 50 });
+
+      await expect(strictRepo.listIndicators()).rejects.toBeInstanceOf(RepositoryInfraError);
     });
   });
 });
