@@ -107,9 +107,11 @@ async function importUnpivotYears(args: {
   yearCols: readonly string[];
   log: ReturnType<typeof getEtlLogger>['log'];
   ctx: ReturnType<typeof getEtlLogger>['ctx'];
+  tableName?: string | undefined;
 }): Promise<number> {
   const { conn, config, cols, yearCols, log, ctx } = args;
   const format = config.format;
+  const targetTable = quoteIdentifier(args.tableName ?? 'statistics');
 
   if (format.type !== 'unpivot_years') {
     throw new Error(`Unsupported CSV format: ${format.type}`);
@@ -138,7 +140,7 @@ async function importUnpivotYears(args: {
   for (const row of format.rows) {
     const categorySlug = row.category.slug;
     const delRes = await conn.runAndReadAll(
-      `SELECT COUNT(*) FROM statistics WHERE indicator = ? AND area_type = ? AND category = ?;`,
+      `SELECT COUNT(*) FROM ${targetTable} WHERE indicator = ? AND area_type = ? AND category = ?;`,
       [row.indicator, config.areaType, categorySlug],
     );
     const existing = firstCellAsNumber(delRes.getRows(), 'existing statistics count');
@@ -150,7 +152,7 @@ async function importUnpivotYears(args: {
     }
 
     await conn.run(
-      `DELETE FROM statistics WHERE indicator = ? AND area_type = ? AND category = ?;`,
+      `DELETE FROM ${targetTable} WHERE indicator = ? AND area_type = ? AND category = ?;`,
       [row.indicator, config.areaType, categorySlug],
     );
   }
@@ -162,7 +164,7 @@ async function importUnpivotYears(args: {
       const areaExpr = config.areaExpression ?? quoteIdentifier(config.areaColumn);
       await conn.run(
         `
-        INSERT INTO statistics
+        INSERT INTO ${targetTable}
         SELECT
           ? AS indicator,
           ? AS area_type,
@@ -184,7 +186,7 @@ async function importUnpivotYears(args: {
     } else if (config.defaultAreaName) {
       await conn.run(
         `
-        INSERT INTO statistics
+        INSERT INTO ${targetTable}
         SELECT
           ? AS indicator,
           ? AS area_type,
@@ -219,7 +221,7 @@ async function importUnpivotYears(args: {
   for (const row of format.rows) {
     const categorySlug = row.category.slug;
     const countRes = await conn.runAndReadAll(
-      `SELECT COUNT(*) FROM statistics WHERE indicator = ? AND area_type = ? AND category = ?;`,
+      `SELECT COUNT(*) FROM ${targetTable} WHERE indicator = ? AND area_type = ? AND category = ?;`,
       [row.indicator, config.areaType, categorySlug],
     );
     imported += firstCellAsNumber(countRes.getRows(), 'imported statistics count');
@@ -234,9 +236,11 @@ async function importUnpivotCategories(args: {
   cols: readonly string[];
   log: ReturnType<typeof getEtlLogger>['log'];
   ctx: ReturnType<typeof getEtlLogger>['ctx'];
+  tableName?: string | undefined;
 }): Promise<number> {
   const { conn, config, cols, log, ctx } = args;
   const format = config.format;
+  const targetTable = quoteIdentifier(args.tableName ?? 'statistics');
 
   if (format.type !== 'unpivot_categories') {
     throw new Error(`Unsupported CSV format: ${format.type}`);
@@ -305,7 +309,7 @@ async function importUnpivotCategories(args: {
 
     const categorySlug = column.category.slug;
     const delRes = await conn.runAndReadAll(
-      `SELECT COUNT(*) FROM statistics WHERE indicator = ? AND area_type = ? AND category = ?;`,
+      `SELECT COUNT(*) FROM ${targetTable} WHERE indicator = ? AND area_type = ? AND category = ?;`,
       [indicator, config.areaType, categorySlug],
     );
     const existing = firstCellAsNumber(delRes.getRows(), 'existing statistics count');
@@ -317,7 +321,7 @@ async function importUnpivotCategories(args: {
     }
 
     await conn.run(
-      `DELETE FROM statistics WHERE indicator = ? AND area_type = ? AND category = ?;`,
+      `DELETE FROM ${targetTable} WHERE indicator = ? AND area_type = ? AND category = ?;`,
       [indicator, config.areaType, categorySlug],
     );
   }
@@ -360,7 +364,7 @@ async function importUnpivotCategories(args: {
       const areaExpr = config.areaExpression ?? quoteIdentifier(config.areaColumn);
       await conn.run(
         `
-        INSERT INTO statistics
+        INSERT INTO ${targetTable}
         SELECT
           ? AS indicator,
           ? AS area_type,
@@ -381,7 +385,7 @@ async function importUnpivotCategories(args: {
     } else if (config.defaultAreaName) {
       await conn.run(
         `
-        INSERT INTO statistics
+        INSERT INTO ${targetTable}
         SELECT
           ? AS indicator,
           ? AS area_type,
@@ -410,7 +414,7 @@ async function importUnpivotCategories(args: {
     if (!indicator) continue;
 
     const countRes = await conn.runAndReadAll(
-      `SELECT COUNT(*) FROM statistics WHERE indicator = ? AND area_type = ? AND category = ?;`,
+      `SELECT COUNT(*) FROM ${targetTable} WHERE indicator = ? AND area_type = ? AND category = ?;`,
       [indicator, config.areaType, column.category.slug],
     );
     imported += firstCellAsNumber(countRes.getRows(), 'imported statistics count');
@@ -463,12 +467,65 @@ export async function importDataset(
     );
 
     let imported: number;
-    if (config.format.type === 'unpivot_years') {
-      imported = await importUnpivotYears({ conn, config, cols, yearCols, log, ctx });
-    } else if (config.format.type === 'unpivot_categories') {
-      imported = await importUnpivotCategories({ conn, config, cols, log, ctx });
-    } else {
-      return assertNever(config.format);
+    await conn.run(`
+      CREATE OR REPLACE TEMP TABLE statistics_import_stage (
+        indicator TEXT,
+        area_type TEXT,
+        area_name TEXT,
+        year INTEGER,
+        value DOUBLE,
+        unit TEXT,
+        category TEXT
+      );
+    `);
+    await conn.run(`INSERT INTO statistics_import_stage SELECT * FROM statistics;`);
+
+    await conn.run('BEGIN TRANSACTION');
+    try {
+      if (config.format.type === 'unpivot_years') {
+        imported = await importUnpivotYears({
+          conn,
+          config,
+          cols,
+          yearCols,
+          log,
+          ctx,
+          tableName: 'statistics_import_stage',
+        });
+      } else if (config.format.type === 'unpivot_categories') {
+        imported = await importUnpivotCategories({
+          conn,
+          config,
+          cols,
+          log,
+          ctx,
+          tableName: 'statistics_import_stage',
+        });
+      } else {
+        return assertNever(config.format);
+      }
+      await conn.run(`
+        INSERT OR REPLACE INTO statistics
+        SELECT * FROM statistics_import_stage;
+      `);
+      await conn.run(`
+        DELETE FROM statistics AS s
+        WHERE NOT EXISTS (
+          SELECT 1
+          FROM statistics_import_stage AS st
+          WHERE st.indicator = s.indicator
+            AND st.area_type = s.area_type
+            AND st.area_name = s.area_name
+            AND st.year = s.year
+            AND st.category = s.category
+        );
+      `);
+      await conn.run('COMMIT');
+    } catch (err) {
+      try {
+        await conn.run('ROLLBACK');
+      } catch {}
+      throw err;
     }
 
     log.info({ ...ctx, imported, ms: durationMs(started) }, 'etl.import: done');
