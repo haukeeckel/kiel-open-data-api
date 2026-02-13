@@ -8,6 +8,7 @@ import { getEtlLogger } from './etlLogger.js';
 import { fetchWithRetry } from './fetchWithRetry.js';
 
 import type { DatasetConfig } from './datasets/types.js';
+import type { FetchRetryOptions } from './fetchWithRetry.js';
 
 type Meta = {
   etag?: string;
@@ -17,6 +18,10 @@ type Meta = {
 
 export type FetchDatasetOptions = {
   cacheDir?: string | undefined;
+  retries?: number | undefined;
+  baseDelayMs?: number | undefined;
+  maxDelayMs?: number | undefined;
+  timeoutMs?: number | undefined;
   fetchFn?: typeof fetch | undefined;
 };
 
@@ -52,7 +57,30 @@ async function readMeta(
 }
 
 async function writeMeta(metaPath: string, meta: Meta) {
-  await fs.writeFile(metaPath, JSON.stringify(meta, null, 2), 'utf8');
+  await writeFileAtomic(metaPath, JSON.stringify(meta, null, 2));
+}
+
+async function writeFileAtomic(filePath: string, content: string): Promise<void> {
+  const tmpPath = `${filePath}.tmp`;
+  try {
+    await fs.writeFile(tmpPath, content, 'utf8');
+    await fs.rename(tmpPath, filePath);
+  } catch (err) {
+    try {
+      await fs.unlink(tmpPath);
+    } catch {}
+    throw err;
+  }
+}
+
+function getRetryOptions(opts?: FetchDatasetOptions): FetchRetryOptions {
+  const retryOptions: FetchRetryOptions = {};
+  if (opts?.fetchFn) retryOptions.fetchFn = opts.fetchFn;
+  if (opts?.retries !== undefined) retryOptions.retries = opts.retries;
+  if (opts?.baseDelayMs !== undefined) retryOptions.baseDelayMs = opts.baseDelayMs;
+  if (opts?.maxDelayMs !== undefined) retryOptions.maxDelayMs = opts.maxDelayMs;
+  if (opts?.timeoutMs !== undefined) retryOptions.timeoutMs = opts.timeoutMs;
+  return retryOptions;
 }
 
 function normalizeUrl(url: string): string {
@@ -101,15 +129,14 @@ function hasMatchingResourceUrl(entry: Record<string, unknown>, datasetUrl: stri
 
 async function fetchKielOpenDataEntry(args: {
   datasetUrl: string;
-  fetchFn?: typeof fetch | undefined;
+  retryOptions: ReturnType<typeof getRetryOptions>;
   log: ReturnType<typeof getEtlLogger>['log'];
   ctx: EtlContext;
 }): Promise<Record<string, unknown> | undefined> {
-  const { datasetUrl, fetchFn, log, ctx } = args;
-  const retryOpts = fetchFn ? { fetchFn } : {};
+  const { datasetUrl, retryOptions, log, ctx } = args;
 
   try {
-    const res = await fetchWithRetry(KIEL_OPEN_DATA_URL, {}, retryOpts);
+    const res = await fetchWithRetry(KIEL_OPEN_DATA_URL, {}, retryOptions);
     if (!res.ok) {
       log.debug(
         { ...ctx, status: res.status, statusText: res.statusText },
@@ -156,7 +183,7 @@ export async function fetchDataset(
 
   log.debug({ ...ctx, headers }, 'etl.fetch: request headers');
 
-  const retryOpts = opts?.fetchFn ? { fetchFn: opts.fetchFn } : {};
+  const retryOpts = getRetryOptions(opts);
   const res = await fetchWithRetry(config.url, { headers }, retryOpts);
 
   log.info(
@@ -173,7 +200,7 @@ export async function fetchDataset(
     if (meta.kielOpenData === undefined) {
       const kielOpenData = await fetchKielOpenDataEntry({
         datasetUrl: config.url,
-        fetchFn: opts?.fetchFn,
+        retryOptions: retryOpts,
         log,
         ctx,
       });
@@ -196,7 +223,7 @@ export async function fetchDataset(
   }
 
   const text = await res.text();
-  await fs.writeFile(outCsv, text, 'utf8');
+  await writeFileAtomic(outCsv, text);
 
   const bytes = Buffer.byteLength(text, 'utf8');
   const nextMeta: Meta = {};
@@ -206,7 +233,7 @@ export async function fetchDataset(
   if (lastModified) nextMeta.lastModified = lastModified;
   const kielOpenData = await fetchKielOpenDataEntry({
     datasetUrl: config.url,
-    fetchFn: opts?.fetchFn,
+    retryOptions: retryOpts,
     log,
     ctx,
   });
