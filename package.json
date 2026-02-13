@@ -19,6 +19,7 @@
     "etl:fetch": "tsx src/etl/cli/fetch.ts --all",
     "etl:import": "tsx src/etl/cli/import.ts --all",
     "etl:run": "tsx src/etl/cli/run.ts --all",
+    "migrate": "tsx src/db/cli/migrate.ts",
     "etl:fetch:dataset": "tsx src/etl/cli/fetch.ts",
     "etl:import:dataset": "tsx src/etl/cli/import.ts",
     "etl:run:dataset": "tsx src/etl/cli/run.ts"
