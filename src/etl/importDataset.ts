@@ -478,6 +478,13 @@ export async function importDataset(
   config: DatasetConfig,
   opts?: ImportDatasetOptions,
 ): Promise<ImportDatasetResult> {
+  type ImportStep =
+    | 'load_csv_temp_table'
+    | 'normalize_headers'
+    | 'prepare_stage_table'
+    | 'transaction_import'
+    | 'swap_stage_to_statistics';
+
   const started = nowMs();
 
   const env = getEnv();
@@ -506,22 +513,39 @@ export async function importDataset(
   const dbLogger = log.child({ name: 'db' });
   const db = await createDb(dbPath, { logger: dbLogger });
   const conn = await db.connect();
+  const stepTimings: Partial<Record<ImportStep, number>> = {};
+
+  const runStep = async <T>(step: ImportStep, fn: () => Promise<T>): Promise<T> => {
+    const stepStart = nowMs();
+    try {
+      const result = await fn();
+      const ms = durationMs(stepStart);
+      stepTimings[step] = ms;
+      log.info({ ...ctx, step, ms }, 'etl.import: step done');
+      return result;
+    } catch (err) {
+      stepTimings[step] = durationMs(stepStart);
+      throw err;
+    }
+  };
 
   try {
     await applyMigrations(conn);
 
-    await conn.run(
-      `
-      CREATE OR REPLACE TEMP TABLE raw AS
-      SELECT
-        *,
-        row_number() OVER () AS _ingest_order
-      FROM read_csv_auto(?, header=true, delim=?);
-    `,
-      [csvPath, csvDelimiter],
-    );
+    await runStep('load_csv_temp_table', async () => {
+      await conn.run(
+        `
+        CREATE OR REPLACE TEMP TABLE raw AS
+        SELECT
+          *,
+          row_number() OVER () AS _ingest_order
+        FROM read_csv_auto(?, header=true, delim=?);
+      `,
+        [csvPath, csvDelimiter],
+      );
+    });
 
-    const cols = await normalizeRawHeaders(conn);
+    const cols = await runStep('normalize_headers', async () => normalizeRawHeaders(conn));
     const yearCols = getYearColumns(cols, config);
 
     log.debug(
@@ -529,60 +553,67 @@ export async function importDataset(
       'etl.import: detected columns',
     );
 
+    await runStep('prepare_stage_table', async () => {
+      await conn.run(`
+        CREATE OR REPLACE TEMP TABLE statistics_import_stage (
+          indicator TEXT,
+          area_type TEXT,
+          area_name TEXT,
+          year INTEGER,
+          value DOUBLE,
+          unit TEXT,
+          category TEXT
+        );
+      `);
+      await conn.run(`INSERT INTO statistics_import_stage SELECT * FROM statistics;`);
+    });
+
     let imported: number;
-    await conn.run(`
-      CREATE OR REPLACE TEMP TABLE statistics_import_stage (
-        indicator TEXT,
-        area_type TEXT,
-        area_name TEXT,
-        year INTEGER,
-        value DOUBLE,
-        unit TEXT,
-        category TEXT
-      );
-    `);
-    await conn.run(`INSERT INTO statistics_import_stage SELECT * FROM statistics;`);
 
     await conn.run('BEGIN TRANSACTION');
     try {
-      if (config.format.type === 'unpivot_years') {
-        imported = await importUnpivotYears({
-          conn,
-          config,
-          cols,
-          yearCols,
-          log,
-          ctx,
-          tableName: 'statistics_import_stage',
-        });
-      } else if (config.format.type === 'unpivot_categories') {
-        imported = await importUnpivotCategories({
-          conn,
-          config,
-          cols,
-          log,
-          ctx,
-          tableName: 'statistics_import_stage',
-        });
-      } else {
+      imported = await runStep('transaction_import', async () => {
+        if (config.format.type === 'unpivot_years') {
+          return importUnpivotYears({
+            conn,
+            config,
+            cols,
+            yearCols,
+            log,
+            ctx,
+            tableName: 'statistics_import_stage',
+          });
+        }
+        if (config.format.type === 'unpivot_categories') {
+          return importUnpivotCategories({
+            conn,
+            config,
+            cols,
+            log,
+            ctx,
+            tableName: 'statistics_import_stage',
+          });
+        }
         return assertNever(config.format);
-      }
-      await conn.run(`
-        INSERT OR REPLACE INTO statistics
-        SELECT * FROM statistics_import_stage;
-      `);
-      await conn.run(`
-        DELETE FROM statistics AS s
-        WHERE NOT EXISTS (
-          SELECT 1
-          FROM statistics_import_stage AS st
-          WHERE st.indicator = s.indicator
-            AND st.area_type = s.area_type
-            AND st.area_name = s.area_name
-            AND st.year = s.year
-            AND st.category = s.category
-        );
-      `);
+      });
+      await runStep('swap_stage_to_statistics', async () => {
+        await conn.run(`
+          INSERT OR REPLACE INTO statistics
+          SELECT * FROM statistics_import_stage;
+        `);
+        await conn.run(`
+          DELETE FROM statistics AS s
+          WHERE NOT EXISTS (
+            SELECT 1
+            FROM statistics_import_stage AS st
+            WHERE st.indicator = s.indicator
+              AND st.area_type = s.area_type
+              AND st.area_name = s.area_name
+              AND st.year = s.year
+              AND st.category = s.category
+          );
+        `);
+      });
       await conn.run('COMMIT');
     } catch (err) {
       try {
@@ -591,8 +622,11 @@ export async function importDataset(
       throw err;
     }
 
-    log.info({ ...ctx, imported, ms: durationMs(started) }, 'etl.import: done');
+    log.info({ ...ctx, imported, ms: durationMs(started), stepTimings }, 'etl.import: done');
     return { imported, csvPath, dbPath };
+  } catch (err) {
+    log.error({ ...ctx, err, ms: durationMs(started), stepTimings }, 'etl.import: failed');
+    throw err;
   } finally {
     try {
       conn.closeSync();
