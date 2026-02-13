@@ -19,6 +19,17 @@ const HealthResponse = z.object({
 
 export default async function healthRoutes(app: FastifyInstance) {
   const r = app.withTypeProvider<ZodTypeProvider>();
+  const docsPrefix = getEnv().SWAGGER_ROUTE_PREFIX;
+  let cachedEndpoints: string[] = [];
+
+  const buildEndpoints = () => {
+    const apiPaths = Object.keys(app.swagger().paths ?? {}).filter((p) => p !== '/');
+    return [...apiPaths, docsPrefix, `${docsPrefix}/json`].sort();
+  };
+
+  app.addHook('onReady', async () => {
+    cachedEndpoints = buildEndpoints();
+  });
 
   r.get(
     '/',
@@ -29,12 +40,13 @@ export default async function healthRoutes(app: FastifyInstance) {
         },
       },
     },
-    async (req) => {
-      const docsPrefix = getEnv().SWAGGER_ROUTE_PREFIX;
-      const apiPaths = Object.keys(req.server.swagger().paths ?? {}).filter((p) => p !== '/');
+    async () => {
+      if (cachedEndpoints.length === 0) {
+        cachedEndpoints = buildEndpoints();
+      }
       return {
         name: API_NAME,
-        endpoints: [...apiPaths, docsPrefix, `${docsPrefix}/json`].sort(),
+        endpoints: cachedEndpoints,
       };
     },
   );
