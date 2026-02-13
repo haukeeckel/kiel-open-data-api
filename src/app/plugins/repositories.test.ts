@@ -10,7 +10,7 @@ vi.mock('../../infra/db/duckdbConnectionManager.js', () => ({
 }));
 
 vi.mock('../../infra/db/migrations.js', () => ({
-  applyMigrations: vi.fn(),
+  assertMigrationsUpToDate: vi.fn(),
 }));
 
 vi.mock('../../infra/db/statisticsRepository.duckdb.js', () => ({
@@ -19,7 +19,7 @@ vi.mock('../../infra/db/statisticsRepository.duckdb.js', () => ({
 
 import { getDuckDbPath } from '../../config/path.js';
 import { createDuckDbConnectionManager } from '../../infra/db/duckdbConnectionManager.js';
-import { applyMigrations } from '../../infra/db/migrations.js';
+import { assertMigrationsUpToDate } from '../../infra/db/migrations.js';
 import { createDuckDbStatisticsRepository } from '../../infra/db/statisticsRepository.duckdb.js';
 import { makeEnv } from '../../test/helpers/makeEnv.js';
 
@@ -32,7 +32,7 @@ describe('repositories plugin', () => {
     vi.clearAllMocks();
   });
 
-  it('creates db, applies migrations, and decorates repos', async () => {
+  it('creates db, checks schema version, and decorates repos', async () => {
     const env = makeEnv({ NODE_ENV: 'test' });
 
     const conn = { run: vi.fn() } as unknown as DuckDBConnection;
@@ -55,8 +55,8 @@ describe('repositories plugin', () => {
       poolSize: 4,
       logger: expect.any(Object),
     });
-    expect(dbManager.withConnection).toHaveBeenCalledWith(applyMigrations);
-    expect(applyMigrations).toHaveBeenCalledWith(conn);
+    expect(dbManager.withConnection).toHaveBeenCalledWith(assertMigrationsUpToDate);
+    expect(assertMigrationsUpToDate).toHaveBeenCalledWith(conn);
     expect(createDuckDbStatisticsRepository).toHaveBeenCalledWith(dbManager, {
       queryTimeoutMs: 2000,
       logger: expect.any(Object),
@@ -66,5 +66,24 @@ describe('repositories plugin', () => {
 
     await app.close();
     expect(dbManager.close).toHaveBeenCalled();
+  });
+
+  it('fails registration when schema is out of date', async () => {
+    const env = makeEnv({ NODE_ENV: 'test' });
+    const err = new Error('Database schema is out of date');
+
+    const dbManager = {
+      withConnection: vi.fn(async () => {
+        throw err;
+      }),
+      healthcheck: vi.fn(async () => true),
+      close: vi.fn(async () => undefined),
+    };
+
+    (createDuckDbConnectionManager as ReturnType<typeof vi.fn>).mockReturnValue(dbManager);
+
+    const app = Fastify();
+    await expect(app.register(repositoriesPlugin, { env })).rejects.toThrow(err.message);
+    await app.close();
   });
 });

@@ -76,6 +76,42 @@ const migrations: Migration[] = [
   },
 ];
 
+export function getLatestMigrationVersion(): number {
+  const latest = migrations.reduce((max, migration) => Math.max(max, migration.version), 0);
+  return latest;
+}
+
+export async function assertMigrationsUpToDate(conn: DuckDBConnection): Promise<void> {
+  const latestVersion = getLatestMigrationVersion();
+
+  const tableReader = await conn.runAndReadAll(
+    `
+    SELECT COUNT(*) AS c
+    FROM information_schema.tables
+    WHERE table_name = 'schema_migrations';
+    `,
+  );
+  const hasSchemaMigrations = Number(tableReader.getRowObjects()[0]?.['c']) > 0;
+  if (!hasSchemaMigrations) {
+    throw new Error(
+      `Database schema is not initialized (missing schema_migrations table). ` +
+        `Run "pnpm migrate" before starting the app.`,
+    );
+  }
+
+  const versionReader = await conn.runAndReadAll(
+    `SELECT COALESCE(MAX(version), 0) AS max_version FROM schema_migrations;`,
+  );
+  const currentVersion = Number(versionReader.getRowObjects()[0]?.['max_version'] ?? 0);
+
+  if (currentVersion !== latestVersion) {
+    throw new Error(
+      `Database schema is out of date (current=${currentVersion}, latest=${latestVersion}). ` +
+        `Run "pnpm migrate" before starting the app.`,
+    );
+  }
+}
+
 function hashMigration(migration: Migration): string {
   const payload = JSON.stringify({
     version: migration.version,
