@@ -5,8 +5,8 @@ vi.mock('../../config/path.js', () => ({
   getDuckDbPath: vi.fn(() => '/tmp/kiel-test.duckdb'),
 }));
 
-vi.mock('../../infra/db/duckdb.js', () => ({
-  createDb: vi.fn(),
+vi.mock('../../infra/db/duckdbConnectionManager.js', () => ({
+  createDuckDbConnectionManager: vi.fn(),
 }));
 
 vi.mock('../../infra/db/migrations.js', () => ({
@@ -18,12 +18,14 @@ vi.mock('../../infra/db/statisticsRepository.duckdb.js', () => ({
 }));
 
 import { getDuckDbPath } from '../../config/path.js';
-import { createDb } from '../../infra/db/duckdb.js';
+import { createDuckDbConnectionManager } from '../../infra/db/duckdbConnectionManager.js';
 import { applyMigrations } from '../../infra/db/migrations.js';
 import { createDuckDbStatisticsRepository } from '../../infra/db/statisticsRepository.duckdb.js';
 import { makeEnv } from '../../test/helpers/makeEnv.js';
 
 import repositoriesPlugin from './repositories.js';
+
+import type { DuckDBConnection } from '@duckdb/node-api';
 
 describe('repositories plugin', () => {
   beforeEach(() => {
@@ -33,25 +35,32 @@ describe('repositories plugin', () => {
   it('creates db, applies migrations, and decorates repos', async () => {
     const env = makeEnv({ NODE_ENV: 'test' });
 
-    const conn = { closeSync: vi.fn() };
-    const db = { connect: vi.fn().mockResolvedValue(conn), closeSync: vi.fn() };
+    const conn = { run: vi.fn() } as unknown as DuckDBConnection;
+    const dbManager = {
+      withConnection: vi.fn(async (fn: (conn: DuckDBConnection) => Promise<void>) => fn(conn)),
+      healthcheck: vi.fn(async () => true),
+      close: vi.fn(async () => undefined),
+    };
     const repo = { listAreas: vi.fn() };
 
-    (createDb as ReturnType<typeof vi.fn>).mockResolvedValue(db);
+    (createDuckDbConnectionManager as ReturnType<typeof vi.fn>).mockReturnValue(dbManager);
     (createDuckDbStatisticsRepository as ReturnType<typeof vi.fn>).mockReturnValue(repo);
 
     const app = Fastify();
     await app.register(repositoriesPlugin, { env });
 
     expect(getDuckDbPath).toHaveBeenCalled();
-    expect(createDb).toHaveBeenCalledWith('/tmp/kiel-test.duckdb', expect.any(Object));
-    expect(db.connect).toHaveBeenCalled();
+    expect(createDuckDbConnectionManager).toHaveBeenCalledWith({
+      dbPath: '/tmp/kiel-test.duckdb',
+      poolSize: 4,
+      logger: expect.any(Object),
+    });
+    expect(dbManager.withConnection).toHaveBeenCalledWith(applyMigrations);
     expect(applyMigrations).toHaveBeenCalledWith(conn);
     expect(app.repos.statisticsRepository).toBe(repo);
-    expect(app.dbConn).toBe(conn);
+    expect(app.dbManager).toBe(dbManager);
 
     await app.close();
-    expect(conn.closeSync).toHaveBeenCalled();
-    expect(db.closeSync).toHaveBeenCalled();
+    expect(dbManager.close).toHaveBeenCalled();
   });
 });

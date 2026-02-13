@@ -1,5 +1,5 @@
+import type { DuckDbConnectionManager } from './duckdbConnectionManager.js';
 import type { StatisticsRepository } from '../../domains/statistics/ports/statisticsRepository.js';
-import type { DuckDBConnection } from '@duckdb/node-api';
 
 function requireValue(row: Record<string, unknown>, key: string): unknown {
   const value = row[key];
@@ -23,129 +23,143 @@ function requireString(row: Record<string, unknown>, key: string): string {
   return String(value);
 }
 
-export function createDuckDbStatisticsRepository(conn: DuckDBConnection): StatisticsRepository {
+export function createDuckDbStatisticsRepository(
+  manager: DuckDbConnectionManager,
+): StatisticsRepository {
   return {
     async getTimeseries(input) {
-      const params: Array<string | number> = [input.indicator, input.areaType, input.area];
-      let sql = `
-        SELECT year, value, unit, category
-        FROM statistics
-        WHERE indicator = ? AND area_type = ? AND area_name = ?
-      `;
+      return manager.withConnection(async (conn) => {
+        const params: Array<string | number> = [input.indicator, input.areaType, input.area];
+        let sql = `
+          SELECT year, value, unit, category
+          FROM statistics
+          WHERE indicator = ? AND area_type = ? AND area_name = ?
+        `;
 
-      sql += ` AND category = ?`;
-      params.push(input.category ?? 'total');
+        sql += ` AND category = ?`;
+        params.push(input.category ?? 'total');
 
-      if (input.from !== undefined) {
-        sql += ` AND year >= ?`;
-        params.push(input.from);
-      }
-      if (input.to !== undefined) {
-        sql += ` AND year <= ?`;
-        params.push(input.to);
-      }
+        if (input.from !== undefined) {
+          sql += ` AND year >= ?`;
+          params.push(input.from);
+        }
+        if (input.to !== undefined) {
+          sql += ` AND year <= ?`;
+          params.push(input.to);
+        }
 
-      sql += ` ORDER BY year ASC`;
+        sql += ` ORDER BY year ASC`;
 
-      const reader = await conn.runAndReadAll(sql, params);
-      const rows = reader.getRowObjects().map((r) => ({
-        year: requireNumber(r, 'year'),
-        value: requireNumber(r, 'value'),
-        unit: requireString(r, 'unit'),
-        category: requireString(r, 'category'),
-      }));
+        const reader = await conn.runAndReadAll(sql, params);
+        const rows = reader.getRowObjects().map((r) => ({
+          year: requireNumber(r, 'year'),
+          value: requireNumber(r, 'value'),
+          unit: requireString(r, 'unit'),
+          category: requireString(r, 'category'),
+        }));
 
-      return {
-        indicator: input.indicator,
-        areaType: input.areaType,
-        area: input.area,
-        rows,
-      };
+        return {
+          indicator: input.indicator,
+          areaType: input.areaType,
+          area: input.area,
+          rows,
+        };
+      });
     },
 
     async listAreas(input) {
-      const params: string[] = [input.indicator, input.areaType];
-      let sql = `
-        SELECT DISTINCT area_name
-        FROM statistics
-        WHERE indicator = ? AND area_type = ?
-      `;
+      return manager.withConnection(async (conn) => {
+        const params: string[] = [input.indicator, input.areaType];
+        let sql = `
+          SELECT DISTINCT area_name
+          FROM statistics
+          WHERE indicator = ? AND area_type = ?
+        `;
 
-      sql += ` AND category = ?`;
-      params.push(input.category ?? 'total');
+        sql += ` AND category = ?`;
+        params.push(input.category ?? 'total');
 
-      if (input.like) {
-        sql += ` AND lower(area_name) LIKE ? ESCAPE '\\'`;
-        const escaped = input.like.toLowerCase().replace(/[%_\\]/g, '\\$&');
-        params.push(`%${escaped}%`);
-      }
+        if (input.like) {
+          sql += ` AND lower(area_name) LIKE ? ESCAPE '\\'`;
+          const escaped = input.like.toLowerCase().replace(/[%_\\]/g, '\\$&');
+          params.push(`%${escaped}%`);
+        }
 
-      sql += ` ORDER BY area_name ASC`;
+        sql += ` ORDER BY area_name ASC`;
 
-      const reader = await conn.runAndReadAll(sql, params);
-      const rows = reader.getRowObjects().map((r) => requireString(r, 'area_name'));
+        const reader = await conn.runAndReadAll(sql, params);
+        const rows = reader.getRowObjects().map((r) => requireString(r, 'area_name'));
 
-      return { indicator: input.indicator, areaType: input.areaType, rows };
+        return { indicator: input.indicator, areaType: input.areaType, rows };
+      });
     },
 
     async listCategories(input) {
-      const reader = await conn.runAndReadAll(
-        `
-        SELECT DISTINCT category
-        FROM statistics
-        WHERE indicator = ? AND area_type = ?
-        ORDER BY category ASC
-        `,
-        [input.indicator, input.areaType],
-      );
+      return manager.withConnection(async (conn) => {
+        const reader = await conn.runAndReadAll(
+          `
+          SELECT DISTINCT category
+          FROM statistics
+          WHERE indicator = ? AND area_type = ?
+          ORDER BY category ASC
+          `,
+          [input.indicator, input.areaType],
+        );
 
-      const rows = reader.getRowObjects().map((r) => requireString(r, 'category'));
-      return { indicator: input.indicator, areaType: input.areaType, rows };
+        const rows = reader.getRowObjects().map((r) => requireString(r, 'category'));
+        return { indicator: input.indicator, areaType: input.areaType, rows };
+      });
     },
 
     async getRanking(input) {
-      const reader = await conn.runAndReadAll(
-        `
-        SELECT area_name, value, unit, category
-        FROM statistics
-        WHERE indicator = ? AND area_type = ? AND year = ? AND category = ?
-        ORDER BY value ${input.order === 'asc' ? 'ASC' : 'DESC'}
-        LIMIT ?
-        `,
-        [input.indicator, input.areaType, input.year, input.category ?? 'total', input.limit],
-      );
+      return manager.withConnection(async (conn) => {
+        const reader = await conn.runAndReadAll(
+          `
+          SELECT area_name, value, unit, category
+          FROM statistics
+          WHERE indicator = ? AND area_type = ? AND year = ? AND category = ?
+          ORDER BY value ${input.order === 'asc' ? 'ASC' : 'DESC'}
+          LIMIT ?
+          `,
+          [input.indicator, input.areaType, input.year, input.category ?? 'total', input.limit],
+        );
 
-      const rows = reader.getRowObjects().map((r) => ({
-        area: requireString(r, 'area_name'),
-        value: requireNumber(r, 'value'),
-        unit: requireString(r, 'unit'),
-        category: requireString(r, 'category'),
-      }));
+        const rows = reader.getRowObjects().map((r) => ({
+          area: requireString(r, 'area_name'),
+          value: requireNumber(r, 'value'),
+          unit: requireString(r, 'unit'),
+          category: requireString(r, 'category'),
+        }));
 
-      return {
-        indicator: input.indicator,
-        areaType: input.areaType,
-        year: input.year,
-        order: input.order,
-        limit: input.limit,
-        rows,
-      };
+        return {
+          indicator: input.indicator,
+          areaType: input.areaType,
+          year: input.year,
+          order: input.order,
+          limit: input.limit,
+          rows,
+        };
+      });
     },
 
     async listIndicators() {
-      const reader = await conn.runAndReadAll(
-        `SELECT DISTINCT indicator FROM statistics ORDER BY indicator ASC`,
-      );
-      const rows = reader.getRowObjects().map((r) => requireString(r, 'indicator'));
-      return { rows };
+      return manager.withConnection(async (conn) => {
+        const reader = await conn.runAndReadAll(
+          `SELECT DISTINCT indicator FROM statistics ORDER BY indicator ASC`,
+        );
+        const rows = reader.getRowObjects().map((r) => requireString(r, 'indicator'));
+        return { rows };
+      });
     },
 
     async listAreaTypes() {
-      const reader = await conn.runAndReadAll(
-        `SELECT DISTINCT area_type FROM statistics ORDER BY area_type ASC`,
-      );
-      const rows = reader.getRowObjects().map((r) => requireString(r, 'area_type'));
-      return { rows };
+      return manager.withConnection(async (conn) => {
+        const reader = await conn.runAndReadAll(
+          `SELECT DISTINCT area_type FROM statistics ORDER BY area_type ASC`,
+        );
+        const rows = reader.getRowObjects().map((r) => requireString(r, 'area_type'));
+        return { rows };
+      });
     },
   };
 }

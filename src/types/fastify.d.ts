@@ -2,12 +2,12 @@ import 'fastify';
 
 import type { StatisticsRepository } from '../domains/statistics/ports/statisticsRepository.js';
 import type { StatisticsQueryService } from '../domains/statistics/services/queryService.js';
-import type { DuckDBConnection } from '@duckdb/node-api';
+import type { DuckDbConnectionManager } from '../infra/db/duckdbConnectionManager.js';
 
 declare module 'fastify' {
   // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
   interface FastifyInstance {
-    dbConn: DuckDBConnection;
+    dbManager: DuckDbConnectionManager;
     repos: {
       statisticsRepository: StatisticsRepository;
     };
