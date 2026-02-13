@@ -43,5 +43,6 @@ describe('openapi', () => {
     expect(body.paths).toHaveProperty('/v1/ranking');
     expect(body.paths).toHaveProperty('/v1/indicators');
     expect(body.paths).toHaveProperty('/v1/area-types');
+    expect(body.paths).not.toHaveProperty('/metrics');
   });
 });

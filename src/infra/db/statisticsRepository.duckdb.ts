@@ -1,3 +1,5 @@
+import { recordDbQuery } from '../../observability/metrics.js';
+
 import { RepositoryInfraError, RepositoryQueryTimeoutError } from './errors.js';
 
 import type { DuckDbConnectionManager } from './duckdbConnectionManager.js';
@@ -58,6 +60,7 @@ function summarizeValues(values?: Array<string | number>): string {
 async function runQueryWithTimeout(args: QueryArgs): Promise<DuckDBResultReader> {
   const { conn, operation, sql, values, queryTimeoutMs, logger } = args;
   let timeout: NodeJS.Timeout | undefined;
+  const started = process.hrtime.bigint();
 
   try {
     const queryPromise = conn.runAndReadAll(sql, values);
@@ -69,9 +72,14 @@ async function runQueryWithTimeout(args: QueryArgs): Promise<DuckDBResultReader>
         reject(new RepositoryQueryTimeoutError({ operation, timeoutMs: queryTimeoutMs }));
       }, queryTimeoutMs);
     });
-    return await Promise.race([queryPromise, timeoutPromise]);
+    const result = await Promise.race([queryPromise, timeoutPromise]);
+    const seconds = Number(process.hrtime.bigint() - started) / 1_000_000_000;
+    recordDbQuery(operation, 'ok', seconds);
+    return result;
   } catch (err) {
+    const seconds = Number(process.hrtime.bigint() - started) / 1_000_000_000;
     if (err instanceof RepositoryQueryTimeoutError) {
+      recordDbQuery(operation, 'timeout', seconds);
       logger?.warn?.(
         { operation, timeoutMs: queryTimeoutMs, values: summarizeValues(values) },
         'repository query timed out',
@@ -83,6 +91,7 @@ async function runQueryWithTimeout(args: QueryArgs): Promise<DuckDBResultReader>
       message: `Repository operation failed: ${operation}`,
       cause: err,
     });
+    recordDbQuery(operation, 'error', seconds);
     logger?.warn?.(
       { operation, values: summarizeValues(values), err: toError(err) },
       'repository query failed',

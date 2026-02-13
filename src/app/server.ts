@@ -11,6 +11,7 @@ import { getLoggerOptions } from '../logger/http.js';
 import corsPlugin from './plugins/cors.js';
 import errorHandlerPlugin from './plugins/errorHandler.js';
 import helmetPlugin from './plugins/helmet.js';
+import metricsPlugin from './plugins/metrics.js';
 import rateLimitPlugin from './plugins/rateLimit.js';
 import repositoriesPlugin from './plugins/repositories.js';
 import servicesPlugin from './plugins/services.js';
@@ -31,6 +32,7 @@ export async function buildServer() {
   await app.register(corsPlugin);
   await app.register(helmetPlugin);
   await app.register(errorHandlerPlugin);
+  await app.register(metricsPlugin);
   await app.register(swaggerPlugin);
   await app.register(rateLimitPlugin);
   await app.register(repositoriesPlugin);
