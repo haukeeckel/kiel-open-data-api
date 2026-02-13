@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { withTestEnv } from '../test/helpers/env.js';
 
 import { DEFAULT_HOST, DEFAULT_NODE_ENV, DEFAULT_PORT } from './constants.js';
-import { getEnv } from './env.js';
+import { getEnv, resetEnvForTests } from './env.js';
 
 describe('getEnv', () => {
   it('returns defaults when env vars are missing', () => {
@@ -61,6 +61,85 @@ describe('getEnv', () => {
       expect(env.RATE_LIMIT_MAX).toBe(50);
       expect(env.RATE_LIMIT_WINDOW_MS).toBe(5000);
       expect(env.DB_QUERY_TIMEOUT_MS).toBe(3210);
+    } finally {
+      restoreEnv();
+    }
+  });
+
+  it('parses SWAGGER_UI_ENABLED=true', () => {
+    const restoreEnv = withTestEnv({
+      NODE_ENV: 'development',
+      CORS_ORIGIN: undefined,
+      SWAGGER_UI_ENABLED: undefined,
+    });
+    process.env['SWAGGER_UI_ENABLED'] = 'true';
+    resetEnvForTests();
+
+    try {
+      const env = getEnv();
+      expect(env.SWAGGER_UI_ENABLED).toBe(true);
+    } finally {
+      restoreEnv();
+    }
+  });
+
+  it('parses SWAGGER_UI_ENABLED case-insensitively', () => {
+    const restoreEnv = withTestEnv({
+      NODE_ENV: 'development',
+      CORS_ORIGIN: undefined,
+      SWAGGER_UI_ENABLED: undefined,
+    });
+    process.env['SWAGGER_UI_ENABLED'] = 'FALSE';
+    resetEnvForTests();
+
+    try {
+      const env = getEnv();
+      expect(env.SWAGGER_UI_ENABLED).toBe(false);
+    } finally {
+      restoreEnv();
+    }
+  });
+
+  it('throws for invalid SWAGGER_UI_ENABLED values', () => {
+    const restoreEnv = withTestEnv({
+      NODE_ENV: 'development',
+      CORS_ORIGIN: undefined,
+      SWAGGER_UI_ENABLED: undefined,
+    });
+    process.env['SWAGGER_UI_ENABLED'] = 'yes';
+    resetEnvForTests();
+
+    try {
+      expect(() => getEnv()).toThrow();
+    } finally {
+      restoreEnv();
+    }
+  });
+
+  it('accepts PORT=65535', () => {
+    const restoreEnv = withTestEnv({
+      NODE_ENV: 'development',
+      CORS_ORIGIN: undefined,
+      PORT: 65535,
+    });
+
+    try {
+      const env = getEnv();
+      expect(env.PORT).toBe(65535);
+    } finally {
+      restoreEnv();
+    }
+  });
+
+  it('throws for PORT=65536', () => {
+    const restoreEnv = withTestEnv({
+      NODE_ENV: 'development',
+      CORS_ORIGIN: undefined,
+      PORT: 65536,
+    });
+
+    try {
+      expect(() => getEnv()).toThrow();
     } finally {
       restoreEnv();
     }
