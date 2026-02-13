@@ -186,6 +186,17 @@ describe('importDataset', () => {
     );
   });
 
+  it('imports with csv path containing apostrophe', async () => {
+    const specialCsvPath = path.join(cacheDir, "population'o.csv");
+    const csv =
+      ['Merkmal;Stadtteil;2022;2023', 'Einwohner insgesamt;Altstadt;1213;1220'].join('\n') + '\n';
+
+    await fs.writeFile(specialCsvPath, csv, 'utf8');
+
+    const res = await importDataset(DISTRICTS_POPULATION, { csvPath: specialCsvPath, dbPath });
+    expect(res.imported).toBe(2);
+  });
+
   it('throws when no year columns exist', async () => {
     const csv =
       ['Merkmal;Stadtteil;foo;bar', 'Einwohner insgesamt;Altstadt;1213;1220'].join('\n') + '\n';
@@ -194,6 +205,58 @@ describe('importDataset', () => {
 
     await expect(importDataset(DISTRICTS_POPULATION, { csvPath, dbPath })).rejects.toThrow(
       /No year columns found/i,
+    );
+  });
+
+  it('throws descriptive error when unpivot_years yearParser returns NaN', async () => {
+    const csv =
+      [
+        'Land;Stadt;Kategorie;Merkmal;Stadtteilnummer;Stadtteil;31.12.2023;31.12.2022',
+        'de-sh;Kiel;wirtschaft_arbeit;Arbeitslose;1;Altstadt;16;14',
+      ].join('\n') + '\n';
+    const unemployedCsvPath = path.join(cacheDir, DISTRICTS_UNEMPLOYED_COUNT.csvFilename);
+    await fs.writeFile(unemployedCsvPath, csv, 'utf8');
+
+    if (DISTRICTS_UNEMPLOYED_COUNT.format.type !== 'unpivot_years') {
+      throw new Error('Expected unpivot_years format for DISTRICTS_UNEMPLOYED_COUNT');
+    }
+
+    const brokenConfig = {
+      ...DISTRICTS_UNEMPLOYED_COUNT,
+      format: {
+        ...DISTRICTS_UNEMPLOYED_COUNT.format,
+        yearParser: () => Number.NaN,
+      },
+    };
+
+    await expect(
+      importDataset(brokenConfig, { csvPath: unemployedCsvPath, dbPath }),
+    ).rejects.toThrow(/Invalid yearParser output.*unpivot_years.*NaN/i);
+  });
+
+  it('throws descriptive error when unpivot_categories yearParser returns NaN', async () => {
+    const csv =
+      [
+        'Land;Stadt;Kategorie;Merkmal;Datum;Stadtteilnummer;Stadtteil;insgesamt;maennlich;weiblich',
+        'de-sh;Kiel;Bevoelkerung;Einwohner insgesamt;2023_12_31;1;Altstadt;1220;638;582',
+      ].join('\n') + '\n';
+    const genderCsvPath = path.join(cacheDir, DISTRICTS_GENDER.csvFilename);
+    await fs.writeFile(genderCsvPath, csv, 'utf8');
+
+    if (DISTRICTS_GENDER.format.type !== 'unpivot_categories') {
+      throw new Error('Expected unpivot_categories format for DISTRICTS_GENDER');
+    }
+
+    const brokenConfig = {
+      ...DISTRICTS_GENDER,
+      format: {
+        ...DISTRICTS_GENDER.format,
+        yearParser: () => Number.NaN,
+      },
+    };
+
+    await expect(importDataset(brokenConfig, { csvPath: genderCsvPath, dbPath })).rejects.toThrow(
+      /Invalid yearParser output.*unpivot_categories.*NaN/i,
     );
   });
 
