@@ -1,6 +1,8 @@
 import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api';
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 
+import { resetMetricsForTests, metricsRegistry } from '../../observability/metrics.js';
+
 import { RepositoryInfraError, RepositoryQueryTimeoutError } from './errors.js';
 import { applyMigrations } from './migrations.js';
 import { createDuckDbStatisticsRepository } from './statisticsRepository.duckdb.js';
@@ -328,6 +330,78 @@ describe('DuckDbStatisticsRepository', () => {
       const strictRepo = createDuckDbStatisticsRepository(manager, { queryTimeoutMs: 50 });
 
       await expect(strictRepo.listIndicators()).rejects.toBeInstanceOf(RepositoryInfraError);
+    });
+  });
+
+  describe('query metrics', () => {
+    it('records ok status metrics for successful queries', async () => {
+      resetMetricsForTests();
+
+      await repo.listIndicators();
+      const text = await metricsRegistry.metrics();
+
+      expect(text).toMatch(
+        /db_queries_total\{operation="statistics\.listIndicators",status="ok"\}\s+1/,
+      );
+      expect(text).toMatch(
+        /db_query_duration_seconds_(bucket|sum|count)\{operation="statistics\.listIndicators",status="ok"/,
+      );
+    });
+
+    it('records timeout status metrics', async () => {
+      resetMetricsForTests();
+
+      const interrupt = vi.fn();
+      const mockConn = {
+        runAndReadAll: vi.fn(() => new Promise(() => undefined)),
+        interrupt,
+      } as unknown as DuckDBConnection;
+
+      const manager: DuckDbConnectionManager = {
+        withConnection: async (fn) => fn(mockConn),
+        healthcheck: async () => true,
+        close: async () => undefined,
+      };
+      const timedRepo = createDuckDbStatisticsRepository(manager, { queryTimeoutMs: 1 });
+
+      await expect(timedRepo.listIndicators()).rejects.toBeInstanceOf(RepositoryQueryTimeoutError);
+      expect(interrupt).toHaveBeenCalledTimes(1);
+
+      const text = await metricsRegistry.metrics();
+      expect(text).toMatch(
+        /db_queries_total\{operation="statistics\.listIndicators",status="timeout"\}\s+1/,
+      );
+      expect(text).toMatch(
+        /db_query_duration_seconds_(bucket|sum|count)\{operation="statistics\.listIndicators",status="timeout"/,
+      );
+    });
+
+    it('records error status metrics', async () => {
+      resetMetricsForTests();
+
+      const mockConn = {
+        runAndReadAll: vi.fn(async () => {
+          throw new Error('db boom');
+        }),
+        interrupt: vi.fn(),
+      } as unknown as DuckDBConnection;
+
+      const manager: DuckDbConnectionManager = {
+        withConnection: async (fn) => fn(mockConn),
+        healthcheck: async () => true,
+        close: async () => undefined,
+      };
+      const failingRepo = createDuckDbStatisticsRepository(manager, { queryTimeoutMs: 50 });
+
+      await expect(failingRepo.listIndicators()).rejects.toBeInstanceOf(RepositoryInfraError);
+
+      const text = await metricsRegistry.metrics();
+      expect(text).toMatch(
+        /db_queries_total\{operation="statistics\.listIndicators",status="error"\}\s+1/,
+      );
+      expect(text).toMatch(
+        /db_query_duration_seconds_(bucket|sum|count)\{operation="statistics\.listIndicators",status="error"/,
+      );
     });
   });
 });
