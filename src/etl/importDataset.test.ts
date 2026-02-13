@@ -24,9 +24,91 @@ import { DISTRICTS_UNEMPLOYED_COUNT } from './datasets/districts_unemployed_coun
 import { DISTRICTS_UNEMPLOYED_RATE } from './datasets/districts_unemployed_rate.js';
 import { importDataset } from './importDataset.js';
 
+import type { DuckDBConnection } from '@duckdb/node-api';
+
 function mkTmpDir() {
   return fssync.mkdtempSync(path.join(os.tmpdir(), 'kiel-etl-'));
 }
+
+// ── Query helpers ──────────────────────────────────────────────────────────
+
+async function withConn(
+  dbPath: string,
+  fn: (conn: DuckDBConnection) => Promise<void>,
+): Promise<void> {
+  const db = await createDb(dbPath);
+  const conn = await db.connect();
+  try {
+    await fn(conn);
+  } finally {
+    conn.closeSync();
+  }
+}
+
+async function queryCategories(conn: DuckDBConnection, indicator: string): Promise<string[]> {
+  const reader = await conn.runAndReadAll(
+    `SELECT category FROM statistics WHERE indicator = ? AND area_type = 'district'
+     GROUP BY category ORDER BY category ASC`,
+    [indicator],
+  );
+  return reader.getRowObjects().map((r) => String(r['category']));
+}
+
+async function queryYears(
+  conn: DuckDBConnection,
+  indicator: string,
+  category = 'total',
+): Promise<number[]> {
+  const reader = await conn.runAndReadAll(
+    `SELECT DISTINCT year FROM statistics
+     WHERE indicator = ? AND area_type = 'district' AND category = ?
+     ORDER BY year ASC`,
+    [indicator, category],
+  );
+  return reader.getRowObjects().map((r) => Number(r['year']));
+}
+
+async function queryAreas(conn: DuckDBConnection, indicator: string): Promise<string[]> {
+  const reader = await conn.runAndReadAll(
+    `SELECT DISTINCT area_name FROM statistics
+     WHERE indicator = ? AND area_type = 'district'
+     ORDER BY area_name ASC`,
+    [indicator],
+  );
+  return reader.getRowObjects().map((r) => String(r['area_name']));
+}
+
+async function queryValue(
+  conn: DuckDBConnection,
+  indicator: string,
+  area: string,
+  year: number,
+  category = 'total',
+): Promise<number> {
+  const reader = await conn.runAndReadAll(
+    `SELECT value FROM statistics
+     WHERE indicator = ? AND area_type = 'district' AND area_name = ? AND year = ? AND category = ?`,
+    [indicator, area, year, category],
+  );
+  return Number(reader.getRowObjects()[0]?.['value']);
+}
+
+async function queryCount(
+  conn: DuckDBConnection,
+  indicator: string,
+  category?: string,
+): Promise<number> {
+  const params: (string | number)[] = [indicator];
+  let sql = `SELECT COUNT(*) AS c FROM statistics WHERE indicator = ? AND area_type = 'district'`;
+  if (category !== undefined) {
+    sql += ` AND category = ?`;
+    params.push(category);
+  }
+  const reader = await conn.runAndReadAll(sql, params);
+  return Number(reader.getRowObjects()[0]?.['c']);
+}
+
+// ── Tests ──────────────────────────────────────────────────────────────────
 
 describe('importDataset', () => {
   let tmp: string;
@@ -71,17 +153,9 @@ describe('importDataset', () => {
     expect(res.dbPath).toBe(dbPath);
     expect(res.imported).toBe(4);
 
-    const db = await createDb(dbPath);
-    const conn = await db.connect();
-    try {
-      const reader = await conn.runAndReadAll(
-        `SELECT COUNT(*) AS c FROM statistics WHERE indicator = ? AND area_type = ?;`,
-        ['population', 'district'],
-      );
-      expect(Number(reader.getRowObjects()[0]?.['c'])).toBe(4);
-    } finally {
-      conn.closeSync();
-    }
+    await withConn(dbPath, async (conn) => {
+      expect(await queryCount(conn, 'population')).toBe(4);
+    });
   });
 
   it('throws when required columns are missing', async () => {
@@ -141,21 +215,8 @@ describe('importDataset', () => {
     expect(first.imported).toBe(28);
     expect(second.imported).toBe(28);
 
-    const db = await createDb(dbPath);
-    const conn = await db.connect();
-    try {
-      const categoriesReader = await conn.runAndReadAll(
-        `
-        SELECT category
-        FROM statistics
-        WHERE indicator = ? AND area_type = ?
-        GROUP BY category
-        ORDER BY category ASC;
-        `,
-        ['households', 'district'],
-      );
-      const categories = categoriesReader.getRowObjects().map((r) => String(r['category']));
-      expect(categories).toEqual([
+    await withConn(dbPath, async (conn) => {
+      expect(await queryCategories(conn, 'households')).toEqual([
         'couple_no_children',
         'couple_with_children',
         'couple_with_descendants',
@@ -164,15 +225,8 @@ describe('importDataset', () => {
         'single_person',
         'total',
       ]);
-
-      const totalRowsReader = await conn.runAndReadAll(
-        `SELECT COUNT(*) AS c FROM statistics WHERE indicator = ? AND area_type = ? AND category = ?;`,
-        ['households', 'district', 'total'],
-      );
-      expect(Number(totalRowsReader.getRowObjects()[0]?.['c'])).toBe(4);
-    } finally {
-      conn.closeSync();
-    }
+      expect(await queryCount(conn, 'households', 'total')).toBe(4);
+    });
   });
 
   it('imports marital status categories including computed total', async () => {
@@ -200,30 +254,16 @@ describe('importDataset', () => {
     expect(first.imported).toBe(20);
     expect(second.imported).toBe(20);
 
-    const db = await createDb(dbPath);
-    const conn = await db.connect();
-    try {
-      const categoriesReader = await conn.runAndReadAll(
-        `
-        SELECT category
-        FROM statistics
-        WHERE indicator = ? AND area_type = ?
-        GROUP BY category
-        ORDER BY category ASC;
-        `,
-        ['marital_status', 'district'],
-      );
-      const categories = categoriesReader.getRowObjects().map((r) => String(r['category']));
-      expect(categories).toEqual(['divorced', 'married', 'single', 'total', 'widowed']);
-
-      const totalRowsReader = await conn.runAndReadAll(
-        `SELECT COUNT(*) AS c FROM statistics WHERE indicator = ? AND area_type = ? AND category = ?;`,
-        ['marital_status', 'district', 'total'],
-      );
-      expect(Number(totalRowsReader.getRowObjects()[0]?.['c'])).toBe(4);
-    } finally {
-      conn.closeSync();
-    }
+    await withConn(dbPath, async (conn) => {
+      expect(await queryCategories(conn, 'marital_status')).toEqual([
+        'divorced',
+        'married',
+        'single',
+        'total',
+        'widowed',
+      ]);
+      expect(await queryCount(conn, 'marital_status', 'total')).toBe(4);
+    });
   });
 
   it('imports gender categories and parses year from Datum', async () => {
@@ -246,46 +286,11 @@ describe('importDataset', () => {
     expect(first.imported).toBe(12);
     expect(second.imported).toBe(12);
 
-    const db = await createDb(dbPath);
-    const conn = await db.connect();
-    try {
-      const categoriesReader = await conn.runAndReadAll(
-        `
-        SELECT category
-        FROM statistics
-        WHERE indicator = ? AND area_type = ?
-        GROUP BY category
-        ORDER BY category ASC;
-        `,
-        ['gender', 'district'],
-      );
-      const categories = categoriesReader.getRowObjects().map((r) => String(r['category']));
-      expect(categories).toEqual(['female', 'male', 'total']);
-
-      const totalYearsReader = await conn.runAndReadAll(
-        `
-        SELECT DISTINCT year
-        FROM statistics
-        WHERE indicator = ? AND area_type = ? AND category = ?
-        ORDER BY year ASC;
-        `,
-        ['gender', 'district', 'total'],
-      );
-      const years = totalYearsReader.getRowObjects().map((r) => Number(r['year']));
-      expect(years).toEqual([2022, 2023]);
-
-      const altstadt2022Reader = await conn.runAndReadAll(
-        `
-        SELECT value
-        FROM statistics
-        WHERE indicator = ? AND area_type = ? AND area_name = ? AND year = ? AND category = ?;
-        `,
-        ['gender', 'district', 'Altstadt', 2022, 'total'],
-      );
-      expect(Number(altstadt2022Reader.getRowObjects()[0]?.['value'])).toBe(1213);
-    } finally {
-      conn.closeSync();
-    }
+    await withConn(dbPath, async (conn) => {
+      expect(await queryCategories(conn, 'gender')).toEqual(['female', 'male', 'total']);
+      expect(await queryYears(conn, 'gender')).toEqual([2022, 2023]);
+      expect(await queryValue(conn, 'gender', 'Altstadt', 2022)).toBe(1213);
+    });
   });
 
   it('imports foreign gender categories with dedupe and trimmed area names', async () => {
@@ -315,80 +320,25 @@ describe('importDataset', () => {
     expect(first.imported).toBe(12);
     expect(second.imported).toBe(12);
 
-    const db = await createDb(dbPath);
-    const conn = await db.connect();
-    try {
-      const categoriesReader = await conn.runAndReadAll(
-        `
-        SELECT category
-        FROM statistics
-        WHERE indicator = ? AND area_type = ?
-        GROUP BY category
-        ORDER BY category ASC;
-        `,
-        ['foreign_gender', 'district'],
-      );
-      const categories = categoriesReader.getRowObjects().map((r) => String(r['category']));
-      expect(categories).toEqual(['female', 'male', 'total']);
-
-      const yearsReader = await conn.runAndReadAll(
-        `
-        SELECT DISTINCT year
-        FROM statistics
-        WHERE indicator = ? AND area_type = ? AND category = ?
-        ORDER BY year ASC;
-        `,
-        ['foreign_gender', 'district', 'total'],
-      );
-      const years = yearsReader.getRowObjects().map((r) => Number(r['year']));
-      expect(years).toEqual([2022, 2023]);
-
-      const areasReader = await conn.runAndReadAll(
-        `
-        SELECT DISTINCT area_name
-        FROM statistics
-        WHERE indicator = ? AND area_type = ?
-        ORDER BY area_name ASC;
-        `,
-        ['foreign_gender', 'district'],
-      );
-      const areas = areasReader.getRowObjects().map((r) => String(r['area_name']));
-      expect(areas).toEqual(['Altstadt', 'Vorstadt']);
-
-      const totalReader = await conn.runAndReadAll(
-        `
-        SELECT value
-        FROM statistics
-        WHERE indicator = ? AND area_type = ? AND area_name = ? AND year = ? AND category = ?;
-        `,
-        ['foreign_gender', 'district', 'Altstadt', 2023, 'total'],
-      );
-      expect(Number(totalReader.getRowObjects()[0]?.['value'])).toBe(212);
-
-      const maleReader = await conn.runAndReadAll(
-        `
-        SELECT value
-        FROM statistics
-        WHERE indicator = ? AND area_type = ? AND area_name = ? AND year = ? AND category = ?;
-        `,
-        ['foreign_gender', 'district', 'Altstadt', 2023, 'male'],
-      );
-      expect(Number(maleReader.getRowObjects()[0]?.['value'])).toBe(127);
-    } finally {
-      conn.closeSync();
-    }
+    await withConn(dbPath, async (conn) => {
+      expect(await queryCategories(conn, 'foreign_gender')).toEqual(['female', 'male', 'total']);
+      expect(await queryYears(conn, 'foreign_gender')).toEqual([2022, 2023]);
+      expect(await queryAreas(conn, 'foreign_gender')).toEqual(['Altstadt', 'Vorstadt']);
+      expect(await queryValue(conn, 'foreign_gender', 'Altstadt', 2023)).toBe(212);
+      expect(await queryValue(conn, 'foreign_gender', 'Altstadt', 2023, 'male')).toBe(127);
+    });
   });
 
   it('imports migrant gender categories with dedupe and trimmed area names', async () => {
     const migrantGenderCsv =
       [
-        'Land;Stadt;Kategorie;Merkmal;Datum;Stadtteilnummer;Stadtteil;insgesamt;m�nnlich;weiblich',
-        'de-sh;Kiel;Bevölkerung;Einwohner mit Migrationshintergrund;2022_12_31;1;Altstadt   ;350;190;160',
-        'de-sh;Kiel;Bevölkerung;Einwohner mit Migrationshintergrund;2023_12_31;1;Altstadt   ;360;195;165',
-        'de-sh;Kiel;Bevölkerung;Einwohner mit Migrationshintergrund;2023_12_31;1;Altstadt   ;364;199;165',
-        'de-sh;Kiel;Bevölkerung;Einwohner mit Migrationshintergrund;2022_12_31;2;Vorstadt;500;245;255',
-        'de-sh;Kiel;Bevölkerung;Einwohner mit Migrationshintergrund;2023_12_31;2;Vorstadt;518;253;265',
-        'de-sh;Kiel;Bevölkerung;Nicht relevant;2023_12_31;2;Vorstadt;9999;1;1',
+        'Land;Stadt;Kategorie;Merkmal;Datum;Stadtteilnummer;Stadtteil;insgesamt;m\u00e4nnlich;weiblich',
+        'de-sh;Kiel;Bev\u00f6lkerung;Einwohner mit Migrationshintergrund;2022_12_31;1;Altstadt   ;350;190;160',
+        'de-sh;Kiel;Bev\u00f6lkerung;Einwohner mit Migrationshintergrund;2023_12_31;1;Altstadt   ;360;195;165',
+        'de-sh;Kiel;Bev\u00f6lkerung;Einwohner mit Migrationshintergrund;2023_12_31;1;Altstadt   ;364;199;165',
+        'de-sh;Kiel;Bev\u00f6lkerung;Einwohner mit Migrationshintergrund;2022_12_31;2;Vorstadt;500;245;255',
+        'de-sh;Kiel;Bev\u00f6lkerung;Einwohner mit Migrationshintergrund;2023_12_31;2;Vorstadt;518;253;265',
+        'de-sh;Kiel;Bev\u00f6lkerung;Nicht relevant;2023_12_31;2;Vorstadt;9999;1;1',
       ].join('\n') + '\n';
 
     const migrantGenderCsvPath = path.join(cacheDir, DISTRICTS_MIGRANT_GENDER.csvFilename);
@@ -406,58 +356,12 @@ describe('importDataset', () => {
     expect(first.imported).toBe(12);
     expect(second.imported).toBe(12);
 
-    const db = await createDb(dbPath);
-    const conn = await db.connect();
-    try {
-      const categoriesReader = await conn.runAndReadAll(
-        `
-        SELECT category
-        FROM statistics
-        WHERE indicator = ? AND area_type = ?
-        GROUP BY category
-        ORDER BY category ASC;
-        `,
-        ['migrant_gender', 'district'],
-      );
-      const categories = categoriesReader.getRowObjects().map((r) => String(r['category']));
-      expect(categories).toEqual(['female', 'male', 'total']);
-
-      const yearsReader = await conn.runAndReadAll(
-        `
-        SELECT DISTINCT year
-        FROM statistics
-        WHERE indicator = ? AND area_type = ? AND category = ?
-        ORDER BY year ASC;
-        `,
-        ['migrant_gender', 'district', 'total'],
-      );
-      const years = yearsReader.getRowObjects().map((r) => Number(r['year']));
-      expect(years).toEqual([2022, 2023]);
-
-      const areasReader = await conn.runAndReadAll(
-        `
-        SELECT DISTINCT area_name
-        FROM statistics
-        WHERE indicator = ? AND area_type = ?
-        ORDER BY area_name ASC;
-        `,
-        ['migrant_gender', 'district'],
-      );
-      const areas = areasReader.getRowObjects().map((r) => String(r['area_name']));
-      expect(areas).toEqual(['Altstadt', 'Vorstadt']);
-
-      const totalReader = await conn.runAndReadAll(
-        `
-        SELECT value
-        FROM statistics
-        WHERE indicator = ? AND area_type = ? AND area_name = ? AND year = ? AND category = ?;
-        `,
-        ['migrant_gender', 'district', 'Altstadt', 2023, 'total'],
-      );
-      expect(Number(totalReader.getRowObjects()[0]?.['value'])).toBe(364);
-    } finally {
-      conn.closeSync();
-    }
+    await withConn(dbPath, async (conn) => {
+      expect(await queryCategories(conn, 'migrant_gender')).toEqual(['female', 'male', 'total']);
+      expect(await queryYears(conn, 'migrant_gender')).toEqual([2022, 2023]);
+      expect(await queryAreas(conn, 'migrant_gender')).toEqual(['Altstadt', 'Vorstadt']);
+      expect(await queryValue(conn, 'migrant_gender', 'Altstadt', 2023)).toBe(364);
+    });
   });
 
   it('imports foreign count from year columns with trimmed area names', async () => {
@@ -484,58 +388,12 @@ describe('importDataset', () => {
     expect(first.imported).toBe(4);
     expect(second.imported).toBe(4);
 
-    const db = await createDb(dbPath);
-    const conn = await db.connect();
-    try {
-      const categoriesReader = await conn.runAndReadAll(
-        `
-        SELECT category
-        FROM statistics
-        WHERE indicator = ? AND area_type = ?
-        GROUP BY category
-        ORDER BY category ASC;
-        `,
-        ['foreign_count', 'district'],
-      );
-      const categories = categoriesReader.getRowObjects().map((r) => String(r['category']));
-      expect(categories).toEqual(['total']);
-
-      const yearsReader = await conn.runAndReadAll(
-        `
-        SELECT DISTINCT year
-        FROM statistics
-        WHERE indicator = ? AND area_type = ? AND category = ?
-        ORDER BY year ASC;
-        `,
-        ['foreign_count', 'district', 'total'],
-      );
-      const years = yearsReader.getRowObjects().map((r) => Number(r['year']));
-      expect(years).toEqual([2022, 2023]);
-
-      const areasReader = await conn.runAndReadAll(
-        `
-        SELECT DISTINCT area_name
-        FROM statistics
-        WHERE indicator = ? AND area_type = ?
-        ORDER BY area_name ASC;
-        `,
-        ['foreign_count', 'district'],
-      );
-      const areas = areasReader.getRowObjects().map((r) => String(r['area_name']));
-      expect(areas).toEqual(['Altstadt', 'Vorstadt']);
-
-      const valueReader = await conn.runAndReadAll(
-        `
-        SELECT value
-        FROM statistics
-        WHERE indicator = ? AND area_type = ? AND area_name = ? AND year = ? AND category = ?;
-        `,
-        ['foreign_count', 'district', 'Altstadt', 2023, 'total'],
-      );
-      expect(Number(valueReader.getRowObjects()[0]?.['value'])).toBe(212);
-    } finally {
-      conn.closeSync();
-    }
+    await withConn(dbPath, async (conn) => {
+      expect(await queryCategories(conn, 'foreign_count')).toEqual(['total']);
+      expect(await queryYears(conn, 'foreign_count')).toEqual([2022, 2023]);
+      expect(await queryAreas(conn, 'foreign_count')).toEqual(['Altstadt', 'Vorstadt']);
+      expect(await queryValue(conn, 'foreign_count', 'Altstadt', 2023)).toBe(212);
+    });
   });
 
   it('imports age group categories including computed total', async () => {
@@ -557,21 +415,8 @@ describe('importDataset', () => {
     expect(first.imported).toBe(84);
     expect(second.imported).toBe(84);
 
-    const db = await createDb(dbPath);
-    const conn = await db.connect();
-    try {
-      const categoriesReader = await conn.runAndReadAll(
-        `
-        SELECT category
-        FROM statistics
-        WHERE indicator = ? AND area_type = ?
-        GROUP BY category
-        ORDER BY category ASC;
-        `,
-        ['age_groups', 'district'],
-      );
-      const categories = categoriesReader.getRowObjects().map((r) => String(r['category']));
-      expect(categories).toEqual([
+    await withConn(dbPath, async (conn) => {
+      expect(await queryCategories(conn, 'age_groups')).toEqual([
         'age_0_2',
         'age_10_11',
         'age_12_14',
@@ -594,31 +439,9 @@ describe('importDataset', () => {
         'age_80_plus',
         'total',
       ]);
-
-      const yearsReader = await conn.runAndReadAll(
-        `
-        SELECT DISTINCT year
-        FROM statistics
-        WHERE indicator = ? AND area_type = ? AND category = ?
-        ORDER BY year ASC;
-        `,
-        ['age_groups', 'district', 'total'],
-      );
-      const years = yearsReader.getRowObjects().map((r) => Number(r['year']));
-      expect(years).toEqual([2022, 2023]);
-
-      const totalReader = await conn.runAndReadAll(
-        `
-        SELECT value
-        FROM statistics
-        WHERE indicator = ? AND area_type = ? AND area_name = ? AND year = ? AND category = ?;
-        `,
-        ['age_groups', 'district', 'Altstadt', 2023, 'total'],
-      );
-      expect(Number(totalReader.getRowObjects()[0]?.['value'])).toBe(1220);
-    } finally {
-      conn.closeSync();
-    }
+      expect(await queryYears(conn, 'age_groups')).toEqual([2022, 2023]);
+      expect(await queryValue(conn, 'age_groups', 'Altstadt', 2023)).toBe(1220);
+    });
   });
 
   it('imports area hectares with decimal comma parsing', async () => {
@@ -640,46 +463,11 @@ describe('importDataset', () => {
     expect(first.imported).toBe(4);
     expect(second.imported).toBe(4);
 
-    const db = await createDb(dbPath);
-    const conn = await db.connect();
-    try {
-      const categoriesReader = await conn.runAndReadAll(
-        `
-        SELECT category
-        FROM statistics
-        WHERE indicator = ? AND area_type = ?
-        GROUP BY category
-        ORDER BY category ASC;
-        `,
-        ['area_hectares', 'district'],
-      );
-      const categories = categoriesReader.getRowObjects().map((r) => String(r['category']));
-      expect(categories).toEqual(['total']);
-
-      const yearsReader = await conn.runAndReadAll(
-        `
-        SELECT DISTINCT year
-        FROM statistics
-        WHERE indicator = ? AND area_type = ? AND category = ?
-        ORDER BY year ASC;
-        `,
-        ['area_hectares', 'district', 'total'],
-      );
-      const years = yearsReader.getRowObjects().map((r) => Number(r['year']));
-      expect(years).toEqual([2019, 2020]);
-
-      const valueReader = await conn.runAndReadAll(
-        `
-        SELECT value
-        FROM statistics
-        WHERE indicator = ? AND area_type = ? AND area_name = ? AND year = ? AND category = ?;
-        `,
-        ['area_hectares', 'district', 'Altstadt', 2020, 'total'],
-      );
-      expect(Number(valueReader.getRowObjects()[0]?.['value'])).toBeCloseTo(35.0987, 6);
-    } finally {
-      conn.closeSync();
-    }
+    await withConn(dbPath, async (conn) => {
+      expect(await queryCategories(conn, 'area_hectares')).toEqual(['total']);
+      expect(await queryYears(conn, 'area_hectares')).toEqual([2019, 2020]);
+      expect(await queryValue(conn, 'area_hectares', 'Altstadt', 2020)).toBeCloseTo(35.0987, 6);
+    });
   });
 
   it('imports unemployed counts from date-like year columns', async () => {
@@ -705,46 +493,11 @@ describe('importDataset', () => {
     expect(first.imported).toBe(4);
     expect(second.imported).toBe(4);
 
-    const db = await createDb(dbPath);
-    const conn = await db.connect();
-    try {
-      const categoriesReader = await conn.runAndReadAll(
-        `
-        SELECT category
-        FROM statistics
-        WHERE indicator = ? AND area_type = ?
-        GROUP BY category
-        ORDER BY category ASC;
-        `,
-        ['unemployed_count', 'district'],
-      );
-      const categories = categoriesReader.getRowObjects().map((r) => String(r['category']));
-      expect(categories).toEqual(['total']);
-
-      const yearsReader = await conn.runAndReadAll(
-        `
-        SELECT DISTINCT year
-        FROM statistics
-        WHERE indicator = ? AND area_type = ? AND category = ?
-        ORDER BY year ASC;
-        `,
-        ['unemployed_count', 'district', 'total'],
-      );
-      const years = yearsReader.getRowObjects().map((r) => Number(r['year']));
-      expect(years).toEqual([2022, 2023]);
-
-      const valueReader = await conn.runAndReadAll(
-        `
-        SELECT value
-        FROM statistics
-        WHERE indicator = ? AND area_type = ? AND area_name = ? AND year = ? AND category = ?;
-        `,
-        ['unemployed_count', 'district', 'Altstadt', 2023, 'total'],
-      );
-      expect(Number(valueReader.getRowObjects()[0]?.['value'])).toBe(16);
-    } finally {
-      conn.closeSync();
-    }
+    await withConn(dbPath, async (conn) => {
+      expect(await queryCategories(conn, 'unemployed_count')).toEqual(['total']);
+      expect(await queryYears(conn, 'unemployed_count')).toEqual([2022, 2023]);
+      expect(await queryValue(conn, 'unemployed_count', 'Altstadt', 2023)).toBe(16);
+    });
   });
 
   it('imports unemployed rate from date-like year columns with decimal comma', async () => {
@@ -770,46 +523,11 @@ describe('importDataset', () => {
     expect(first.imported).toBe(4);
     expect(second.imported).toBe(4);
 
-    const db = await createDb(dbPath);
-    const conn = await db.connect();
-    try {
-      const categoriesReader = await conn.runAndReadAll(
-        `
-        SELECT category
-        FROM statistics
-        WHERE indicator = ? AND area_type = ?
-        GROUP BY category
-        ORDER BY category ASC;
-        `,
-        ['unemployed_rate', 'district'],
-      );
-      const categories = categoriesReader.getRowObjects().map((r) => String(r['category']));
-      expect(categories).toEqual(['total']);
-
-      const yearsReader = await conn.runAndReadAll(
-        `
-        SELECT DISTINCT year
-        FROM statistics
-        WHERE indicator = ? AND area_type = ? AND category = ?
-        ORDER BY year ASC;
-        `,
-        ['unemployed_rate', 'district', 'total'],
-      );
-      const years = yearsReader.getRowObjects().map((r) => Number(r['year']));
-      expect(years).toEqual([2018, 2019]);
-
-      const valueReader = await conn.runAndReadAll(
-        `
-        SELECT value
-        FROM statistics
-        WHERE indicator = ? AND area_type = ? AND area_name = ? AND year = ? AND category = ?;
-        `,
-        ['unemployed_rate', 'district', 'Altstadt', 2019, 'total'],
-      );
-      expect(Number(valueReader.getRowObjects()[0]?.['value'])).toBeCloseTo(1.6, 6);
-    } finally {
-      conn.closeSync();
-    }
+    await withConn(dbPath, async (conn) => {
+      expect(await queryCategories(conn, 'unemployed_rate')).toEqual(['total']);
+      expect(await queryYears(conn, 'unemployed_rate')).toEqual([2018, 2019]);
+      expect(await queryValue(conn, 'unemployed_rate', 'Altstadt', 2019)).toBeCloseTo(1.6, 6);
+    });
   });
 
   it('imports religion categories including computed total', async () => {
@@ -831,46 +549,16 @@ describe('importDataset', () => {
     expect(first.imported).toBe(16);
     expect(second.imported).toBe(16);
 
-    const db = await createDb(dbPath);
-    const conn = await db.connect();
-    try {
-      const categoriesReader = await conn.runAndReadAll(
-        `
-        SELECT category
-        FROM statistics
-        WHERE indicator = ? AND area_type = ?
-        GROUP BY category
-        ORDER BY category ASC;
-        `,
-        ['religion', 'district'],
-      );
-      const categories = categoriesReader.getRowObjects().map((r) => String(r['category']));
-      expect(categories).toEqual(['catholic', 'evangelical', 'other_or_none', 'total']);
-
-      const yearsReader = await conn.runAndReadAll(
-        `
-        SELECT DISTINCT year
-        FROM statistics
-        WHERE indicator = ? AND area_type = ? AND category = ?
-        ORDER BY year ASC;
-        `,
-        ['religion', 'district', 'total'],
-      );
-      const years = yearsReader.getRowObjects().map((r) => Number(r['year']));
-      expect(years).toEqual([2022, 2023]);
-
-      const totalReader = await conn.runAndReadAll(
-        `
-        SELECT value
-        FROM statistics
-        WHERE indicator = ? AND area_type = ? AND area_name = ? AND year = ? AND category = ?;
-        `,
-        ['religion', 'district', 'Altstadt', 2023, 'total'],
-      );
-      expect(Number(totalReader.getRowObjects()[0]?.['value'])).toBe(1220);
-    } finally {
-      conn.closeSync();
-    }
+    await withConn(dbPath, async (conn) => {
+      expect(await queryCategories(conn, 'religion')).toEqual([
+        'catholic',
+        'evangelical',
+        'other_or_none',
+        'total',
+      ]);
+      expect(await queryYears(conn, 'religion')).toEqual([2022, 2023]);
+      expect(await queryValue(conn, 'religion', 'Altstadt', 2023)).toBe(1220);
+    });
   });
 
   it('imports selected foreign nationalities with trimmed area and empty values as zero', async () => {
@@ -901,21 +589,8 @@ describe('importDataset', () => {
     expect(first.imported).toBe(32);
     expect(second.imported).toBe(32);
 
-    const db = await createDb(dbPath);
-    const conn = await db.connect();
-    try {
-      const categoriesReader = await conn.runAndReadAll(
-        `
-        SELECT category
-        FROM statistics
-        WHERE indicator = ? AND area_type = ?
-        GROUP BY category
-        ORDER BY category ASC;
-        `,
-        ['foreign_nationalities_selected', 'district'],
-      );
-      const categories = categoriesReader.getRowObjects().map((r) => String(r['category']));
-      expect(categories).toEqual([
+    await withConn(dbPath, async (conn) => {
+      expect(await queryCategories(conn, 'foreign_nationalities_selected')).toEqual([
         'bulgaria',
         'iraq',
         'poland',
@@ -925,53 +600,16 @@ describe('importDataset', () => {
         'turkey',
         'ukraine',
       ]);
-
-      const yearsReader = await conn.runAndReadAll(
-        `
-        SELECT DISTINCT year
-        FROM statistics
-        WHERE indicator = ? AND area_type = ? AND category = ?
-        ORDER BY year ASC;
-        `,
-        ['foreign_nationalities_selected', 'district', 'total'],
-      );
-      const years = yearsReader.getRowObjects().map((r) => Number(r['year']));
-      expect(years).toEqual([2022, 2023]);
-
-      const areasReader = await conn.runAndReadAll(
-        `
-        SELECT DISTINCT area_name
-        FROM statistics
-        WHERE indicator = ? AND area_type = ?
-        ORDER BY area_name ASC;
-        `,
-        ['foreign_nationalities_selected', 'district'],
-      );
-      const areas = areasReader.getRowObjects().map((r) => String(r['area_name']));
-      expect(areas).toEqual(['Altstadt', 'Vorstadt']);
-
-      const zeroReader = await conn.runAndReadAll(
-        `
-        SELECT value
-        FROM statistics
-        WHERE indicator = ? AND area_type = ? AND area_name = ? AND year = ? AND category = ?;
-        `,
-        ['foreign_nationalities_selected', 'district', 'Vorstadt', 2022, 'bulgaria'],
-      );
-      expect(Number(zeroReader.getRowObjects()[0]?.['value'])).toBe(0);
-
-      const totalReader = await conn.runAndReadAll(
-        `
-        SELECT value
-        FROM statistics
-        WHERE indicator = ? AND area_type = ? AND area_name = ? AND year = ? AND category = ?;
-        `,
-        ['foreign_nationalities_selected', 'district', 'Altstadt', 2023, 'total'],
-      );
-      expect(Number(totalReader.getRowObjects()[0]?.['value'])).toBe(71);
-    } finally {
-      conn.closeSync();
-    }
+      expect(await queryYears(conn, 'foreign_nationalities_selected')).toEqual([2022, 2023]);
+      expect(await queryAreas(conn, 'foreign_nationalities_selected')).toEqual([
+        'Altstadt',
+        'Vorstadt',
+      ]);
+      expect(
+        await queryValue(conn, 'foreign_nationalities_selected', 'Vorstadt', 2022, 'bulgaria'),
+      ).toBe(0);
+      expect(await queryValue(conn, 'foreign_nationalities_selected', 'Altstadt', 2023)).toBe(71);
+    });
   });
 
   it('imports foreign age groups with trimmed headers and empty values as zero', async () => {
@@ -999,21 +637,8 @@ describe('importDataset', () => {
     expect(first.imported).toBe(84);
     expect(second.imported).toBe(84);
 
-    const db = await createDb(dbPath);
-    const conn = await db.connect();
-    try {
-      const categoriesReader = await conn.runAndReadAll(
-        `
-        SELECT category
-        FROM statistics
-        WHERE indicator = ? AND area_type = ?
-        GROUP BY category
-        ORDER BY category ASC;
-        `,
-        ['foreign_age_groups', 'district'],
-      );
-      const categories = categoriesReader.getRowObjects().map((r) => String(r['category']));
-      expect(categories).toEqual([
+    await withConn(dbPath, async (conn) => {
+      expect(await queryCategories(conn, 'foreign_age_groups')).toEqual([
         'age_0_2',
         'age_10_11',
         'age_12_14',
@@ -1036,53 +661,11 @@ describe('importDataset', () => {
         'age_80_plus',
         'total',
       ]);
-
-      const yearsReader = await conn.runAndReadAll(
-        `
-        SELECT DISTINCT year
-        FROM statistics
-        WHERE indicator = ? AND area_type = ? AND category = ?
-        ORDER BY year ASC;
-        `,
-        ['foreign_age_groups', 'district', 'total'],
-      );
-      const years = yearsReader.getRowObjects().map((r) => Number(r['year']));
-      expect(years).toEqual([2022, 2023]);
-
-      const areasReader = await conn.runAndReadAll(
-        `
-        SELECT DISTINCT area_name
-        FROM statistics
-        WHERE indicator = ? AND area_type = ?
-        ORDER BY area_name ASC;
-        `,
-        ['foreign_age_groups', 'district'],
-      );
-      const areas = areasReader.getRowObjects().map((r) => String(r['area_name']));
-      expect(areas).toEqual(['Altstadt', 'Vorstadt']);
-
-      const zeroReader = await conn.runAndReadAll(
-        `
-        SELECT value
-        FROM statistics
-        WHERE indicator = ? AND area_type = ? AND area_name = ? AND year = ? AND category = ?;
-        `,
-        ['foreign_age_groups', 'district', 'Altstadt', 2023, 'age_12_14'],
-      );
-      expect(Number(zeroReader.getRowObjects()[0]?.['value'])).toBe(0);
-
-      const totalReader = await conn.runAndReadAll(
-        `
-        SELECT value
-        FROM statistics
-        WHERE indicator = ? AND area_type = ? AND area_name = ? AND year = ? AND category = ?;
-        `,
-        ['foreign_age_groups', 'district', 'Altstadt', 2023, 'total'],
-      );
-      expect(Number(totalReader.getRowObjects()[0]?.['value'])).toBe(212);
-    } finally {
-      conn.closeSync();
-    }
+      expect(await queryYears(conn, 'foreign_age_groups')).toEqual([2022, 2023]);
+      expect(await queryAreas(conn, 'foreign_age_groups')).toEqual(['Altstadt', 'Vorstadt']);
+      expect(await queryValue(conn, 'foreign_age_groups', 'Altstadt', 2023, 'age_12_14')).toBe(0);
+      expect(await queryValue(conn, 'foreign_age_groups', 'Altstadt', 2023)).toBe(212);
+    });
   });
 
   it('rolls back unpivot_years imports and preserves previous data on failure', async () => {
@@ -1114,31 +697,10 @@ describe('importDataset', () => {
 
     await expect(importDataset(brokenConfig, { csvPath, dbPath })).rejects.toThrow();
 
-    const db = await createDb(dbPath);
-    const conn = await db.connect();
-    try {
-      const countReader = await conn.runAndReadAll(
-        `
-        SELECT COUNT(*) AS c
-        FROM statistics
-        WHERE indicator = ? AND area_type = ? AND category = ?;
-        `,
-        ['population', 'district', 'total'],
-      );
-      expect(Number(countReader.getRowObjects()[0]?.['c'])).toBe(4);
-
-      const valueReader = await conn.runAndReadAll(
-        `
-        SELECT value
-        FROM statistics
-        WHERE indicator = ? AND area_type = ? AND area_name = ? AND year = ? AND category = ?;
-        `,
-        ['population', 'district', 'Altstadt', 2023, 'total'],
-      );
-      expect(Number(valueReader.getRowObjects()[0]?.['value'])).toBe(1220);
-    } finally {
-      conn.closeSync();
-    }
+    await withConn(dbPath, async (conn) => {
+      expect(await queryCount(conn, 'population', 'total')).toBe(4);
+      expect(await queryValue(conn, 'population', 'Altstadt', 2023)).toBe(1220);
+    });
   });
 
   it('rolls back unpivot_categories imports and preserves previous data on failure', async () => {
@@ -1173,30 +735,9 @@ describe('importDataset', () => {
 
     await expect(importDataset(brokenConfig, { csvPath: genderCsvPath, dbPath })).rejects.toThrow();
 
-    const db = await createDb(dbPath);
-    const conn = await db.connect();
-    try {
-      const countReader = await conn.runAndReadAll(
-        `
-        SELECT COUNT(*) AS c
-        FROM statistics
-        WHERE indicator = ? AND area_type = ? AND category = ?;
-        `,
-        ['gender', 'district', 'total'],
-      );
-      expect(Number(countReader.getRowObjects()[0]?.['c'])).toBe(4);
-
-      const valueReader = await conn.runAndReadAll(
-        `
-        SELECT value
-        FROM statistics
-        WHERE indicator = ? AND area_type = ? AND area_name = ? AND year = ? AND category = ?;
-        `,
-        ['gender', 'district', 'Altstadt', 2023, 'total'],
-      );
-      expect(Number(valueReader.getRowObjects()[0]?.['value'])).toBe(1220);
-    } finally {
-      conn.closeSync();
-    }
+    await withConn(dbPath, async (conn) => {
+      expect(await queryCount(conn, 'gender', 'total')).toBe(4);
+      expect(await queryValue(conn, 'gender', 'Altstadt', 2023)).toBe(1220);
+    });
   });
 });
