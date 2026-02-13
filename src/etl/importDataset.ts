@@ -26,6 +26,7 @@ export type ImportDatasetResult = {
 
 const MIN_VALID_YEAR = 1900;
 const MAX_VALID_YEAR = 2100;
+const IMPORT_ROWS_TABLE_NAME = 'statistics_import_rows';
 
 function parseYearOrThrow(args: {
   raw: string;
@@ -84,32 +85,84 @@ function assertNever(x: never): never {
   throw new Error(`Unsupported CSV format: ${String((x as { type?: unknown }).type)}`);
 }
 
-async function deleteExistingCategoryRows(args: {
-  conn: DuckDBConnection;
-  targetTable: string;
+type DatasetScopeKey = {
   indicator: string;
-  areaType: string;
   categorySlug: string;
+};
+
+function getDatasetScopeKeys(config: DatasetConfig): DatasetScopeKey[] {
+  const format = config.format;
+  if (format.type === 'unpivot_years') {
+    return format.rows.map((row) => ({
+      indicator: row.indicator,
+      categorySlug: row.category.slug,
+    }));
+  }
+  if (format.type === 'unpivot_categories') {
+    return format.columns.map((column) => {
+      const indicator = column.indicator ?? format.indicator;
+      if (!indicator) {
+        throw new Error(
+          `Dataset ${config.id} requires indicator for unpivot_categories column ${column.category.slug}`,
+        );
+      }
+      return { indicator, categorySlug: column.category.slug };
+    });
+  }
+  return assertNever(format);
+}
+
+async function deleteStaleRowsForDataset(args: {
+  conn: DuckDBConnection;
+  config: DatasetConfig;
   log: ReturnType<typeof getEtlLogger>['log'];
   ctx: ReturnType<typeof getEtlLogger>['ctx'];
 }): Promise<void> {
-  const { conn, targetTable, indicator, areaType, categorySlug, log, ctx } = args;
-  const delRes = await conn.runAndReadAll(
-    `SELECT COUNT(*) FROM ${targetTable} WHERE indicator = ? AND area_type = ? AND category = ?;`,
-    [indicator, areaType, categorySlug],
-  );
-  const existing = firstCellAsNumber(delRes.getRows(), 'existing statistics count');
-  if (existing > 0) {
-    log.info(
-      { ...ctx, indicator, category: categorySlug, existing },
-      'etl.import: deleting existing rows',
+  const { conn, config, log, ctx } = args;
+  const targetTable = quoteIdentifier('statistics');
+  const importTable = quoteIdentifier(IMPORT_ROWS_TABLE_NAME);
+
+  for (const key of getDatasetScopeKeys(config)) {
+    const staleCountReader = await conn.runAndReadAll(
+      `
+      SELECT COUNT(*) FROM ${targetTable} AS s
+      WHERE s.indicator = ? AND s.area_type = ? AND s.category = ?
+        AND NOT EXISTS (
+          SELECT 1
+          FROM ${importTable} AS st
+          WHERE st.indicator = s.indicator
+            AND st.area_type = s.area_type
+            AND st.area_name = s.area_name
+            AND st.year = s.year
+            AND st.category = s.category
+        );
+      `,
+      [key.indicator, config.areaType, key.categorySlug],
+    );
+    const stale = firstCellAsNumber(staleCountReader.getRows(), 'stale statistics count');
+    if (stale > 0) {
+      log.info(
+        { ...ctx, indicator: key.indicator, category: key.categorySlug, stale },
+        'etl.import: deleting stale rows',
+      );
+    }
+    await conn.run(
+      `
+      DELETE FROM ${targetTable} AS s
+      WHERE s.indicator = ? AND s.area_type = ? AND s.category = ?
+        AND NOT EXISTS (
+          SELECT 1
+          FROM ${importTable} AS st
+          WHERE st.indicator = s.indicator
+            AND st.area_type = s.area_type
+            AND st.area_name = s.area_name
+            AND st.year = s.year
+            AND st.category = s.category
+        );
+      `,
+      [key.indicator, config.areaType, key.categorySlug],
     );
   }
-
-  await conn.run(
-    `DELETE FROM ${targetTable} WHERE indicator = ? AND area_type = ? AND category = ?;`,
-    [indicator, areaType, categorySlug],
-  );
 }
 
 async function normalizeRawHeaders(conn: DuckDBConnection): Promise<string[]> {
@@ -150,13 +203,10 @@ async function importUnpivotYears(args: {
   config: DatasetConfig;
   cols: readonly string[];
   yearCols: readonly string[];
-  log: ReturnType<typeof getEtlLogger>['log'];
-  ctx: ReturnType<typeof getEtlLogger>['ctx'];
-  tableName?: string | undefined;
 }): Promise<number> {
-  const { conn, config, cols, yearCols, log, ctx } = args;
+  const { conn, config, cols, yearCols } = args;
   const format = config.format;
-  const targetTable = quoteIdentifier(args.tableName ?? 'statistics');
+  const targetTable = quoteIdentifier(IMPORT_ROWS_TABLE_NAME);
 
   if (format.type !== 'unpivot_years') {
     throw new Error(`Unsupported CSV format: ${format.type}`);
@@ -190,25 +240,12 @@ async function importUnpivotYears(args: {
 
   for (const row of format.rows) {
     const categorySlug = row.category.slug;
-    await deleteExistingCategoryRows({
-      conn,
-      targetTable,
-      indicator: row.indicator,
-      areaType: config.areaType,
-      categorySlug,
-      log,
-      ctx,
-    });
-  }
-
-  for (const row of format.rows) {
-    const categorySlug = row.category.slug;
     const parsedValueExpr = row.valueExpression ? row.valueExpression : 'value';
     if (config.areaColumn) {
       const areaExpr = config.areaExpression ?? quoteIdentifier(config.areaColumn);
       await conn.run(
         `
-        INSERT INTO ${targetTable}
+        INSERT OR REPLACE INTO ${targetTable}
         SELECT
           ? AS indicator,
           ? AS area_type,
@@ -230,7 +267,7 @@ async function importUnpivotYears(args: {
     } else if (config.defaultAreaName) {
       await conn.run(
         `
-        INSERT INTO ${targetTable}
+        INSERT OR REPLACE INTO ${targetTable}
         SELECT
           ? AS indicator,
           ? AS area_type,
@@ -278,13 +315,10 @@ async function importUnpivotCategories(args: {
   conn: DuckDBConnection;
   config: DatasetConfig;
   cols: readonly string[];
-  log: ReturnType<typeof getEtlLogger>['log'];
-  ctx: ReturnType<typeof getEtlLogger>['ctx'];
-  tableName?: string | undefined;
 }): Promise<number> {
-  const { conn, config, cols, log, ctx } = args;
+  const { conn, config, cols } = args;
   const format = config.format;
-  const targetTable = quoteIdentifier(args.tableName ?? 'statistics');
+  const targetTable = quoteIdentifier(IMPORT_ROWS_TABLE_NAME);
 
   if (format.type !== 'unpivot_categories') {
     throw new Error(`Unsupported CSV format: ${format.type}`);
@@ -373,18 +407,6 @@ async function importUnpivotCategories(args: {
   });
 
   for (const planned of plannedColumns) {
-    await deleteExistingCategoryRows({
-      conn,
-      targetTable,
-      indicator: planned.indicator,
-      areaType: config.areaType,
-      categorySlug: planned.categorySlug,
-      log,
-      ctx,
-    });
-  }
-
-  for (const planned of plannedColumns) {
     const filterParts: string[] = [];
     const filterParams: Array<string | number> = [];
 
@@ -412,7 +434,7 @@ async function importUnpivotCategories(args: {
       const areaExpr = config.areaExpression ?? quoteIdentifier(config.areaColumn);
       await conn.run(
         `
-        INSERT INTO ${targetTable}
+        INSERT OR REPLACE INTO ${targetTable}
         SELECT
           ? AS indicator,
           ? AS area_type,
@@ -433,7 +455,7 @@ async function importUnpivotCategories(args: {
     } else if (config.defaultAreaName) {
       await conn.run(
         `
-        INSERT INTO ${targetTable}
+        INSERT OR REPLACE INTO ${targetTable}
         SELECT
           ? AS indicator,
           ? AS area_type,
@@ -481,9 +503,8 @@ export async function importDataset(
   type ImportStep =
     | 'load_csv_temp_table'
     | 'normalize_headers'
-    | 'prepare_stage_table'
-    | 'transaction_import'
-    | 'swap_stage_to_statistics';
+    | 'transaction_delete_scope'
+    | 'transaction_insert_rows';
 
   const started = nowMs();
 
@@ -553,66 +574,56 @@ export async function importDataset(
       'etl.import: detected columns',
     );
 
-    await runStep('prepare_stage_table', async () => {
-      await conn.run(`
-        CREATE OR REPLACE TEMP TABLE statistics_import_stage (
-          indicator TEXT,
-          area_type TEXT,
-          area_name TEXT,
-          year INTEGER,
-          value DOUBLE,
-          unit TEXT,
-          category TEXT
-        );
-      `);
-      await conn.run(`INSERT INTO statistics_import_stage SELECT * FROM statistics;`);
-    });
-
     let imported: number;
 
     await conn.run('BEGIN TRANSACTION');
     try {
-      imported = await runStep('transaction_import', async () => {
+      imported = await runStep('transaction_insert_rows', async () => {
+        await conn.run(`
+          CREATE OR REPLACE TEMP TABLE ${quoteIdentifier(IMPORT_ROWS_TABLE_NAME)} (
+            indicator TEXT,
+            area_type TEXT,
+            area_name TEXT,
+            year INTEGER,
+            value DOUBLE,
+            unit TEXT,
+            category TEXT
+          );
+        `);
+        await conn.run(
+          `DROP INDEX IF EXISTS ${quoteIdentifier(`${IMPORT_ROWS_TABLE_NAME}_unique_idx`)};`,
+        );
+        await conn.run(`
+          CREATE UNIQUE INDEX ${quoteIdentifier(`${IMPORT_ROWS_TABLE_NAME}_unique_idx`)}
+          ON ${quoteIdentifier(IMPORT_ROWS_TABLE_NAME)}(indicator, area_type, area_name, year, category);
+        `);
+
+        let importedRows: number;
         if (config.format.type === 'unpivot_years') {
-          return importUnpivotYears({
+          importedRows = await importUnpivotYears({
             conn,
             config,
             cols,
             yearCols,
-            log,
-            ctx,
-            tableName: 'statistics_import_stage',
           });
-        }
-        if (config.format.type === 'unpivot_categories') {
-          return importUnpivotCategories({
+        } else if (config.format.type === 'unpivot_categories') {
+          importedRows = await importUnpivotCategories({
             conn,
             config,
             cols,
-            log,
-            ctx,
-            tableName: 'statistics_import_stage',
           });
+        } else {
+          return assertNever(config.format);
         }
-        return assertNever(config.format);
-      });
-      await runStep('swap_stage_to_statistics', async () => {
+
         await conn.run(`
           INSERT OR REPLACE INTO statistics
-          SELECT * FROM statistics_import_stage;
+          SELECT * FROM ${quoteIdentifier(IMPORT_ROWS_TABLE_NAME)};
         `);
-        await conn.run(`
-          DELETE FROM statistics AS s
-          WHERE NOT EXISTS (
-            SELECT 1
-            FROM statistics_import_stage AS st
-            WHERE st.indicator = s.indicator
-              AND st.area_type = s.area_type
-              AND st.area_name = s.area_name
-              AND st.year = s.year
-              AND st.category = s.category
-          );
-        `);
+        return importedRows;
+      });
+      await runStep('transaction_delete_scope', async () => {
+        await deleteStaleRowsForDataset({ conn, config, log, ctx });
       });
       await conn.run('COMMIT');
     } catch (err) {

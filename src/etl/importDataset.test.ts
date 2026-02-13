@@ -183,9 +183,8 @@ describe('importDataset', () => {
         expect.arrayContaining([
           'load_csv_temp_table',
           'normalize_headers',
-          'prepare_stage_table',
-          'transaction_import',
-          'swap_stage_to_statistics',
+          'transaction_delete_scope',
+          'transaction_insert_rows',
         ]),
       );
 
@@ -195,9 +194,8 @@ describe('importDataset', () => {
         stepTimings: expect.objectContaining({
           load_csv_temp_table: expect.any(Number),
           normalize_headers: expect.any(Number),
-          prepare_stage_table: expect.any(Number),
-          transaction_import: expect.any(Number),
-          swap_stage_to_statistics: expect.any(Number),
+          transaction_delete_scope: expect.any(Number),
+          transaction_insert_rows: expect.any(Number),
         }),
       });
     } finally {
@@ -243,7 +241,7 @@ describe('importDataset', () => {
         stepTimings: expect.objectContaining({
           load_csv_temp_table: expect.any(Number),
           normalize_headers: expect.any(Number),
-          prepare_stage_table: expect.any(Number),
+          transaction_insert_rows: expect.any(Number),
         }),
       });
     } finally {
