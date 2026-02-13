@@ -208,6 +208,37 @@ describe('importDataset', () => {
     );
   });
 
+  it('imports dataset with custom csv delimiter', async () => {
+    const csv =
+      [
+        'Merkmal,Stadtteil,2022,2023',
+        'Einwohner insgesamt,Altstadt,1213,1220',
+        'Einwohner insgesamt,Gaarden-Ost,17900,18000',
+      ].join('\n') + '\n';
+
+    const commaCsvPath = path.join(cacheDir, 'districts_population_comma.csv');
+    await fs.writeFile(commaCsvPath, csv, 'utf8');
+
+    const commaConfig = {
+      ...DISTRICTS_POPULATION,
+      csvDelimiter: ',',
+    };
+
+    const res = await importDataset(commaConfig, { csvPath: commaCsvPath, dbPath });
+    expect(res.imported).toBe(4);
+  });
+
+  it('throws when csvDelimiter is not a single character', async () => {
+    const invalidDelimiterConfig = {
+      ...DISTRICTS_POPULATION,
+      csvDelimiter: ';;',
+    };
+
+    await expect(importDataset(invalidDelimiterConfig, { csvPath, dbPath })).rejects.toThrow(
+      /invalid csvDelimiter/i,
+    );
+  });
+
   it('throws descriptive error when unpivot_years yearParser returns NaN', async () => {
     const csv =
       [

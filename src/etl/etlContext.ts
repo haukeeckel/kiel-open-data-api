@@ -1,6 +1,6 @@
 export type EtlContext = {
   dataset: string;
-  step: 'fetch' | 'import';
+  step: 'fetch' | 'import' | 'run';
 };
 
 export function nowMs() {
