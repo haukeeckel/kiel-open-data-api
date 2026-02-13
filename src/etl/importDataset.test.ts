@@ -231,7 +231,7 @@ describe('importDataset', () => {
 
     await expect(
       importDataset(brokenConfig, { csvPath: unemployedCsvPath, dbPath }),
-    ).rejects.toThrow(/Invalid yearParser output.*unpivot_years.*NaN/i);
+    ).rejects.toThrow(/Invalid yearParser output.*unpivot_years.*NaN.*allowedRange=1900\.\.2100/i);
   });
 
   it('throws descriptive error when unpivot_categories yearParser returns NaN', async () => {
@@ -256,7 +256,59 @@ describe('importDataset', () => {
     };
 
     await expect(importDataset(brokenConfig, { csvPath: genderCsvPath, dbPath })).rejects.toThrow(
-      /Invalid yearParser output.*unpivot_categories.*NaN/i,
+      /Invalid yearParser output.*unpivot_categories.*NaN.*allowedRange=1900\.\.2100/i,
+    );
+  });
+
+  it('throws when unpivot_years yearParser returns year out of range', async () => {
+    const csv =
+      [
+        'Land;Stadt;Kategorie;Merkmal;Stadtteilnummer;Stadtteil;31.12.2023;31.12.2022',
+        'de-sh;Kiel;wirtschaft_arbeit;Arbeitslose;1;Altstadt;16;14',
+      ].join('\n') + '\n';
+    const unemployedCsvPath = path.join(cacheDir, DISTRICTS_UNEMPLOYED_COUNT.csvFilename);
+    await fs.writeFile(unemployedCsvPath, csv, 'utf8');
+
+    if (DISTRICTS_UNEMPLOYED_COUNT.format.type !== 'unpivot_years') {
+      throw new Error('Expected unpivot_years format for DISTRICTS_UNEMPLOYED_COUNT');
+    }
+
+    const brokenConfig = {
+      ...DISTRICTS_UNEMPLOYED_COUNT,
+      format: {
+        ...DISTRICTS_UNEMPLOYED_COUNT.format,
+        yearParser: () => 2201,
+      },
+    };
+
+    await expect(
+      importDataset(brokenConfig, { csvPath: unemployedCsvPath, dbPath }),
+    ).rejects.toThrow(/Invalid yearParser output.*unpivot_years.*2201.*allowedRange=1900\.\.2100/i);
+  });
+
+  it('throws when unpivot_categories yearParser returns year out of range', async () => {
+    const csv =
+      [
+        'Land;Stadt;Kategorie;Merkmal;Datum;Stadtteilnummer;Stadtteil;insgesamt;maennlich;weiblich',
+        'de-sh;Kiel;Bevoelkerung;Einwohner insgesamt;2023_12_31;1;Altstadt;1220;638;582',
+      ].join('\n') + '\n';
+    const genderCsvPath = path.join(cacheDir, DISTRICTS_GENDER.csvFilename);
+    await fs.writeFile(genderCsvPath, csv, 'utf8');
+
+    if (DISTRICTS_GENDER.format.type !== 'unpivot_categories') {
+      throw new Error('Expected unpivot_categories format for DISTRICTS_GENDER');
+    }
+
+    const brokenConfig = {
+      ...DISTRICTS_GENDER,
+      format: {
+        ...DISTRICTS_GENDER.format,
+        yearParser: () => 1800,
+      },
+    };
+
+    await expect(importDataset(brokenConfig, { csvPath: genderCsvPath, dbPath })).rejects.toThrow(
+      /Invalid yearParser output.*unpivot_categories.*1800.*allowedRange=1900\.\.2100/i,
     );
   });
 
@@ -389,6 +441,37 @@ describe('importDataset', () => {
       expect(await queryAreas(conn, 'foreign_gender')).toEqual(['Altstadt', 'Vorstadt']);
       expect(await queryValue(conn, 'foreign_gender', 'Altstadt', 2023)).toBe(212);
       expect(await queryValue(conn, 'foreign_gender', 'Altstadt', 2023, 'male')).toBe(127);
+    });
+  });
+
+  it('keeps last CSV row deterministically when deduping by area and year', async () => {
+    const foreignGenderCsv =
+      [
+        'Land;Stadt;Kategorie;Merkmal;Datum;Stadtteilnummer;Stadtteil;insgesamt;maennlich;weiblich',
+        'de-sh;Kiel;Bevoelkerung;Auslaender;2023_12_31;1;Altstadt;100;10;90',
+        'de-sh;Kiel;Bevoelkerung;Auslaender;2023_12_31;1;Altstadt;200;20;180',
+        'de-sh;Kiel;Bevoelkerung;Auslaender;2023_12_31;1;Altstadt;300;30;270',
+      ].join('\n') + '\n';
+
+    const foreignGenderCsvPath = path.join(cacheDir, DISTRICTS_FOREIGN_GENDER.csvFilename);
+    await fs.writeFile(foreignGenderCsvPath, foreignGenderCsv, 'utf8');
+
+    const first = await importDataset(DISTRICTS_FOREIGN_GENDER, {
+      csvPath: foreignGenderCsvPath,
+      dbPath,
+    });
+    const second = await importDataset(DISTRICTS_FOREIGN_GENDER, {
+      csvPath: foreignGenderCsvPath,
+      dbPath,
+    });
+
+    expect(first.imported).toBe(3);
+    expect(second.imported).toBe(3);
+
+    await withConn(dbPath, async (conn) => {
+      expect(await queryValue(conn, 'foreign_gender', 'Altstadt', 2023)).toBe(300);
+      expect(await queryValue(conn, 'foreign_gender', 'Altstadt', 2023, 'male')).toBe(30);
+      expect(await queryValue(conn, 'foreign_gender', 'Altstadt', 2023, 'female')).toBe(270);
     });
   });
 

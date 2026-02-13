@@ -18,28 +18,49 @@ export type UnpivotYearsFormat = {
 };
 
 export type UnpivotCategoriesColumn = {
-  valueColumn?: string | undefined;
-  valueColumns?: readonly string[] | undefined;
-  valueExpression?: string | undefined;
   category: {
     slug: string;
     label?: string | undefined;
   };
   indicator?: string | undefined;
   unit?: string | undefined;
-};
+} & (
+  | {
+      valueColumn: string;
+      valueColumns?: readonly string[] | undefined;
+      valueExpression?: string | undefined;
+    }
+  | {
+      valueColumn?: string | undefined;
+      valueColumns: readonly string[];
+      valueExpression?: string | undefined;
+    }
+  | {
+      valueColumn?: string | undefined;
+      valueColumns?: readonly string[] | undefined;
+      valueExpression: string;
+    }
+);
+
+type UnpivotCategoriesFilter =
+  | {
+      filterColumn: string;
+      filterValue: string;
+    }
+  | {
+      filterColumn?: undefined;
+      filterValue?: undefined;
+    };
 
 export type UnpivotCategoriesFormat = {
   type: 'unpivot_categories';
   yearColumn: string;
   yearParser?: ((value: string) => number) | undefined;
   dedupeByAreaYearKeepLast?: boolean | undefined;
-  filterColumn?: string | undefined;
-  filterValue?: string | undefined;
   indicator?: string | undefined;
   unit?: string | undefined;
   columns: readonly UnpivotCategoriesColumn[];
-};
+} & UnpivotCategoriesFilter;
 
 export type CsvFormat = UnpivotYearsFormat | UnpivotCategoriesFormat;
 
