@@ -87,6 +87,24 @@ export default [
   },
 
   // --- Layer boundary rules ---
+  // App must not import from ETL
+  {
+    files: ['src/app/**/*.ts'],
+    rules: {
+      'import/no-restricted-paths': [
+        'error',
+        {
+          zones: [
+            {
+              target: './src/app',
+              from: './src/etl',
+              message: 'App layer must not import from ETL layer.',
+            },
+          ],
+        },
+      ],
+    },
+  },
   // Domain must not import from app or infra
   {
     files: ['src/domains/**/*.ts'],
@@ -104,6 +122,11 @@ export default [
               target: './src/domains',
               from: './src/infra',
               message: 'Domain must not import from infra layer.',
+            },
+            {
+              target: './src/domains',
+              from: './src/schemas',
+              message: 'Domain must not import from schemas layer.',
             },
           ],
         },
