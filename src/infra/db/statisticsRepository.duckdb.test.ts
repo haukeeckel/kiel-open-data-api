@@ -159,6 +159,16 @@ describe('DuckDbStatisticsRepository', () => {
 
       expect(result.rows).toEqual([]);
     });
+
+    it('filters areas by category', async () => {
+      const result = await repo.listAreas({
+        indicator: 'households',
+        areaType: 'district',
+        category: 'single_person',
+      });
+
+      expect(result.rows).toEqual(['Altstadt', 'Gaarden-Ost']);
+    });
   });
 
   describe('getRanking', () => {
