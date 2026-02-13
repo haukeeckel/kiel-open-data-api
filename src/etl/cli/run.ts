@@ -1,42 +1,57 @@
 import { flushLogger } from '../../logger/flush.js';
-import { getAllDatasets, getAllDatasetIds, getDataset } from '../datasets/registry.js';
 import { getEtlLogger } from '../etlLogger.js';
 import { fetchDataset } from '../fetchDataset.js';
 import { importDataset } from '../importDataset.js';
 
-function usage() {
-  return `Usage: tsx src/etl/cli/run.ts <dataset-id> | --all\nKnown datasets: ${getAllDatasetIds().join(', ')}`;
-}
+import { buildUsage, isDirectCliEntry, parseCliArgs } from './shared.js';
 
-function resolveDatasets(argv: readonly string[]) {
-  if (argv.length === 1) {
-    const [arg] = argv;
-    if (arg === '--all') return getAllDatasets();
-    if (arg) return [getDataset(arg)];
-  }
-  throw new Error(usage());
-}
+const RUN_NUMERIC_FLAGS = ['retries', 'base-delay-ms', 'max-delay-ms', 'timeout-ms'] as const;
 
-async function main() {
-  const { log } = getEtlLogger('fetch', 'cli');
+export async function runCli(argv: readonly string[]): Promise<number> {
+  const { log } = getEtlLogger('run', 'cli');
   try {
-    const datasets = resolveDatasets(process.argv.slice(2));
+    const { datasets, numericFlags } = parseCliArgs(argv, {
+      scriptName: 'run.ts',
+      numericFlags: RUN_NUMERIC_FLAGS,
+    });
 
     for (const dataset of datasets) {
-      const fetchRes = await fetchDataset(dataset);
+      const fetchRes = await fetchDataset(dataset, {
+        retries: numericFlags['retries'],
+        baseDelayMs: numericFlags['base-delay-ms'],
+        maxDelayMs: numericFlags['max-delay-ms'],
+        timeoutMs: numericFlags['timeout-ms'],
+      });
       log.info({ dataset: dataset.id, ...fetchRes }, 'etl.run: fetch done');
 
-      const importRes = await importDataset(dataset);
-      log.info({ dataset: dataset.id, ...importRes }, 'etl.run: import done');
+      try {
+        const importRes = await importDataset(dataset);
+        log.info({ dataset: dataset.id, ...importRes }, 'etl.run: import done');
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (message.includes('CSV file not found:')) {
+          log.warn({ dataset: dataset.id, err }, 'etl.run: import skipped (csv missing)');
+          continue;
+        }
+        throw err;
+      }
     }
 
     await flushLogger(log);
-    process.exit(0);
+    return 0;
   } catch (err) {
     log.error({ err }, 'etl.run: fatal');
+    log.info({ usage: buildUsage('run.ts', RUN_NUMERIC_FLAGS) }, 'etl.run: usage');
     await flushLogger(log);
-    process.exit(1);
+    return 1;
   }
 }
 
-void main();
+async function main() {
+  const exitCode = await runCli(process.argv.slice(2));
+  process.exit(exitCode);
+}
+
+if (isDirectCliEntry(import.meta.url)) {
+  void main();
+}

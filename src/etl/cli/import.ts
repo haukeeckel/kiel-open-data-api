@@ -1,25 +1,13 @@
 import { flushLogger } from '../../logger/flush.js';
-import { getAllDatasets, getAllDatasetIds, getDataset } from '../datasets/registry.js';
 import { getEtlLogger } from '../etlLogger.js';
 import { importDataset } from '../importDataset.js';
 
-function usage() {
-  return `Usage: tsx src/etl/cli/import.ts <dataset-id> | --all\nKnown datasets: ${getAllDatasetIds().join(', ')}`;
-}
+import { buildUsage, isDirectCliEntry, parseCliArgs } from './shared.js';
 
-function resolveDatasets(argv: readonly string[]) {
-  if (argv.length === 1) {
-    const [arg] = argv;
-    if (arg === '--all') return getAllDatasets();
-    if (arg) return [getDataset(arg)];
-  }
-  throw new Error(usage());
-}
-
-async function main() {
+export async function runCli(argv: readonly string[]): Promise<number> {
   const { log } = getEtlLogger('import', 'cli');
   try {
-    const datasets = resolveDatasets(process.argv.slice(2));
+    const { datasets } = parseCliArgs(argv, { scriptName: 'import.ts' });
 
     for (const dataset of datasets) {
       try {
@@ -36,12 +24,20 @@ async function main() {
     }
 
     await flushLogger(log);
-    process.exit(0);
+    return 0;
   } catch (err) {
     log.error({ err }, 'etl.import: fatal');
+    log.info({ usage: buildUsage('import.ts') }, 'etl.import: usage');
     await flushLogger(log);
-    process.exit(1);
+    return 1;
   }
 }
 
-void main();
+async function main() {
+  const exitCode = await runCli(process.argv.slice(2));
+  process.exit(exitCode);
+}
+
+if (isDirectCliEntry(import.meta.url)) {
+  void main();
+}

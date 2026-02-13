@@ -1,38 +1,44 @@
 import { flushLogger } from '../../logger/flush.js';
-import { getAllDatasets, getAllDatasetIds, getDataset } from '../datasets/registry.js';
 import { getEtlLogger } from '../etlLogger.js';
 import { fetchDataset } from '../fetchDataset.js';
 
-function usage() {
-  return `Usage: tsx src/etl/cli/fetch.ts <dataset-id> | --all\nKnown datasets: ${getAllDatasetIds().join(', ')}`;
-}
+import { buildUsage, isDirectCliEntry, parseCliArgs } from './shared.js';
 
-function resolveDatasets(argv: readonly string[]) {
-  if (argv.length === 1) {
-    const [arg] = argv;
-    if (arg === '--all') return getAllDatasets();
-    if (arg) return [getDataset(arg)];
-  }
-  throw new Error(usage());
-}
+const FETCH_NUMERIC_FLAGS = ['retries', 'base-delay-ms', 'max-delay-ms', 'timeout-ms'] as const;
 
-async function main() {
+export async function runCli(argv: readonly string[]): Promise<number> {
   const { log } = getEtlLogger('fetch', 'cli');
   try {
-    const datasets = resolveDatasets(process.argv.slice(2));
+    const { datasets, numericFlags } = parseCliArgs(argv, {
+      scriptName: 'fetch.ts',
+      numericFlags: FETCH_NUMERIC_FLAGS,
+    });
 
     for (const dataset of datasets) {
-      const res = await fetchDataset(dataset);
+      const res = await fetchDataset(dataset, {
+        retries: numericFlags['retries'],
+        baseDelayMs: numericFlags['base-delay-ms'],
+        maxDelayMs: numericFlags['max-delay-ms'],
+        timeoutMs: numericFlags['timeout-ms'],
+      });
       log.info({ dataset: dataset.id, ...res }, 'etl.fetch: done');
     }
 
     await flushLogger(log);
-    process.exit(0);
+    return 0;
   } catch (err) {
     log.error({ err }, 'etl.fetch: fatal');
+    log.info({ usage: buildUsage('fetch.ts', FETCH_NUMERIC_FLAGS) }, 'etl.fetch: usage');
     await flushLogger(log);
-    process.exit(1);
+    return 1;
   }
 }
 
-void main();
+async function main() {
+  const exitCode = await runCli(process.argv.slice(2));
+  process.exit(exitCode);
+}
+
+if (isDirectCliEntry(import.meta.url)) {
+  void main();
+}
