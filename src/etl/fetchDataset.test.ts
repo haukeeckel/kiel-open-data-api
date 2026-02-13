@@ -9,6 +9,7 @@ import { withTestEnv } from '../test/helpers/env.js';
 
 import { DISTRICTS_POPULATION } from './datasets/districts_population.js';
 import { fetchDataset } from './fetchDataset.js';
+import * as fetchWithRetryModule from './fetchWithRetry.js';
 
 vi.mock('../utils/sleep.js', () => ({
   sleep: vi.fn().mockResolvedValue(undefined),
@@ -171,4 +172,56 @@ describe('fetchDataset', () => {
       /Fetch failed: 500/i,
     );
   }, 10_000);
+
+  it('passes retry and timeout options to fetchWithRetry', async () => {
+    const csv = 'Merkmal;Stadtteil;2023\nEinwohner insgesamt;Altstadt;1220\n';
+    const fetchFn = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes('Kiel_open_data.json')) {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+      return new Response(csv, { status: 200 });
+    });
+    const spy = vi.spyOn(fetchWithRetryModule, 'fetchWithRetry');
+
+    await fetchDataset(DISTRICTS_POPULATION, {
+      cacheDir,
+      fetchFn,
+      retries: 7,
+      baseDelayMs: 11,
+      maxDelayMs: 12,
+      timeoutMs: 13,
+    });
+
+    expect(spy).toHaveBeenCalled();
+    for (const call of spy.mock.calls) {
+      const opts = call[2];
+      expect(opts).toMatchObject({
+        fetchFn,
+        retries: 7,
+        baseDelayMs: 11,
+        maxDelayMs: 12,
+        timeoutMs: 13,
+      });
+    }
+  });
+
+  it('fails cleanly when target csv path is invalid for atomic write', async () => {
+    const csv = 'Merkmal;Stadtteil;2023\nEinwohner insgesamt;Altstadt;1220\n';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(csv, { status: 200 })),
+    );
+
+    const nestedConfig = {
+      ...DISTRICTS_POPULATION,
+      csvFilename: 'nested/invalid-path.csv',
+    };
+    const outCsv = path.join(cacheDir, nestedConfig.csvFilename);
+    const outCsvTmp = `${outCsv}.tmp`;
+
+    await expect(fetchDataset(nestedConfig, { cacheDir })).rejects.toThrow();
+    expect(fssync.existsSync(outCsv)).toBe(false);
+    expect(fssync.existsSync(outCsvTmp)).toBe(false);
+  });
 });
