@@ -11,12 +11,7 @@ export class StatisticsQueryService {
     if (from !== undefined && to !== undefined && from > to) {
       throw new StatisticsValidationError('from must be <= to', { from, to });
     }
-    const result = await this.repo.getTimeseries(input);
-    if (input.category === undefined) return result;
-    return {
-      ...result,
-      rows: result.rows.filter((row) => row.category === input.category),
-    };
+    return this.repo.getTimeseries(input);
   }
 
   async listAreas(input: AreasQuery) {
@@ -28,12 +23,7 @@ export class StatisticsQueryService {
   }
 
   async getRanking(input: RankingQuery) {
-    const result = await this.repo.getRanking(input);
-    if (input.category === undefined) return result;
-    return {
-      ...result,
-      rows: result.rows.filter((row) => row.category === input.category),
-    };
+    return this.repo.getRanking(input);
   }
 
   async listIndicators() {

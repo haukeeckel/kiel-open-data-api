@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { StatisticsQueryService } from './queryService.js';
 
@@ -91,8 +91,10 @@ describe('StatisticsQueryService', () => {
     expect(result.rows).toEqual(['total']);
   });
 
-  it('filters timeseries rows to requested category', async () => {
-    const svc = new StatisticsQueryService(createFakeRepo());
+  it('passes timeseries category through and returns repository rows unchanged', async () => {
+    const repo = createFakeRepo();
+    const getTimeseriesSpy = vi.spyOn(repo, 'getTimeseries');
+    const svc = new StatisticsQueryService(repo);
 
     const result = await svc.getTimeseries({
       indicator: 'households',
@@ -100,13 +102,23 @@ describe('StatisticsQueryService', () => {
       area: 'Altstadt',
       category: 'single_person',
     });
+
+    expect(getTimeseriesSpy).toHaveBeenCalledWith({
+      indicator: 'households',
+      areaType: 'district',
+      area: 'Altstadt',
+      category: 'single_person',
+    });
     expect(result.rows).toEqual([
+      { year: 2023, value: 1, unit: 'persons', category: 'total' },
       { year: 2023, value: 2, unit: 'persons', category: 'single_person' },
     ]);
   });
 
-  it('filters ranking rows to requested category', async () => {
-    const svc = new StatisticsQueryService(createFakeRepo());
+  it('passes ranking category through and returns repository rows unchanged', async () => {
+    const repo = createFakeRepo();
+    const getRankingSpy = vi.spyOn(repo, 'getRanking');
+    const svc = new StatisticsQueryService(repo);
 
     const result = await svc.getRanking({
       indicator: 'households',
@@ -116,7 +128,17 @@ describe('StatisticsQueryService', () => {
       order: 'desc',
       category: 'single_person',
     });
+
+    expect(getRankingSpy).toHaveBeenCalledWith({
+      indicator: 'households',
+      areaType: 'district',
+      year: 2023,
+      limit: 10,
+      order: 'desc',
+      category: 'single_person',
+    });
     expect(result.rows).toEqual([
+      { area: 'Altstadt', value: 1, unit: 'persons', category: 'total' },
       { area: 'Altstadt', value: 2, unit: 'persons', category: 'single_person' },
     ]);
   });
