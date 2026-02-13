@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { firstCellAsNumber } from './sql.js';
+import { firstCellAsNumber, quoteIdentifier, quoteLiteral } from './sql.js';
 
 describe('firstCellAsNumber', () => {
   it('returns number for numeric first cell', () => {
@@ -16,5 +16,19 @@ describe('firstCellAsNumber', () => {
     expect(() => firstCellAsNumber([[null]], 'null')).toThrow(
       /\[etl\] Expected numeric result for null/i,
     );
+  });
+});
+
+describe('quoteIdentifier', () => {
+  it('wraps with double-quotes and escapes embedded quotes', () => {
+    expect(quoteIdentifier('raw')).toBe('"raw"');
+    expect(quoteIdentifier('a"b')).toBe('"a""b"');
+  });
+});
+
+describe('quoteLiteral', () => {
+  it('wraps with single-quotes and escapes embedded quotes', () => {
+    expect(quoteLiteral('raw')).toBe("'raw'");
+    expect(quoteLiteral("a'b")).toBe("'a''b'");
   });
 });
