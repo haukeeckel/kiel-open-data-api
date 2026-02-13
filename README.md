@@ -1,4 +1,4 @@
-# kiel-dashboard-api
+# kiel-open-data-api
 
 Backend/API + ETL pipeline for Kiel Open Data.
 
