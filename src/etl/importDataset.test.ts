@@ -3,7 +3,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createDb } from '../infra/db/duckdb.js';
 import { withTestEnv } from '../test/helpers/env.js';
@@ -22,6 +22,7 @@ import { DISTRICTS_POPULATION } from './datasets/districts_population.js';
 import { DISTRICTS_RELIGION } from './datasets/districts_religion.js';
 import { DISTRICTS_UNEMPLOYED_COUNT } from './datasets/districts_unemployed_count.js';
 import { DISTRICTS_UNEMPLOYED_RATE } from './datasets/districts_unemployed_rate.js';
+import * as etlLoggerModule from './etlLogger.js';
 import { importDataset } from './importDataset.js';
 
 import type { DuckDBConnection } from '@duckdb/node-api';
@@ -156,6 +157,98 @@ describe('importDataset', () => {
     await withConn(dbPath, async (conn) => {
       expect(await queryCount(conn, 'population')).toBe(4);
     });
+  });
+
+  it('logs ETL step timings and summary on successful import', async () => {
+    const csv = ['Merkmal;Stadtteil;2022', 'Einwohner insgesamt;Altstadt;1213'].join('\n') + '\n';
+    await fs.writeFile(csvPath, csv, 'utf8');
+
+    const info = vi.fn();
+    const debug = vi.fn();
+    const warn = vi.fn();
+    const error = vi.fn();
+    const child = vi.fn(() => ({ info, debug, warn, error, child }));
+
+    const loggerSpy = vi.spyOn(etlLoggerModule, 'getEtlLogger').mockReturnValue({
+      log: { info, debug, warn, error, child } as never,
+      ctx: { dataset: DISTRICTS_POPULATION.id, step: 'import' },
+    });
+
+    try {
+      await importDataset(DISTRICTS_POPULATION, { csvPath, dbPath });
+
+      const stepCalls = info.mock.calls.filter((call) => call[1] === 'etl.import: step done');
+      const stepNames = stepCalls.map((call) => String((call[0] as { step?: string }).step));
+      expect(stepNames).toEqual(
+        expect.arrayContaining([
+          'load_csv_temp_table',
+          'normalize_headers',
+          'prepare_stage_table',
+          'transaction_import',
+          'swap_stage_to_statistics',
+        ]),
+      );
+
+      const doneCall = info.mock.calls.find((call) => call[1] === 'etl.import: done');
+      expect(doneCall).toBeDefined();
+      expect(doneCall?.[0]).toMatchObject({
+        stepTimings: expect.objectContaining({
+          load_csv_temp_table: expect.any(Number),
+          normalize_headers: expect.any(Number),
+          prepare_stage_table: expect.any(Number),
+          transaction_import: expect.any(Number),
+          swap_stage_to_statistics: expect.any(Number),
+        }),
+      });
+    } finally {
+      loggerSpy.mockRestore();
+    }
+  });
+
+  it('logs failure with partial step timings', async () => {
+    const csv = ['Merkmal;Stadtteil;2022', 'Einwohner insgesamt;Altstadt;1213'].join('\n') + '\n';
+    await fs.writeFile(csvPath, csv, 'utf8');
+
+    if (DISTRICTS_POPULATION.format.type !== 'unpivot_years') {
+      throw new Error('Expected unpivot_years format for DISTRICTS_POPULATION');
+    }
+
+    const brokenConfig = {
+      ...DISTRICTS_POPULATION,
+      format: {
+        ...DISTRICTS_POPULATION.format,
+        yearParser: () => Number.NaN,
+      },
+    };
+
+    const info = vi.fn();
+    const debug = vi.fn();
+    const warn = vi.fn();
+    const error = vi.fn();
+    const child = vi.fn(() => ({ info, debug, warn, error, child }));
+
+    const loggerSpy = vi.spyOn(etlLoggerModule, 'getEtlLogger').mockReturnValue({
+      log: { info, debug, warn, error, child } as never,
+      ctx: { dataset: DISTRICTS_POPULATION.id, step: 'import' },
+    });
+
+    try {
+      await expect(importDataset(brokenConfig, { csvPath, dbPath })).rejects.toThrow(
+        /Invalid yearParser output/i,
+      );
+
+      const failCall = error.mock.calls.find((call) => call[1] === 'etl.import: failed');
+      expect(failCall).toBeDefined();
+      expect(failCall?.[0]).toMatchObject({
+        stepTimings: expect.objectContaining({
+          load_csv_temp_table: expect.any(Number),
+          normalize_headers: expect.any(Number),
+          prepare_stage_table: expect.any(Number),
+        }),
+      });
+    } finally {
+      loggerSpy.mockRestore();
+    }
   });
 
   it('throws when required columns are missing', async () => {
