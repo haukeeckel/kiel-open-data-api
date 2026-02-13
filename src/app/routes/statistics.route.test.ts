@@ -3,6 +3,399 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { cleanupDuckDbFiles, makeAppAndSeed } from '../../test/helpers/app.js';
 import { type buildServer } from '../server.js';
 
+// ---------------------------------------------------------------------------
+// Fixtures
+// ---------------------------------------------------------------------------
+
+const TIMESERIES_DEFAULT_CASES = [
+  {
+    indicator: 'population',
+    rows: [
+      { year: 2022, value: 1213, unit: 'persons', category: 'total' },
+      { year: 2023, value: 1220, unit: 'persons', category: 'total' },
+    ],
+  },
+  {
+    indicator: 'marital_status',
+    rows: [
+      { year: 2022, value: 1183, unit: 'persons', category: 'total' },
+      { year: 2023, value: 1220, unit: 'persons', category: 'total' },
+    ],
+  },
+  {
+    indicator: 'gender',
+    rows: [
+      { year: 2022, value: 1213, unit: 'persons', category: 'total' },
+      { year: 2023, value: 1220, unit: 'persons', category: 'total' },
+    ],
+  },
+  {
+    indicator: 'age_groups',
+    rows: [
+      { year: 2022, value: 1213, unit: 'persons', category: 'total' },
+      { year: 2023, value: 1220, unit: 'persons', category: 'total' },
+    ],
+  },
+  {
+    indicator: 'area_hectares',
+    rows: [
+      { year: 2019, value: 35.0987, unit: 'hectares', category: 'total' },
+      { year: 2020, value: 35.0987, unit: 'hectares', category: 'total' },
+    ],
+  },
+  {
+    indicator: 'unemployed_count',
+    rows: [
+      { year: 2022, value: 14, unit: 'persons', category: 'total' },
+      { year: 2023, value: 16, unit: 'persons', category: 'total' },
+    ],
+  },
+  {
+    indicator: 'unemployed_rate',
+    rows: [
+      { year: 2018, value: 2.3, unit: 'percent', category: 'total' },
+      { year: 2019, value: 1.6, unit: 'percent', category: 'total' },
+    ],
+  },
+  {
+    indicator: 'religion',
+    rows: [
+      { year: 2022, value: 1200, unit: 'persons', category: 'total' },
+      { year: 2023, value: 1220, unit: 'persons', category: 'total' },
+    ],
+  },
+  {
+    indicator: 'foreign_nationalities_selected',
+    rows: [
+      { year: 2022, value: 64, unit: 'persons', category: 'total' },
+      { year: 2023, value: 71, unit: 'persons', category: 'total' },
+    ],
+  },
+  {
+    indicator: 'foreign_age_groups',
+    rows: [
+      { year: 2022, value: 212, unit: 'persons', category: 'total' },
+      { year: 2023, value: 212, unit: 'persons', category: 'total' },
+    ],
+  },
+  {
+    indicator: 'foreign_gender',
+    rows: [
+      { year: 2022, value: 200, unit: 'persons', category: 'total' },
+      { year: 2023, value: 212, unit: 'persons', category: 'total' },
+    ],
+  },
+  {
+    indicator: 'foreign_count',
+    rows: [
+      { year: 2022, value: 214, unit: 'persons', category: 'total' },
+      { year: 2023, value: 212, unit: 'persons', category: 'total' },
+    ],
+  },
+  {
+    indicator: 'migrant_gender',
+    rows: [
+      { year: 2022, value: 350, unit: 'persons', category: 'total' },
+      { year: 2023, value: 364, unit: 'persons', category: 'total' },
+    ],
+  },
+];
+
+const TIMESERIES_CATEGORY_CASES = [
+  {
+    indicator: 'households',
+    category: 'single_person',
+    rows: [{ year: 2023, value: 505, unit: 'households', category: 'single_person' }],
+  },
+  {
+    indicator: 'gender',
+    category: 'male',
+    rows: [{ year: 2023, value: 638, unit: 'persons', category: 'male' }],
+  },
+  {
+    indicator: 'age_groups',
+    category: 'age_0_2',
+    rows: [{ year: 2023, value: 19, unit: 'persons', category: 'age_0_2' }],
+  },
+  {
+    indicator: 'religion',
+    category: 'evangelical',
+    rows: [{ year: 2023, value: 344, unit: 'persons', category: 'evangelical' }],
+  },
+  {
+    indicator: 'foreign_nationalities_selected',
+    category: 'turkey',
+    rows: [{ year: 2023, value: 8, unit: 'persons', category: 'turkey' }],
+  },
+  {
+    indicator: 'foreign_age_groups',
+    category: 'age_0_2',
+    rows: [{ year: 2023, value: 4, unit: 'persons', category: 'age_0_2' }],
+  },
+  {
+    indicator: 'foreign_gender',
+    category: 'male',
+    rows: [{ year: 2023, value: 127, unit: 'persons', category: 'male' }],
+  },
+  {
+    indicator: 'migrant_gender',
+    category: 'male',
+    rows: [{ year: 2023, value: 199, unit: 'persons', category: 'male' }],
+  },
+];
+
+const AREAS_SAME_DISTRICTS = [
+  'marital_status',
+  'gender',
+  'age_groups',
+  'area_hectares',
+  'unemployed_count',
+  'unemployed_rate',
+  'religion',
+  'foreign_nationalities_selected',
+  'foreign_age_groups',
+  'foreign_gender',
+  'foreign_count',
+  'migrant_gender',
+];
+
+const CATEGORIES_CASES = [
+  { indicator: 'households', rows: ['single_person', 'total'] },
+  { indicator: 'marital_status', rows: ['divorced', 'married', 'single', 'total', 'widowed'] },
+  { indicator: 'gender', rows: ['female', 'male', 'total'] },
+  {
+    indicator: 'age_groups',
+    rows: [
+      'age_0_2',
+      'age_10_11',
+      'age_12_14',
+      'age_15_17',
+      'age_18_20',
+      'age_21_24',
+      'age_25_29',
+      'age_30_34',
+      'age_35_39',
+      'age_3_5',
+      'age_40_44',
+      'age_45_49',
+      'age_50_54',
+      'age_55_59',
+      'age_60_64',
+      'age_65_69',
+      'age_6_9',
+      'age_70_74',
+      'age_75_79',
+      'age_80_plus',
+      'total',
+    ],
+  },
+  { indicator: 'area_hectares', rows: ['total'] },
+  { indicator: 'unemployed_count', rows: ['total'] },
+  { indicator: 'unemployed_rate', rows: ['total'] },
+  { indicator: 'religion', rows: ['catholic', 'evangelical', 'other_or_none', 'total'] },
+  {
+    indicator: 'foreign_nationalities_selected',
+    rows: ['bulgaria', 'iraq', 'poland', 'russia', 'syria', 'total', 'turkey', 'ukraine'],
+  },
+  {
+    indicator: 'foreign_age_groups',
+    rows: [
+      'age_0_2',
+      'age_10_11',
+      'age_12_14',
+      'age_15_17',
+      'age_18_20',
+      'age_21_24',
+      'age_25_29',
+      'age_30_34',
+      'age_35_39',
+      'age_3_5',
+      'age_40_44',
+      'age_45_49',
+      'age_50_54',
+      'age_55_59',
+      'age_60_64',
+      'age_65_69',
+      'age_6_9',
+      'age_70_74',
+      'age_75_79',
+      'age_80_plus',
+      'total',
+    ],
+  },
+  { indicator: 'foreign_gender', rows: ['female', 'male', 'total'] },
+  { indicator: 'foreign_count', rows: ['total'] },
+  { indicator: 'migrant_gender', rows: ['female', 'male', 'total'] },
+];
+
+const RANKING_DEFAULT_CASES = [
+  {
+    indicator: 'population',
+    year: 2023,
+    rows: [
+      { area: 'Gaarden-Ost', value: 18000, unit: 'persons', category: 'total' },
+      { area: 'Schreventeich', value: 9000, unit: 'persons', category: 'total' },
+    ],
+  },
+  {
+    indicator: 'marital_status',
+    year: 2023,
+    rows: [
+      { area: 'Vorstadt', value: 1648, unit: 'persons', category: 'total' },
+      { area: 'Altstadt', value: 1220, unit: 'persons', category: 'total' },
+    ],
+  },
+  {
+    indicator: 'gender',
+    year: 2023,
+    rows: [
+      { area: 'Vorstadt', value: 1648, unit: 'persons', category: 'total' },
+      { area: 'Altstadt', value: 1220, unit: 'persons', category: 'total' },
+    ],
+  },
+  {
+    indicator: 'age_groups',
+    year: 2023,
+    rows: [
+      { area: 'Vorstadt', value: 1648, unit: 'persons', category: 'total' },
+      { area: 'Altstadt', value: 1220, unit: 'persons', category: 'total' },
+    ],
+  },
+  {
+    indicator: 'area_hectares',
+    year: 2020,
+    rows: [
+      { area: 'Vorstadt', value: 45.8515, unit: 'hectares', category: 'total' },
+      { area: 'Altstadt', value: 35.0987, unit: 'hectares', category: 'total' },
+    ],
+  },
+  {
+    indicator: 'unemployed_count',
+    year: 2023,
+    rows: [
+      { area: 'Vorstadt', value: 43, unit: 'persons', category: 'total' },
+      { area: 'Altstadt', value: 16, unit: 'persons', category: 'total' },
+    ],
+  },
+  {
+    indicator: 'unemployed_rate',
+    year: 2019,
+    rows: [
+      { area: 'Vorstadt', value: 4.2, unit: 'percent', category: 'total' },
+      { area: 'Altstadt', value: 1.6, unit: 'percent', category: 'total' },
+    ],
+  },
+  {
+    indicator: 'religion',
+    year: 2023,
+    rows: [
+      { area: 'Vorstadt', value: 1648, unit: 'persons', category: 'total' },
+      { area: 'Altstadt', value: 1220, unit: 'persons', category: 'total' },
+    ],
+  },
+  {
+    indicator: 'foreign_nationalities_selected',
+    year: 2023,
+    rows: [
+      { area: 'Vorstadt', value: 75, unit: 'persons', category: 'total' },
+      { area: 'Altstadt', value: 71, unit: 'persons', category: 'total' },
+    ],
+  },
+  {
+    indicator: 'foreign_age_groups',
+    year: 2023,
+    rows: [
+      { area: 'Vorstadt', value: 324, unit: 'persons', category: 'total' },
+      { area: 'Altstadt', value: 212, unit: 'persons', category: 'total' },
+    ],
+  },
+  {
+    indicator: 'foreign_gender',
+    year: 2023,
+    rows: [
+      { area: 'Vorstadt', value: 324, unit: 'persons', category: 'total' },
+      { area: 'Altstadt', value: 212, unit: 'persons', category: 'total' },
+    ],
+  },
+  {
+    indicator: 'foreign_count',
+    year: 2023,
+    rows: [
+      { area: 'Vorstadt', value: 324, unit: 'persons', category: 'total' },
+      { area: 'Altstadt', value: 212, unit: 'persons', category: 'total' },
+    ],
+  },
+  {
+    indicator: 'migrant_gender',
+    year: 2023,
+    rows: [
+      { area: 'Vorstadt', value: 518, unit: 'persons', category: 'total' },
+      { area: 'Altstadt', value: 364, unit: 'persons', category: 'total' },
+    ],
+  },
+];
+
+const RANKING_CATEGORY_CASES = [
+  {
+    indicator: 'gender',
+    year: 2023,
+    category: 'male',
+    rows: [
+      { area: 'Vorstadt', value: 829, unit: 'persons', category: 'male' },
+      { area: 'Altstadt', value: 638, unit: 'persons', category: 'male' },
+    ],
+  },
+  {
+    indicator: 'age_groups',
+    year: 2023,
+    category: 'age_80_plus',
+    rows: [
+      { area: 'Altstadt', value: 153, unit: 'persons', category: 'age_80_plus' },
+      { area: 'Vorstadt', value: 115, unit: 'persons', category: 'age_80_plus' },
+    ],
+  },
+  {
+    indicator: 'foreign_nationalities_selected',
+    year: 2023,
+    category: 'ukraine',
+    rows: [
+      { area: 'Altstadt', value: 21, unit: 'persons', category: 'ukraine' },
+      { area: 'Vorstadt', value: 16, unit: 'persons', category: 'ukraine' },
+    ],
+  },
+  {
+    indicator: 'foreign_age_groups',
+    year: 2023,
+    category: 'age_80_plus',
+    rows: [
+      { area: 'Vorstadt', value: 7, unit: 'persons', category: 'age_80_plus' },
+      { area: 'Altstadt', value: 3, unit: 'persons', category: 'age_80_plus' },
+    ],
+  },
+  {
+    indicator: 'foreign_gender',
+    year: 2023,
+    category: 'female',
+    rows: [
+      { area: 'Vorstadt', value: 164, unit: 'persons', category: 'female' },
+      { area: 'Altstadt', value: 85, unit: 'persons', category: 'female' },
+    ],
+  },
+  {
+    indicator: 'migrant_gender',
+    year: 2023,
+    category: 'female',
+    rows: [
+      { area: 'Vorstadt', value: 265, unit: 'persons', category: 'female' },
+      { area: 'Altstadt', value: 165, unit: 'persons', category: 'female' },
+    ],
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
 describe('statistics endpoints', () => {
   let app: Awaited<ReturnType<typeof buildServer>>;
   let dbPath: string;
@@ -36,15 +429,14 @@ describe('statistics endpoints', () => {
     cleanupDuckDbFiles(dbPath);
   });
 
+  // ---- Error contracts ----
+
   describe('GET /does-not', () => {
     it('returns 404 for non-existent routes', async () => {
       const res = await app.inject({ method: 'GET', url: '/does-not-exist' });
       expect(res.statusCode).toBe(404);
       expect(res.json()).toMatchObject({
-        error: {
-          code: 'NOT_FOUND',
-          message: 'Not Found',
-        },
+        error: { code: 'NOT_FOUND', message: 'Not Found' },
         requestId: expect.any(String),
       });
     });
@@ -52,26 +444,18 @@ describe('statistics endpoints', () => {
 
   it('returns 401 error contract for client errors (does not collapse to 400)', async () => {
     const res = await app.inject({ method: 'GET', url: '/__401' });
-
     expect(res.statusCode).toBe(401);
     expect(res.json()).toMatchObject({
-      error: {
-        code: 'UNAUTHORIZED',
-        message: 'nope',
-      },
+      error: { code: 'UNAUTHORIZED', message: 'nope' },
       requestId: expect.any(String),
     });
   });
 
   it('returns 409 error contract for conflict errors', async () => {
     const res = await app.inject({ method: 'GET', url: '/__409' });
-
     expect(res.statusCode).toBe(409);
     expect(res.json()).toMatchObject({
-      error: {
-        code: 'CONFLICT',
-        message: 'conflict',
-      },
+      error: { code: 'CONFLICT', message: 'conflict' },
       requestId: expect.any(String),
     });
   });
@@ -79,26 +463,20 @@ describe('statistics endpoints', () => {
   it('returns 500 error contract on unhandled error', async () => {
     const res = await app.inject({ method: 'GET', url: '/__boom' });
     expect(res.statusCode).toBe(500);
-
     expect(res.json()).toMatchObject({
-      error: {
-        code: 'INTERNAL',
-        message: 'Internal Server Error',
-      },
+      error: { code: 'INTERNAL', message: 'Internal Server Error' },
       requestId: expect.any(String),
     });
   });
+
+  // ---- GET /v1/timeseries ----
 
   describe('GET /v1/timeseries', () => {
     it('returns 400 when required params are missing', async () => {
       const res = await app.inject({ method: 'GET', url: '/v1/timeseries' });
       expect(res.statusCode).toBe(400);
-
       expect(res.json()).toMatchObject({
-        error: {
-          code: 'BAD_REQUEST',
-          message: 'Invalid query parameters',
-        },
+        error: { code: 'BAD_REQUEST', message: 'Invalid query parameters' },
         requestId: expect.any(String),
       });
     });
@@ -108,12 +486,24 @@ describe('statistics endpoints', () => {
         method: 'GET',
         url: '/v1/timeseries?indicator=population&areaType=district&area=Altstadt&from=abc',
       });
+      expect(res.statusCode).toBe(400);
+      expect(res.json()).toMatchObject({
+        error: { code: 'BAD_REQUEST', message: 'Invalid query parameters' },
+        requestId: expect.any(String),
+      });
+    });
 
+    it('returns 400 when from is greater than to', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/timeseries?indicator=population&areaType=district&area=Altstadt&from=2024&to=2023',
+      });
       expect(res.statusCode).toBe(400);
       expect(res.json()).toMatchObject({
         error: {
           code: 'BAD_REQUEST',
-          message: 'Invalid query parameters',
+          message: 'from must be <= to',
+          details: { from: 2024, to: 2023 },
         },
         requestId: expect.any(String),
       });
@@ -124,7 +514,6 @@ describe('statistics endpoints', () => {
         method: 'GET',
         url: '/v1/timeseries?indicator=population&areaType=district&area=Altstadt',
       });
-
       expect(res.statusCode).toBe(200);
       expect(res.json()).toEqual({
         indicator: 'population',
@@ -142,376 +531,55 @@ describe('statistics endpoints', () => {
         method: 'GET',
         url: '/v1/timeseries?indicator=population&areaType=district&area=Altstadt&from=2023&to=2023',
       });
-
       expect(res.statusCode).toBe(200);
       expect(res.json()).toMatchObject({
         rows: [{ year: 2023, value: 1220, unit: 'persons', category: 'total' }],
       });
     });
 
-    it('supports category filter', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/timeseries?indicator=households&areaType=district&area=Altstadt&category=single_person',
-      });
+    it.each(TIMESERIES_DEFAULT_CASES)(
+      'returns default total rows for $indicator',
+      async ({ indicator, rows }) => {
+        const res = await app.inject({
+          method: 'GET',
+          url: `/v1/timeseries?indicator=${indicator}&areaType=district&area=Altstadt`,
+        });
+        expect(res.statusCode).toBe(200);
+        expect(res.json()).toEqual({
+          indicator,
+          areaType: 'district',
+          area: 'Altstadt',
+          rows,
+        });
+      },
+    );
 
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'households',
-        areaType: 'district',
-        area: 'Altstadt',
-        rows: [{ year: 2023, value: 505, unit: 'households', category: 'single_person' }],
-      });
-    });
-
-    it('supports marital status indicator with default total category', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/timeseries?indicator=marital_status&areaType=district&area=Altstadt',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'marital_status',
-        areaType: 'district',
-        area: 'Altstadt',
-        rows: [
-          { year: 2022, value: 1183, unit: 'persons', category: 'total' },
-          { year: 2023, value: 1220, unit: 'persons', category: 'total' },
-        ],
-      });
-    });
-
-    it('supports gender indicator with default total category', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/timeseries?indicator=gender&areaType=district&area=Altstadt',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'gender',
-        areaType: 'district',
-        area: 'Altstadt',
-        rows: [
-          { year: 2022, value: 1213, unit: 'persons', category: 'total' },
-          { year: 2023, value: 1220, unit: 'persons', category: 'total' },
-        ],
-      });
-    });
-
-    it('supports gender indicator with explicit category filter', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/timeseries?indicator=gender&areaType=district&area=Altstadt&category=male',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'gender',
-        areaType: 'district',
-        area: 'Altstadt',
-        rows: [{ year: 2023, value: 638, unit: 'persons', category: 'male' }],
-      });
-    });
-
-    it('supports age_groups indicator with default total category', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/timeseries?indicator=age_groups&areaType=district&area=Altstadt',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'age_groups',
-        areaType: 'district',
-        area: 'Altstadt',
-        rows: [
-          { year: 2022, value: 1213, unit: 'persons', category: 'total' },
-          { year: 2023, value: 1220, unit: 'persons', category: 'total' },
-        ],
-      });
-    });
-
-    it('supports age_groups indicator with explicit category filter', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/timeseries?indicator=age_groups&areaType=district&area=Altstadt&category=age_0_2',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'age_groups',
-        areaType: 'district',
-        area: 'Altstadt',
-        rows: [{ year: 2023, value: 19, unit: 'persons', category: 'age_0_2' }],
-      });
-    });
-
-    it('supports area_hectares indicator with default total category', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/timeseries?indicator=area_hectares&areaType=district&area=Altstadt',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'area_hectares',
-        areaType: 'district',
-        area: 'Altstadt',
-        rows: [
-          { year: 2019, value: 35.0987, unit: 'hectares', category: 'total' },
-          { year: 2020, value: 35.0987, unit: 'hectares', category: 'total' },
-        ],
-      });
-    });
-
-    it('supports unemployed_count indicator with default total category', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/timeseries?indicator=unemployed_count&areaType=district&area=Altstadt',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'unemployed_count',
-        areaType: 'district',
-        area: 'Altstadt',
-        rows: [
-          { year: 2022, value: 14, unit: 'persons', category: 'total' },
-          { year: 2023, value: 16, unit: 'persons', category: 'total' },
-        ],
-      });
-    });
-
-    it('supports unemployed_rate indicator with default total category', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/timeseries?indicator=unemployed_rate&areaType=district&area=Altstadt',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'unemployed_rate',
-        areaType: 'district',
-        area: 'Altstadt',
-        rows: [
-          { year: 2018, value: 2.3, unit: 'percent', category: 'total' },
-          { year: 2019, value: 1.6, unit: 'percent', category: 'total' },
-        ],
-      });
-    });
-
-    it('supports religion indicator with default total category', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/timeseries?indicator=religion&areaType=district&area=Altstadt',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'religion',
-        areaType: 'district',
-        area: 'Altstadt',
-        rows: [
-          { year: 2022, value: 1200, unit: 'persons', category: 'total' },
-          { year: 2023, value: 1220, unit: 'persons', category: 'total' },
-        ],
-      });
-    });
-
-    it('supports religion indicator with explicit category filter', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/timeseries?indicator=religion&areaType=district&area=Altstadt&category=evangelical',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'religion',
-        areaType: 'district',
-        area: 'Altstadt',
-        rows: [{ year: 2023, value: 344, unit: 'persons', category: 'evangelical' }],
-      });
-    });
-
-    it('supports foreign_nationalities_selected indicator with default total category', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/timeseries?indicator=foreign_nationalities_selected&areaType=district&area=Altstadt',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'foreign_nationalities_selected',
-        areaType: 'district',
-        area: 'Altstadt',
-        rows: [
-          { year: 2022, value: 64, unit: 'persons', category: 'total' },
-          { year: 2023, value: 71, unit: 'persons', category: 'total' },
-        ],
-      });
-    });
-
-    it('supports foreign_nationalities_selected indicator with explicit category filter', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/timeseries?indicator=foreign_nationalities_selected&areaType=district&area=Altstadt&category=turkey',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'foreign_nationalities_selected',
-        areaType: 'district',
-        area: 'Altstadt',
-        rows: [{ year: 2023, value: 8, unit: 'persons', category: 'turkey' }],
-      });
-    });
-
-    it('supports foreign_age_groups indicator with default total category', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/timeseries?indicator=foreign_age_groups&areaType=district&area=Altstadt',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'foreign_age_groups',
-        areaType: 'district',
-        area: 'Altstadt',
-        rows: [
-          { year: 2022, value: 212, unit: 'persons', category: 'total' },
-          { year: 2023, value: 212, unit: 'persons', category: 'total' },
-        ],
-      });
-    });
-
-    it('supports foreign_age_groups indicator with explicit category filter', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/timeseries?indicator=foreign_age_groups&areaType=district&area=Altstadt&category=age_0_2',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'foreign_age_groups',
-        areaType: 'district',
-        area: 'Altstadt',
-        rows: [{ year: 2023, value: 4, unit: 'persons', category: 'age_0_2' }],
-      });
-    });
-
-    it('supports foreign_gender indicator with default total category', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/timeseries?indicator=foreign_gender&areaType=district&area=Altstadt',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'foreign_gender',
-        areaType: 'district',
-        area: 'Altstadt',
-        rows: [
-          { year: 2022, value: 200, unit: 'persons', category: 'total' },
-          { year: 2023, value: 212, unit: 'persons', category: 'total' },
-        ],
-      });
-    });
-
-    it('supports foreign_gender indicator with explicit category filter', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/timeseries?indicator=foreign_gender&areaType=district&area=Altstadt&category=male',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'foreign_gender',
-        areaType: 'district',
-        area: 'Altstadt',
-        rows: [{ year: 2023, value: 127, unit: 'persons', category: 'male' }],
-      });
-    });
-
-    it('supports foreign_count indicator with default total category', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/timeseries?indicator=foreign_count&areaType=district&area=Altstadt',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'foreign_count',
-        areaType: 'district',
-        area: 'Altstadt',
-        rows: [
-          { year: 2022, value: 214, unit: 'persons', category: 'total' },
-          { year: 2023, value: 212, unit: 'persons', category: 'total' },
-        ],
-      });
-    });
-
-    it('supports migrant_gender indicator with default total category', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/timeseries?indicator=migrant_gender&areaType=district&area=Altstadt',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'migrant_gender',
-        areaType: 'district',
-        area: 'Altstadt',
-        rows: [
-          { year: 2022, value: 350, unit: 'persons', category: 'total' },
-          { year: 2023, value: 364, unit: 'persons', category: 'total' },
-        ],
-      });
-    });
-
-    it('supports migrant_gender indicator with explicit category filter', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/timeseries?indicator=migrant_gender&areaType=district&area=Altstadt&category=male',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'migrant_gender',
-        areaType: 'district',
-        area: 'Altstadt',
-        rows: [{ year: 2023, value: 199, unit: 'persons', category: 'male' }],
-      });
-    });
-
-    it('returns 400 when from is greater than to', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/timeseries?indicator=population&areaType=district&area=Altstadt&from=2024&to=2023',
-      });
-
-      expect(res.statusCode).toBe(400);
-      expect(res.json()).toMatchObject({
-        error: {
-          code: 'BAD_REQUEST',
-          message: 'from must be <= to',
-          details: { from: 2024, to: 2023 },
-        },
-        requestId: expect.any(String),
-      });
-    });
+    it.each(TIMESERIES_CATEGORY_CASES)(
+      'returns $indicator rows filtered by category $category',
+      async ({ indicator, category, rows }) => {
+        const res = await app.inject({
+          method: 'GET',
+          url: `/v1/timeseries?indicator=${indicator}&areaType=district&area=Altstadt&category=${category}`,
+        });
+        expect(res.statusCode).toBe(200);
+        expect(res.json()).toEqual({
+          indicator,
+          areaType: 'district',
+          area: 'Altstadt',
+          rows,
+        });
+      },
+    );
   });
+
+  // ---- GET /v1/areas ----
 
   describe('GET /v1/areas', () => {
     it('returns 400 when required params are missing', async () => {
       const res = await app.inject({ method: 'GET', url: '/v1/areas' });
       expect(res.statusCode).toBe(400);
       expect(res.json()).toMatchObject({
-        error: {
-          code: 'BAD_REQUEST',
-          message: 'Invalid query parameters',
-        },
+        error: { code: 'BAD_REQUEST', message: 'Invalid query parameters' },
         requestId: expect.any(String),
       });
     });
@@ -521,7 +589,6 @@ describe('statistics endpoints', () => {
         method: 'GET',
         url: '/v1/areas?indicator=population&areaType=unknown&like=gaard',
       });
-
       expect(res.statusCode).toBe(200);
       expect(res.json()).toMatchObject({ rows: [] });
     });
@@ -531,10 +598,8 @@ describe('statistics endpoints', () => {
         method: 'GET',
         url: '/v1/areas?indicator=population&areaType=district',
       });
-
       expect(res.statusCode).toBe(200);
       const body = res.json();
-
       expect(body.indicator).toBe('population');
       expect(body.areaType).toBe('district');
       expect(body.rows).toEqual(['Altstadt', 'Gaarden-Ost', 'Schreventeich']);
@@ -545,7 +610,6 @@ describe('statistics endpoints', () => {
         method: 'GET',
         url: '/v1/areas?indicator=population&areaType=district&like=gaard',
       });
-
       expect(res.statusCode).toBe(200);
       expect(res.json().rows).toEqual(['Gaarden-Ost']);
     });
@@ -555,369 +619,44 @@ describe('statistics endpoints', () => {
         method: 'GET',
         url: '/v1/areas?indicator=households&areaType=district',
       });
-
       expect(res.statusCode).toBe(200);
       expect(res.json().rows).toEqual(['Altstadt', 'Gaarden-Ost']);
     });
 
-    it('supports marital status indicator with default total category', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/areas?indicator=marital_status&areaType=district',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json().rows).toEqual(['Altstadt', 'Vorstadt']);
-    });
-
-    it('supports gender indicator with default total category', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/areas?indicator=gender&areaType=district',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json().rows).toEqual(['Altstadt', 'Vorstadt']);
-    });
-
-    it('supports age_groups indicator with default total category', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/areas?indicator=age_groups&areaType=district',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json().rows).toEqual(['Altstadt', 'Vorstadt']);
-    });
-
-    it('supports area_hectares indicator with default total category', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/areas?indicator=area_hectares&areaType=district',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json().rows).toEqual(['Altstadt', 'Vorstadt']);
-    });
-
-    it('supports unemployed_count indicator with default total category', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/areas?indicator=unemployed_count&areaType=district',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json().rows).toEqual(['Altstadt', 'Vorstadt']);
-    });
-
-    it('supports unemployed_rate indicator with default total category', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/areas?indicator=unemployed_rate&areaType=district',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json().rows).toEqual(['Altstadt', 'Vorstadt']);
-    });
-
-    it('supports religion indicator with default total category', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/areas?indicator=religion&areaType=district',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json().rows).toEqual(['Altstadt', 'Vorstadt']);
-    });
-
-    it('supports foreign_nationalities_selected indicator with default total category', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/areas?indicator=foreign_nationalities_selected&areaType=district',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json().rows).toEqual(['Altstadt', 'Vorstadt']);
-    });
-
-    it('supports foreign_age_groups indicator with default total category', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/areas?indicator=foreign_age_groups&areaType=district',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json().rows).toEqual(['Altstadt', 'Vorstadt']);
-    });
-
-    it('supports foreign_gender indicator with default total category', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/areas?indicator=foreign_gender&areaType=district',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json().rows).toEqual(['Altstadt', 'Vorstadt']);
-    });
-
-    it('supports foreign_count indicator with default total category', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/areas?indicator=foreign_count&areaType=district',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json().rows).toEqual(['Altstadt', 'Vorstadt']);
-    });
-
-    it('supports migrant_gender indicator with default total category', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/areas?indicator=migrant_gender&areaType=district',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json().rows).toEqual(['Altstadt', 'Vorstadt']);
-    });
+    it.each(AREAS_SAME_DISTRICTS)(
+      'returns areas for %s with default total category',
+      async (indicator) => {
+        const res = await app.inject({
+          method: 'GET',
+          url: `/v1/areas?indicator=${indicator}&areaType=district`,
+        });
+        expect(res.statusCode).toBe(200);
+        expect(res.json().rows).toEqual(['Altstadt', 'Vorstadt']);
+      },
+    );
   });
+
+  // ---- GET /v1/categories ----
 
   describe('GET /v1/categories', () => {
-    it('returns distinct categories for indicator and areaType', async () => {
+    it.each(CATEGORIES_CASES)('returns categories for $indicator', async ({ indicator, rows }) => {
       const res = await app.inject({
         method: 'GET',
-        url: '/v1/categories?indicator=households&areaType=district',
+        url: `/v1/categories?indicator=${indicator}&areaType=district`,
       });
-
       expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'households',
-        areaType: 'district',
-        rows: ['single_person', 'total'],
-      });
-    });
-
-    it('returns distinct marital status categories for indicator and areaType', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/categories?indicator=marital_status&areaType=district',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'marital_status',
-        areaType: 'district',
-        rows: ['divorced', 'married', 'single', 'total', 'widowed'],
-      });
-    });
-
-    it('returns distinct gender categories for indicator and areaType', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/categories?indicator=gender&areaType=district',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'gender',
-        areaType: 'district',
-        rows: ['female', 'male', 'total'],
-      });
-    });
-
-    it('returns distinct age group categories for indicator and areaType', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/categories?indicator=age_groups&areaType=district',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'age_groups',
-        areaType: 'district',
-        rows: [
-          'age_0_2',
-          'age_10_11',
-          'age_12_14',
-          'age_15_17',
-          'age_18_20',
-          'age_21_24',
-          'age_25_29',
-          'age_30_34',
-          'age_35_39',
-          'age_3_5',
-          'age_40_44',
-          'age_45_49',
-          'age_50_54',
-          'age_55_59',
-          'age_60_64',
-          'age_65_69',
-          'age_6_9',
-          'age_70_74',
-          'age_75_79',
-          'age_80_plus',
-          'total',
-        ],
-      });
-    });
-
-    it('returns distinct area categories for area_hectares indicator and areaType', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/categories?indicator=area_hectares&areaType=district',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'area_hectares',
-        areaType: 'district',
-        rows: ['total'],
-      });
-    });
-
-    it('returns distinct categories for unemployed_count indicator and areaType', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/categories?indicator=unemployed_count&areaType=district',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'unemployed_count',
-        areaType: 'district',
-        rows: ['total'],
-      });
-    });
-
-    it('returns distinct categories for unemployed_rate indicator and areaType', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/categories?indicator=unemployed_rate&areaType=district',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'unemployed_rate',
-        areaType: 'district',
-        rows: ['total'],
-      });
-    });
-
-    it('returns distinct categories for religion indicator and areaType', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/categories?indicator=religion&areaType=district',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'religion',
-        areaType: 'district',
-        rows: ['catholic', 'evangelical', 'other_or_none', 'total'],
-      });
-    });
-
-    it('returns distinct categories for foreign_nationalities_selected indicator and areaType', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/categories?indicator=foreign_nationalities_selected&areaType=district',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'foreign_nationalities_selected',
-        areaType: 'district',
-        rows: ['bulgaria', 'iraq', 'poland', 'russia', 'syria', 'total', 'turkey', 'ukraine'],
-      });
-    });
-
-    it('returns distinct categories for foreign_age_groups indicator and areaType', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/categories?indicator=foreign_age_groups&areaType=district',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'foreign_age_groups',
-        areaType: 'district',
-        rows: [
-          'age_0_2',
-          'age_10_11',
-          'age_12_14',
-          'age_15_17',
-          'age_18_20',
-          'age_21_24',
-          'age_25_29',
-          'age_30_34',
-          'age_35_39',
-          'age_3_5',
-          'age_40_44',
-          'age_45_49',
-          'age_50_54',
-          'age_55_59',
-          'age_60_64',
-          'age_65_69',
-          'age_6_9',
-          'age_70_74',
-          'age_75_79',
-          'age_80_plus',
-          'total',
-        ],
-      });
-    });
-
-    it('returns distinct categories for foreign_gender indicator and areaType', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/categories?indicator=foreign_gender&areaType=district',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'foreign_gender',
-        areaType: 'district',
-        rows: ['female', 'male', 'total'],
-      });
-    });
-
-    it('returns distinct categories for foreign_count indicator and areaType', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/categories?indicator=foreign_count&areaType=district',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'foreign_count',
-        areaType: 'district',
-        rows: ['total'],
-      });
-    });
-
-    it('returns distinct categories for migrant_gender indicator and areaType', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/categories?indicator=migrant_gender&areaType=district',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'migrant_gender',
-        areaType: 'district',
-        rows: ['female', 'male', 'total'],
-      });
+      expect(res.json()).toEqual({ indicator, areaType: 'district', rows });
     });
   });
+
+  // ---- GET /v1/ranking ----
 
   describe('GET /v1/ranking', () => {
     it('returns 400 when required params are missing', async () => {
       const res = await app.inject({ method: 'GET', url: '/v1/ranking' });
       expect(res.statusCode).toBe(400);
       expect(res.json()).toMatchObject({
-        error: {
-          code: 'BAD_REQUEST',
-          message: 'Invalid query parameters',
-        },
+        error: { code: 'BAD_REQUEST', message: 'Invalid query parameters' },
         requestId: expect.any(String),
       });
     });
@@ -927,34 +666,10 @@ describe('statistics endpoints', () => {
         method: 'GET',
         url: '/v1/ranking?indicator=population&areaType=district&year=not-a-year',
       });
-
       expect(res.statusCode).toBe(400);
       expect(res.json()).toMatchObject({
-        error: {
-          code: 'BAD_REQUEST',
-          message: 'Invalid query parameters',
-        },
+        error: { code: 'BAD_REQUEST', message: 'Invalid query parameters' },
         requestId: expect.any(String),
-      });
-    });
-
-    it('returns ranking for a year (desc)', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/ranking?indicator=population&areaType=district&year=2023&limit=2&order=desc',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'population',
-        areaType: 'district',
-        year: 2023,
-        order: 'desc',
-        limit: 2,
-        rows: [
-          { area: 'Gaarden-Ost', value: 18000, unit: 'persons', category: 'total' },
-          { area: 'Schreventeich', value: 9000, unit: 'persons', category: 'total' },
-        ],
       });
     });
 
@@ -963,378 +678,56 @@ describe('statistics endpoints', () => {
         method: 'GET',
         url: '/v1/ranking?indicator=population&areaType=district&year=2023&limit=1&order=asc',
       });
-
       expect(res.statusCode).toBe(200);
       expect(res.json().rows).toEqual([
         { area: 'Altstadt', value: 1220, unit: 'persons', category: 'total' },
       ]);
     });
 
-    it('returns ranking for marital status indicator with default total category', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/ranking?indicator=marital_status&areaType=district&year=2023&limit=2&order=desc',
-      });
+    it.each(RANKING_DEFAULT_CASES)(
+      'returns ranking for $indicator with default total (desc)',
+      async ({ indicator, year, rows }) => {
+        const res = await app.inject({
+          method: 'GET',
+          url: `/v1/ranking?indicator=${indicator}&areaType=district&year=${year}&limit=2&order=desc`,
+        });
+        expect(res.statusCode).toBe(200);
+        expect(res.json()).toEqual({
+          indicator,
+          areaType: 'district',
+          year,
+          order: 'desc',
+          limit: 2,
+          rows,
+        });
+      },
+    );
 
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'marital_status',
-        areaType: 'district',
-        year: 2023,
-        order: 'desc',
-        limit: 2,
-        rows: [
-          { area: 'Vorstadt', value: 1648, unit: 'persons', category: 'total' },
-          { area: 'Altstadt', value: 1220, unit: 'persons', category: 'total' },
-        ],
-      });
-    });
-
-    it('returns ranking for gender indicator with default total category', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/ranking?indicator=gender&areaType=district&year=2023&limit=2&order=desc',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'gender',
-        areaType: 'district',
-        year: 2023,
-        order: 'desc',
-        limit: 2,
-        rows: [
-          { area: 'Vorstadt', value: 1648, unit: 'persons', category: 'total' },
-          { area: 'Altstadt', value: 1220, unit: 'persons', category: 'total' },
-        ],
-      });
-    });
-
-    it('returns ranking for gender indicator with explicit category filter', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/ranking?indicator=gender&areaType=district&year=2023&category=male&limit=2&order=desc',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'gender',
-        areaType: 'district',
-        year: 2023,
-        order: 'desc',
-        limit: 2,
-        rows: [
-          { area: 'Vorstadt', value: 829, unit: 'persons', category: 'male' },
-          { area: 'Altstadt', value: 638, unit: 'persons', category: 'male' },
-        ],
-      });
-    });
-
-    it('returns ranking for age_groups indicator with default total category', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/ranking?indicator=age_groups&areaType=district&year=2023&limit=2&order=desc',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'age_groups',
-        areaType: 'district',
-        year: 2023,
-        order: 'desc',
-        limit: 2,
-        rows: [
-          { area: 'Vorstadt', value: 1648, unit: 'persons', category: 'total' },
-          { area: 'Altstadt', value: 1220, unit: 'persons', category: 'total' },
-        ],
-      });
-    });
-
-    it('returns ranking for age_groups indicator with explicit category filter', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/ranking?indicator=age_groups&areaType=district&year=2023&category=age_80_plus&limit=2&order=desc',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'age_groups',
-        areaType: 'district',
-        year: 2023,
-        order: 'desc',
-        limit: 2,
-        rows: [
-          { area: 'Altstadt', value: 153, unit: 'persons', category: 'age_80_plus' },
-          { area: 'Vorstadt', value: 115, unit: 'persons', category: 'age_80_plus' },
-        ],
-      });
-    });
-
-    it('returns ranking for area_hectares indicator with default total category', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/ranking?indicator=area_hectares&areaType=district&year=2020&limit=2&order=desc',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'area_hectares',
-        areaType: 'district',
-        year: 2020,
-        order: 'desc',
-        limit: 2,
-        rows: [
-          { area: 'Vorstadt', value: 45.8515, unit: 'hectares', category: 'total' },
-          { area: 'Altstadt', value: 35.0987, unit: 'hectares', category: 'total' },
-        ],
-      });
-    });
-
-    it('returns ranking for unemployed_count indicator with default total category', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/ranking?indicator=unemployed_count&areaType=district&year=2023&limit=2&order=desc',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'unemployed_count',
-        areaType: 'district',
-        year: 2023,
-        order: 'desc',
-        limit: 2,
-        rows: [
-          { area: 'Vorstadt', value: 43, unit: 'persons', category: 'total' },
-          { area: 'Altstadt', value: 16, unit: 'persons', category: 'total' },
-        ],
-      });
-    });
-
-    it('returns ranking for unemployed_rate indicator with default total category', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/ranking?indicator=unemployed_rate&areaType=district&year=2019&limit=2&order=desc',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'unemployed_rate',
-        areaType: 'district',
-        year: 2019,
-        order: 'desc',
-        limit: 2,
-        rows: [
-          { area: 'Vorstadt', value: 4.2, unit: 'percent', category: 'total' },
-          { area: 'Altstadt', value: 1.6, unit: 'percent', category: 'total' },
-        ],
-      });
-    });
-
-    it('returns ranking for religion indicator with default total category', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/ranking?indicator=religion&areaType=district&year=2023&limit=2&order=desc',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'religion',
-        areaType: 'district',
-        year: 2023,
-        order: 'desc',
-        limit: 2,
-        rows: [
-          { area: 'Vorstadt', value: 1648, unit: 'persons', category: 'total' },
-          { area: 'Altstadt', value: 1220, unit: 'persons', category: 'total' },
-        ],
-      });
-    });
-
-    it('returns ranking for foreign_nationalities_selected indicator with default total category', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/ranking?indicator=foreign_nationalities_selected&areaType=district&year=2023&limit=2&order=desc',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'foreign_nationalities_selected',
-        areaType: 'district',
-        year: 2023,
-        order: 'desc',
-        limit: 2,
-        rows: [
-          { area: 'Vorstadt', value: 75, unit: 'persons', category: 'total' },
-          { area: 'Altstadt', value: 71, unit: 'persons', category: 'total' },
-        ],
-      });
-    });
-
-    it('returns ranking for foreign_nationalities_selected indicator with category filter', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/ranking?indicator=foreign_nationalities_selected&areaType=district&year=2023&category=ukraine&limit=2&order=desc',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'foreign_nationalities_selected',
-        areaType: 'district',
-        year: 2023,
-        order: 'desc',
-        limit: 2,
-        rows: [
-          { area: 'Altstadt', value: 21, unit: 'persons', category: 'ukraine' },
-          { area: 'Vorstadt', value: 16, unit: 'persons', category: 'ukraine' },
-        ],
-      });
-    });
-
-    it('returns ranking for foreign_age_groups indicator with default total category', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/ranking?indicator=foreign_age_groups&areaType=district&year=2023&limit=2&order=desc',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'foreign_age_groups',
-        areaType: 'district',
-        year: 2023,
-        order: 'desc',
-        limit: 2,
-        rows: [
-          { area: 'Vorstadt', value: 324, unit: 'persons', category: 'total' },
-          { area: 'Altstadt', value: 212, unit: 'persons', category: 'total' },
-        ],
-      });
-    });
-
-    it('returns ranking for foreign_age_groups indicator with category filter', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/ranking?indicator=foreign_age_groups&areaType=district&year=2023&category=age_80_plus&limit=2&order=desc',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'foreign_age_groups',
-        areaType: 'district',
-        year: 2023,
-        order: 'desc',
-        limit: 2,
-        rows: [
-          { area: 'Vorstadt', value: 7, unit: 'persons', category: 'age_80_plus' },
-          { area: 'Altstadt', value: 3, unit: 'persons', category: 'age_80_plus' },
-        ],
-      });
-    });
-
-    it('returns ranking for foreign_gender indicator with default total category', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/ranking?indicator=foreign_gender&areaType=district&year=2023&limit=2&order=desc',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'foreign_gender',
-        areaType: 'district',
-        year: 2023,
-        order: 'desc',
-        limit: 2,
-        rows: [
-          { area: 'Vorstadt', value: 324, unit: 'persons', category: 'total' },
-          { area: 'Altstadt', value: 212, unit: 'persons', category: 'total' },
-        ],
-      });
-    });
-
-    it('returns ranking for foreign_gender indicator with category filter', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/ranking?indicator=foreign_gender&areaType=district&year=2023&category=female&limit=2&order=desc',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'foreign_gender',
-        areaType: 'district',
-        year: 2023,
-        order: 'desc',
-        limit: 2,
-        rows: [
-          { area: 'Vorstadt', value: 164, unit: 'persons', category: 'female' },
-          { area: 'Altstadt', value: 85, unit: 'persons', category: 'female' },
-        ],
-      });
-    });
-
-    it('returns ranking for foreign_count indicator with default total category', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/ranking?indicator=foreign_count&areaType=district&year=2023&limit=2&order=desc',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'foreign_count',
-        areaType: 'district',
-        year: 2023,
-        order: 'desc',
-        limit: 2,
-        rows: [
-          { area: 'Vorstadt', value: 324, unit: 'persons', category: 'total' },
-          { area: 'Altstadt', value: 212, unit: 'persons', category: 'total' },
-        ],
-      });
-    });
-
-    it('returns ranking for migrant_gender indicator with default total category', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/ranking?indicator=migrant_gender&areaType=district&year=2023&limit=2&order=desc',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'migrant_gender',
-        areaType: 'district',
-        year: 2023,
-        order: 'desc',
-        limit: 2,
-        rows: [
-          { area: 'Vorstadt', value: 518, unit: 'persons', category: 'total' },
-          { area: 'Altstadt', value: 364, unit: 'persons', category: 'total' },
-        ],
-      });
-    });
-
-    it('returns ranking for migrant_gender indicator with category filter', async () => {
-      const res = await app.inject({
-        method: 'GET',
-        url: '/v1/ranking?indicator=migrant_gender&areaType=district&year=2023&category=female&limit=2&order=desc',
-      });
-
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        indicator: 'migrant_gender',
-        areaType: 'district',
-        year: 2023,
-        order: 'desc',
-        limit: 2,
-        rows: [
-          { area: 'Vorstadt', value: 265, unit: 'persons', category: 'female' },
-          { area: 'Altstadt', value: 165, unit: 'persons', category: 'female' },
-        ],
-      });
-    });
+    it.each(RANKING_CATEGORY_CASES)(
+      'returns ranking for $indicator filtered by category $category',
+      async ({ indicator, year, category, rows }) => {
+        const res = await app.inject({
+          method: 'GET',
+          url: `/v1/ranking?indicator=${indicator}&areaType=district&year=${year}&category=${category}&limit=2&order=desc`,
+        });
+        expect(res.statusCode).toBe(200);
+        expect(res.json()).toEqual({
+          indicator,
+          areaType: 'district',
+          year,
+          order: 'desc',
+          limit: 2,
+          rows,
+        });
+      },
+    );
   });
+
+  // ---- GET /v1/indicators ----
 
   describe('GET /v1/indicators', () => {
     it('returns distinct indicators sorted', async () => {
       const res = await app.inject({ method: 'GET', url: '/v1/indicators' });
-
       expect(res.statusCode).toBe(200);
       expect(res.json()).toEqual({
         rows: [
@@ -1357,14 +750,13 @@ describe('statistics endpoints', () => {
     });
   });
 
+  // ---- GET /v1/area-types ----
+
   describe('GET /v1/area-types', () => {
     it('returns distinct area types sorted', async () => {
       const res = await app.inject({ method: 'GET', url: '/v1/area-types' });
-
       expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({
-        rows: ['district'],
-      });
+      expect(res.json()).toEqual({ rows: ['district'] });
     });
   });
 });
