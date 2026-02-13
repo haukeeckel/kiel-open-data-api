@@ -16,6 +16,7 @@ describe('getEnv', () => {
       APP_VERSION: undefined,
       RATE_LIMIT_MAX: undefined,
       RATE_LIMIT_WINDOW_MS: undefined,
+      DB_QUERY_TIMEOUT_MS: undefined,
     });
 
     try {
@@ -29,6 +30,7 @@ describe('getEnv', () => {
       expect(env.APP_VERSION).toBeDefined();
       expect(env.RATE_LIMIT_MAX).toBe(100);
       expect(env.RATE_LIMIT_WINDOW_MS).toBe(60_000);
+      expect(env.DB_QUERY_TIMEOUT_MS).toBe(2_000);
     } finally {
       restoreEnv();
     }
@@ -44,6 +46,7 @@ describe('getEnv', () => {
       APP_VERSION: '9.9.9',
       RATE_LIMIT_MAX: 50,
       RATE_LIMIT_WINDOW_MS: 5000,
+      DB_QUERY_TIMEOUT_MS: 3210,
     });
 
     try {
@@ -57,6 +60,7 @@ describe('getEnv', () => {
       expect(env.APP_VERSION).toBe('9.9.9');
       expect(env.RATE_LIMIT_MAX).toBe(50);
       expect(env.RATE_LIMIT_WINDOW_MS).toBe(5000);
+      expect(env.DB_QUERY_TIMEOUT_MS).toBe(3210);
     } finally {
       restoreEnv();
     }

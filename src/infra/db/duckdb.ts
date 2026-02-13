@@ -6,11 +6,9 @@ import { DuckDBInstance } from '@duckdb/node-api';
 import { DEFAULT_RETRIES, type RetryConfig } from '../../config/retry.js';
 import { sleep } from '../../utils/sleep.js';
 
-type LoggerLike = {
-  info?: (obj: unknown, msg?: string) => void;
-  warn?: (obj: unknown, msg?: string) => void;
-  error?: (obj: unknown, msg?: string) => void;
-};
+import type { DbLogger } from './logger.js';
+
+type LoggerLike = DbLogger;
 
 type CreateDbOptions = Partial<RetryConfig> & {
   logger?: LoggerLike;
