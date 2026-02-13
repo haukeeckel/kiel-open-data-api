@@ -4,6 +4,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { applyMigrations } from './migrations.js';
 import { createDuckDbStatisticsRepository } from './statisticsRepository.duckdb.js';
 
+import type { DuckDbConnectionManager } from './duckdbConnectionManager.js';
 import type { StatisticsRepository } from '../../domains/statistics/ports/statisticsRepository.js';
 
 describe('DuckDbStatisticsRepository', () => {
@@ -13,7 +14,12 @@ describe('DuckDbStatisticsRepository', () => {
   beforeAll(async () => {
     const db = await DuckDBInstance.create(':memory:');
     conn = await db.connect();
-    repo = createDuckDbStatisticsRepository(conn);
+    const manager: DuckDbConnectionManager = {
+      withConnection: async (fn) => fn(conn),
+      healthcheck: async () => true,
+      close: async () => undefined,
+    };
+    repo = createDuckDbStatisticsRepository(manager);
 
     await applyMigrations(conn);
 
