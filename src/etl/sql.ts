@@ -6,3 +6,11 @@ export function firstCellAsNumber(rows: unknown[][], label: string): number {
 
   throw new Error(`[etl] Expected numeric result for ${label}, got: ${String(v)}`);
 }
+
+export function quoteIdentifier(identifier: string): string {
+  return `"${identifier.replaceAll('"', '""')}"`;
+}
+
+export function quoteLiteral(value: string): string {
+  return `'${value.replaceAll("'", "''")}'`;
+}

@@ -8,7 +8,7 @@ import { applyMigrations } from '../infra/db/migrations.js';
 
 import { durationMs, nowMs } from './etlContext.js';
 import { getEtlLogger } from './etlLogger.js';
-import { firstCellAsNumber } from './sql.js';
+import { firstCellAsNumber, quoteIdentifier, quoteLiteral } from './sql.js';
 
 import type { DatasetConfig } from './datasets/types.js';
 import type { DuckDBConnection } from '@duckdb/node-api';
@@ -26,14 +26,6 @@ export type ImportDatasetResult = {
 
 const MIN_VALID_YEAR = 1900;
 const MAX_VALID_YEAR = 2100;
-
-function quoteIdentifier(identifier: string): string {
-  return `"${identifier.replaceAll('"', '""')}"`;
-}
-
-function quoteLiteral(value: string): string {
-  return `'${value.replaceAll("'", "''")}'`;
-}
 
 function parseYearOrThrow(args: {
   raw: string;
@@ -64,49 +56,60 @@ function getYearColumns(columns: readonly string[], config: DatasetConfig): stri
   return columns.filter((col) => yearPattern.test(col));
 }
 
-function yearExpr(config: DatasetConfig, yearCols: readonly string[]): string {
-  if (config.format.type !== 'unpivot_years') return 'year';
-  const parseYear = config.format.yearParser;
-  if (!parseYear) return 'year';
-
-  const cases = yearCols
-    .map((col) => {
-      const parsed = parseYearOrThrow({
-        raw: col,
-        parseYear,
-        datasetId: config.id,
-        formatType: 'unpivot_years',
-      });
-      return `WHEN ${quoteLiteral(col)} THEN ${String(parsed)}`;
-    })
-    .join(' ');
-  return `CASE year ${cases} ELSE NULL END`;
-}
-
-function yearValueExpr(args: {
+function buildParsedYearCaseExpr(args: {
   datasetId: string;
-  yearValues: readonly string[];
-  parseYear?: ((value: string) => number) | undefined;
+  formatType: 'unpivot_years' | 'unpivot_categories';
+  parser?: ((value: string) => number) | undefined;
+  sourceAlias: 'year' | 'year_raw';
+  rawValues: readonly string[];
 }): string {
-  const { datasetId, yearValues, parseYear } = args;
-  if (!parseYear) return 'year_raw';
+  const { datasetId, formatType, parser, sourceAlias, rawValues } = args;
+  if (!parser) return sourceAlias;
 
-  const cases = yearValues
-    .map((value) => {
+  const cases = rawValues
+    .map((raw) => {
       const parsed = parseYearOrThrow({
-        raw: value,
-        parseYear,
+        raw,
+        parseYear: parser,
         datasetId,
-        formatType: 'unpivot_categories',
+        formatType,
       });
-      return `WHEN ${quoteLiteral(value)} THEN ${String(parsed)}`;
+      return `WHEN ${quoteLiteral(raw)} THEN ${String(parsed)}`;
     })
     .join(' ');
-  return `CASE year_raw ${cases} ELSE NULL END`;
+  return `CASE ${sourceAlias} ${cases} ELSE NULL END`;
 }
 
 function assertNever(x: never): never {
   throw new Error(`Unsupported CSV format: ${String((x as { type?: unknown }).type)}`);
+}
+
+async function deleteExistingCategoryRows(args: {
+  conn: DuckDBConnection;
+  targetTable: string;
+  indicator: string;
+  areaType: string;
+  categorySlug: string;
+  log: ReturnType<typeof getEtlLogger>['log'];
+  ctx: ReturnType<typeof getEtlLogger>['ctx'];
+}): Promise<void> {
+  const { conn, targetTable, indicator, areaType, categorySlug, log, ctx } = args;
+  const delRes = await conn.runAndReadAll(
+    `SELECT COUNT(*) FROM ${targetTable} WHERE indicator = ? AND area_type = ? AND category = ?;`,
+    [indicator, areaType, categorySlug],
+  );
+  const existing = firstCellAsNumber(delRes.getRows(), 'existing statistics count');
+  if (existing > 0) {
+    log.info(
+      { ...ctx, indicator, category: categorySlug, existing },
+      'etl.import: deleting existing rows',
+    );
+  }
+
+  await conn.run(
+    `DELETE FROM ${targetTable} WHERE indicator = ? AND area_type = ? AND category = ?;`,
+    [indicator, areaType, categorySlug],
+  );
 }
 
 async function normalizeRawHeaders(conn: DuckDBConnection): Promise<string[]> {
@@ -172,7 +175,13 @@ async function importUnpivotYears(args: {
 
   const inList = yearCols.map((col) => quoteIdentifier(col)).join(', ');
   const indicatorColumn = quoteIdentifier(format.indicatorColumn);
-  const sqlYearExpr = yearExpr(config, yearCols);
+  const sqlYearExpr = buildParsedYearCaseExpr({
+    datasetId: config.id,
+    formatType: 'unpivot_years',
+    parser: format.yearParser,
+    sourceAlias: 'year',
+    rawValues: yearCols,
+  });
   const projectedColumns = [
     indicatorColumn,
     ...(config.areaColumn ? [quoteIdentifier(config.areaColumn)] : []),
@@ -181,22 +190,15 @@ async function importUnpivotYears(args: {
 
   for (const row of format.rows) {
     const categorySlug = row.category.slug;
-    const delRes = await conn.runAndReadAll(
-      `SELECT COUNT(*) FROM ${targetTable} WHERE indicator = ? AND area_type = ? AND category = ?;`,
-      [row.indicator, config.areaType, categorySlug],
-    );
-    const existing = firstCellAsNumber(delRes.getRows(), 'existing statistics count');
-    if (existing > 0) {
-      log.info(
-        { ...ctx, indicator: row.indicator, category: categorySlug, existing },
-        'etl.import: deleting existing rows',
-      );
-    }
-
-    await conn.run(
-      `DELETE FROM ${targetTable} WHERE indicator = ? AND area_type = ? AND category = ?;`,
-      [row.indicator, config.areaType, categorySlug],
-    );
+    await deleteExistingCategoryRows({
+      conn,
+      targetTable,
+      indicator: row.indicator,
+      areaType: config.areaType,
+      categorySlug,
+      log,
+      ctx,
+    });
   }
 
   for (const row of format.rows) {
@@ -332,19 +334,15 @@ async function importUnpivotCategories(args: {
     throw new Error(`No year values found in column: ${format.yearColumn}`);
   }
 
-  const sqlYearExpr = yearValueExpr({
+  const sqlYearExpr = buildParsedYearCaseExpr({
     datasetId: config.id,
-    yearValues,
-    parseYear: format.yearParser,
+    formatType: 'unpivot_categories',
+    parser: format.yearParser,
+    sourceAlias: 'year_raw',
+    rawValues: yearValues,
   });
 
-  for (const column of format.columns) {
-    if (!column.valueColumn && !column.valueColumns && !column.valueExpression) {
-      throw new Error(
-        `Dataset ${config.id} requires valueColumn or valueExpression for category ${column.category.slug}`,
-      );
-    }
-
+  const plannedColumns = format.columns.map((column) => {
     const indicator = column.indicator ?? format.indicator;
     const unit = column.unit ?? format.unit;
     if (!indicator || !unit) {
@@ -352,40 +350,41 @@ async function importUnpivotCategories(args: {
         `Dataset ${config.id} requires indicator and unit for unpivot_categories column ${column.category.slug}`,
       );
     }
-
-    const categorySlug = column.category.slug;
-    const delRes = await conn.runAndReadAll(
-      `SELECT COUNT(*) FROM ${targetTable} WHERE indicator = ? AND area_type = ? AND category = ?;`,
-      [indicator, config.areaType, categorySlug],
-    );
-    const existing = firstCellAsNumber(delRes.getRows(), 'existing statistics count');
-    if (existing > 0) {
-      log.info(
-        { ...ctx, indicator, category: categorySlug, existing },
-        'etl.import: deleting existing rows',
-      );
-    }
-
-    await conn.run(
-      `DELETE FROM ${targetTable} WHERE indicator = ? AND area_type = ? AND category = ?;`,
-      [indicator, config.areaType, categorySlug],
-    );
-  }
-
-  for (const column of format.columns) {
-    const indicator = column.indicator ?? format.indicator;
-    const unit = column.unit ?? format.unit;
-    if (!indicator || !unit) {
-      throw new Error(
-        `Dataset ${config.id} requires indicator and unit for unpivot_categories column ${column.category.slug}`,
-      );
-    }
-
     const categorySlug = column.category.slug;
     const resolvedValueColumn = resolveValueColumn(column);
-    const valueExpr = column.valueExpression
-      ? column.valueExpression
-      : quoteIdentifier(resolvedValueColumn ?? column.valueColumn ?? '');
+    if (!column.valueExpression && !resolvedValueColumn) {
+      throw new Error(
+        `Dataset ${config.id} requires valueColumn, valueColumns or valueExpression for category ${column.category.slug}`,
+      );
+    }
+    const selectedValueColumn = resolvedValueColumn ?? column.valueColumn;
+    let valueExpr: string;
+    if (column.valueExpression) {
+      valueExpr = column.valueExpression;
+    } else {
+      if (!selectedValueColumn) {
+        throw new Error(
+          `Dataset ${config.id} requires valueColumn, valueColumns or valueExpression for category ${column.category.slug}`,
+        );
+      }
+      valueExpr = quoteIdentifier(selectedValueColumn);
+    }
+    return { indicator, unit, categorySlug, valueExpr };
+  });
+
+  for (const planned of plannedColumns) {
+    await deleteExistingCategoryRows({
+      conn,
+      targetTable,
+      indicator: planned.indicator,
+      areaType: config.areaType,
+      categorySlug: planned.categorySlug,
+      log,
+      ctx,
+    });
+  }
+
+  for (const planned of plannedColumns) {
     const filterParts: string[] = [];
     const filterParams: Array<string | number> = [];
 
@@ -393,7 +392,7 @@ async function importUnpivotCategories(args: {
       filterParts.push(`${quoteIdentifier(format.filterColumn)} = ?`);
       filterParams.push(format.filterValue);
     }
-    filterParts.push(`TRY_CAST(${valueExpr} AS DOUBLE) IS NOT NULL`);
+    filterParts.push(`TRY_CAST(${planned.valueExpr} AS DOUBLE) IS NOT NULL`);
     if (config.areaColumn) {
       filterParts.push(`${quoteIdentifier(config.areaColumn)} IS NOT NULL`);
     }
@@ -419,7 +418,7 @@ async function importUnpivotCategories(args: {
           ? AS area_type,
           ${areaExpr} AS area_name,
           CAST(${sqlYearExpr} AS INTEGER) AS year,
-          CAST(${valueExpr} AS DOUBLE) AS value,
+          CAST(${planned.valueExpr} AS DOUBLE) AS value,
           ? AS unit,
           ? AS category
         FROM (
@@ -429,7 +428,7 @@ async function importUnpivotCategories(args: {
           ${dedupeClause}
         );
         `,
-        [indicator, config.areaType, unit, categorySlug, ...filterParams],
+        [planned.indicator, config.areaType, planned.unit, planned.categorySlug, ...filterParams],
       );
     } else if (config.defaultAreaName) {
       await conn.run(
@@ -440,7 +439,7 @@ async function importUnpivotCategories(args: {
           ? AS area_type,
           ? AS area_name,
           CAST(${sqlYearExpr} AS INTEGER) AS year,
-          CAST(${valueExpr} AS DOUBLE) AS value,
+          CAST(${planned.valueExpr} AS DOUBLE) AS value,
           ? AS unit,
           ? AS category
         FROM (
@@ -450,7 +449,14 @@ async function importUnpivotCategories(args: {
           ${dedupeClause}
         );
         `,
-        [indicator, config.areaType, config.defaultAreaName, unit, categorySlug, ...filterParams],
+        [
+          planned.indicator,
+          config.areaType,
+          config.defaultAreaName,
+          planned.unit,
+          planned.categorySlug,
+          ...filterParams,
+        ],
       );
     } else {
       throw new Error(`Dataset ${config.id} requires either areaColumn or defaultAreaName`);
@@ -458,13 +464,10 @@ async function importUnpivotCategories(args: {
   }
 
   let imported = 0;
-  for (const column of format.columns) {
-    const indicator = column.indicator ?? format.indicator;
-    if (!indicator) continue;
-
+  for (const planned of plannedColumns) {
     const countRes = await conn.runAndReadAll(
       `SELECT COUNT(*) FROM ${targetTable} WHERE indicator = ? AND area_type = ? AND category = ?;`,
-      [indicator, config.areaType, column.category.slug],
+      [planned.indicator, config.areaType, planned.categorySlug],
     );
     imported += firstCellAsNumber(countRes.getRows(), 'imported statistics count');
   }
