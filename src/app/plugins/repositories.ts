@@ -23,7 +23,10 @@ export default fp<RepositoriesPluginOptions>(async function repositoriesPlugin(
   // become long-running or the app moves to a multi-instance setup.
   await dbManager.withConnection(applyMigrations);
 
-  const statisticsRepository = createDuckDbStatisticsRepository(dbManager);
+  const statisticsRepository = createDuckDbStatisticsRepository(dbManager, {
+    queryTimeoutMs: env.DB_QUERY_TIMEOUT_MS,
+    logger: dbLogger,
+  });
 
   app.decorate('dbManager', dbManager);
   app.decorate('repos', {

@@ -570,6 +570,11 @@ export async function importDataset(
     log.info({ ...ctx, imported, ms: durationMs(started) }, 'etl.import: done');
     return { imported, csvPath, dbPath };
   } finally {
-    conn.closeSync();
+    try {
+      conn.closeSync();
+    } catch {}
+    try {
+      db.closeSync();
+    } catch {}
   }
 }

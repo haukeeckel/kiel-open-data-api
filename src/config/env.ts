@@ -13,6 +13,7 @@ const EnvSchema = z
     APP_VERSION: z.string().default(process.env['npm_package_version'] ?? '0.0.0'),
     RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
     RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
+    DB_QUERY_TIMEOUT_MS: z.coerce.number().int().positive().default(2_000),
     SWAGGER_ROUTE_PREFIX: z.string().default('/docs'),
     SWAGGER_UI_ENABLED: z.string().optional(),
   })

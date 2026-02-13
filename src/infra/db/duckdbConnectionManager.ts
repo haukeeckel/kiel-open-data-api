@@ -1,13 +1,11 @@
 import { createDb } from './duckdb.js';
 
+import type { DbLogger } from './logger.js';
 import type { DuckDBConnection, DuckDBInstance } from '@duckdb/node-api';
 
 const DEFAULT_POOL_SIZE = 4;
 
-type LoggerLike = {
-  info?: (obj: unknown, msg?: string) => void;
-  warn?: (obj: unknown, msg?: string) => void;
-};
+type LoggerLike = DbLogger;
 
 export type DuckDbConnectionManager = {
   withConnection<T>(fn: (conn: DuckDBConnection) => Promise<T>): Promise<T>;
@@ -46,7 +44,7 @@ export function createDuckDbConnectionManager(
   let reconnectInFlight: Promise<void> | null = null;
 
   const init = async (): Promise<State> => {
-    const db = await createDb(options.dbPath, logger ? { logger } : undefined);
+    const db = await createDb(options.dbPath, logger !== undefined ? { logger } : undefined);
     const connections: DuckDBConnection[] = [];
     for (let i = 0; i < poolSize; i += 1) {
       connections.push(await db.connect());

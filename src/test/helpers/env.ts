@@ -11,6 +11,7 @@ type TestEnv = Partial<
     | 'APP_VERSION'
     | 'RATE_LIMIT_MAX'
     | 'RATE_LIMIT_WINDOW_MS'
+    | 'DB_QUERY_TIMEOUT_MS'
     | 'SWAGGER_ROUTE_PREFIX'
     | 'SWAGGER_UI_ENABLED'
   >

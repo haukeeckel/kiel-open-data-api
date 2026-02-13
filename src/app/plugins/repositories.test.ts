@@ -57,6 +57,10 @@ describe('repositories plugin', () => {
     });
     expect(dbManager.withConnection).toHaveBeenCalledWith(applyMigrations);
     expect(applyMigrations).toHaveBeenCalledWith(conn);
+    expect(createDuckDbStatisticsRepository).toHaveBeenCalledWith(dbManager, {
+      queryTimeoutMs: 2000,
+      logger: expect.any(Object),
+    });
     expect(app.repos.statisticsRepository).toBe(repo);
     expect(app.dbManager).toBe(dbManager);
 
