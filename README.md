@@ -77,7 +77,7 @@ cp .env.example .env
   Host interface to bind to (default: `127.0.0.1`)
 
 - `PORT`
-  Port to listen on (default: `3000`)
+  Port to listen on (default: `3000`, valid range: `1-65535`)
 
 - `DUCKDB_PATH`
   Path to DuckDB database file (default: `data/kiel.<env>.duckdb`, e.g. `data/kiel.development.duckdb`)
@@ -99,7 +99,8 @@ cp .env.example .env
   Swagger UI route prefix (default: `/docs`)
 
 - `SWAGGER_UI_ENABLED`
-  Enable Swagger UI (default: `true` for non-production, `false` for production)
+  Enable Swagger UI (default: `true` for non-production, `false` for production).
+  Allowed values: `true` or `false` (case-insensitive); other values fail on startup.
 
 ## Data & DuckDB
 

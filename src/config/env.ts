@@ -6,7 +6,7 @@ import { DEFAULT_HOST, DEFAULT_NODE_ENV, DEFAULT_PORT, NODE_ENVS } from './const
 const EnvSchema = z
   .object({
     NODE_ENV: z.enum(NODE_ENVS).default(DEFAULT_NODE_ENV),
-    PORT: z.coerce.number().int().positive().default(DEFAULT_PORT),
+    PORT: z.coerce.number().int().min(1).max(65535).default(DEFAULT_PORT),
     HOST: z.string().default(DEFAULT_HOST),
     DUCKDB_PATH: z.string().trim().optional(),
     CORS_ORIGIN: z.string().trim().optional(),
@@ -15,7 +15,12 @@ const EnvSchema = z
     RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
     DB_QUERY_TIMEOUT_MS: z.coerce.number().int().positive().default(2_000),
     SWAGGER_ROUTE_PREFIX: z.string().default('/docs'),
-    SWAGGER_UI_ENABLED: z.string().optional(),
+    SWAGGER_UI_ENABLED: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .pipe(z.enum(['true', 'false']))
+      .optional(),
   })
   .refine((env) => env.NODE_ENV !== 'production' || !!env.CORS_ORIGIN, {
     message: 'CORS_ORIGIN must be set in production',
