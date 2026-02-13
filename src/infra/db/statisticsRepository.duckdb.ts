@@ -141,8 +141,10 @@ export function createDuckDbStatisticsRepository(
           WHERE indicator = ? AND area_type = ? AND area_name = ?
         `;
 
-            sql += ` AND category = ?`;
-            params.push(input.category ?? 'total');
+            if (input.category !== undefined) {
+              sql += ` AND category = ?`;
+              params.push(input.category);
+            }
 
             if (input.from !== undefined) {
               sql += ` AND year >= ?`;
@@ -194,8 +196,10 @@ export function createDuckDbStatisticsRepository(
           WHERE indicator = ? AND area_type = ?
         `;
 
-            sql += ` AND category = ?`;
-            params.push(input.category ?? 'total');
+            if (input.category !== undefined) {
+              sql += ` AND category = ?`;
+              params.push(input.category);
+            }
 
             if (input.like) {
               sql += ` AND lower(area_name) LIKE ? ESCAPE '\\'`;
@@ -255,20 +259,21 @@ export function createDuckDbStatisticsRepository(
         withRepositoryError(
           'statistics.getRanking',
           async () => {
-            const sql = `
+            const values: Array<string | number> = [input.indicator, input.areaType, input.year];
+            let sql = `
           SELECT area_name, value, unit, category
           FROM statistics
-          WHERE indicator = ? AND area_type = ? AND year = ? AND category = ?
+          WHERE indicator = ? AND area_type = ? AND year = ?
+          `;
+            if (input.category !== undefined) {
+              sql += ` AND category = ?`;
+              values.push(input.category);
+            }
+            sql += `
           ORDER BY value ${input.order === 'asc' ? 'ASC' : 'DESC'}
           LIMIT ?
           `;
-            const values = [
-              input.indicator,
-              input.areaType,
-              input.year,
-              input.category ?? 'total',
-              input.limit,
-            ];
+            values.push(input.limit);
             const reader = await runQueryWithTimeout({
               conn,
               operation: 'statistics.getRanking',
