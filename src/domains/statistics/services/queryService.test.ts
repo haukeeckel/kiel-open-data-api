@@ -121,6 +121,38 @@ describe('StatisticsQueryService', () => {
     ]);
   });
 
+  it('returns unfiltered timeseries rows when category is omitted', async () => {
+    const svc = new StatisticsQueryService(createFakeRepo());
+
+    const result = await svc.getTimeseries({
+      indicator: 'households',
+      areaType: 'district',
+      area: 'Altstadt',
+    });
+
+    expect(result.rows).toEqual([
+      { year: 2023, value: 1, unit: 'persons', category: 'total' },
+      { year: 2023, value: 2, unit: 'persons', category: 'single_person' },
+    ]);
+  });
+
+  it('returns unfiltered ranking rows when category is omitted', async () => {
+    const svc = new StatisticsQueryService(createFakeRepo());
+
+    const result = await svc.getRanking({
+      indicator: 'households',
+      areaType: 'district',
+      year: 2023,
+      limit: 10,
+      order: 'desc',
+    });
+
+    expect(result.rows).toEqual([
+      { area: 'Altstadt', value: 1, unit: 'persons', category: 'total' },
+      { area: 'Altstadt', value: 2, unit: 'persons', category: 'single_person' },
+    ]);
+  });
+
   it('passes listIndicators through to repository', async () => {
     const svc = new StatisticsQueryService(createFakeRepo());
 
