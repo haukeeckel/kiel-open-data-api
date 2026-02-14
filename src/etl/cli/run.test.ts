@@ -27,6 +27,7 @@ vi.mock('../importDataset.js', () => ({
 }));
 
 import { DISTRICTS_POPULATION } from '../datasets/districts_population.js';
+import { CsvFileNotFoundError } from '../errors.js';
 import { fetchDataset } from '../fetchDataset.js';
 import { importDataset } from '../importDataset.js';
 
@@ -61,9 +62,7 @@ describe('etl run cli', () => {
   });
 
   it('warns and continues when csv is missing during import', async () => {
-    vi.mocked(importDataset).mockRejectedValueOnce(
-      new Error('CSV file not found: /tmp/missing.csv'),
-    );
+    vi.mocked(importDataset).mockRejectedValueOnce(new CsvFileNotFoundError('/tmp/missing.csv'));
 
     const exitCode = await runCli([DISTRICTS_POPULATION.id]);
 

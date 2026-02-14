@@ -19,7 +19,11 @@ describe('applyMigrations', () => {
         const placeholders = row.map(() => '?').join(',');
 
         await expect(
-          conn.runAndReadAll(`INSERT INTO statistics VALUES (${placeholders});`, [...row]),
+          conn.runAndReadAll(
+            `INSERT INTO statistics (indicator, area_type, area_name, year, value, unit, category)
+             VALUES (${placeholders});`,
+            [...row],
+          ),
         ).rejects.toThrow(/(constraint|not null)/i);
       }
     } finally {
@@ -35,10 +39,18 @@ describe('applyMigrations', () => {
       await applyMigrations(conn);
 
       const row = ['population', 'district', 'Altstadt', 2023, 1200, 'persons', 'total'] as const;
-      await conn.runAndReadAll(`INSERT INTO statistics VALUES (?,?,?,?,?,?,?);`, [...row]);
+      await conn.runAndReadAll(
+        `INSERT INTO statistics (indicator, area_type, area_name, year, value, unit, category)
+         VALUES (?,?,?,?,?,?,?);`,
+        [...row],
+      );
 
       await expect(
-        conn.runAndReadAll(`INSERT INTO statistics VALUES (?,?,?,?,?,?,?);`, [...row]),
+        conn.runAndReadAll(
+          `INSERT INTO statistics (indicator, area_type, area_name, year, value, unit, category)
+           VALUES (?,?,?,?,?,?,?);`,
+          [...row],
+        ),
       ).rejects.toThrow(/(unique|constraint)/i);
     } finally {
       conn.closeSync();
@@ -53,14 +65,23 @@ describe('applyMigrations', () => {
       await applyMigrations(conn);
 
       const base = ['population', 'district', 'Altstadt', 2023, 1200, 'persons'] as const;
-      await conn.runAndReadAll(`INSERT INTO statistics VALUES (?,?,?,?,?,?,?);`, [
-        ...base,
-        'total',
-      ]);
-      await conn.runAndReadAll(`INSERT INTO statistics VALUES (?,?,?,?,?,?,?);`, [...base, 'male']);
+      await conn.runAndReadAll(
+        `INSERT INTO statistics (indicator, area_type, area_name, year, value, unit, category)
+         VALUES (?,?,?,?,?,?,?);`,
+        [...base, 'total'],
+      );
+      await conn.runAndReadAll(
+        `INSERT INTO statistics (indicator, area_type, area_name, year, value, unit, category)
+         VALUES (?,?,?,?,?,?,?);`,
+        [...base, 'male'],
+      );
 
       await expect(
-        conn.runAndReadAll(`INSERT INTO statistics VALUES (?,?,?,?,?,?,?);`, [...base, 'male']),
+        conn.runAndReadAll(
+          `INSERT INTO statistics (indicator, area_type, area_name, year, value, unit, category)
+           VALUES (?,?,?,?,?,?,?);`,
+          [...base, 'male'],
+        ),
       ).rejects.toThrow(/(unique|constraint)/i);
     } finally {
       conn.closeSync();
@@ -85,6 +106,10 @@ describe('applyMigrations', () => {
         "SELECT COUNT(*) AS c FROM information_schema.tables WHERE table_name = 'statistics';",
       );
       expect(Number(tableReader.getRowObjects()[0]?.['c'])).toBe(1);
+      const etlRunsTableReader = await conn.runAndReadAll(
+        "SELECT COUNT(*) AS c FROM information_schema.tables WHERE table_name = 'etl_runs';",
+      );
+      expect(Number(etlRunsTableReader.getRowObjects()[0]?.['c'])).toBe(1);
 
       // re-running does not add or change entries
       await applyMigrations(conn);

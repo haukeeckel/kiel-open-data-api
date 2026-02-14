@@ -88,6 +88,31 @@ const migrations: Migration[] = [
       ON statistics(area_type);
     `,
   },
+  {
+    version: 7,
+    name: 'add_etl_run_metadata',
+    up: `
+      ALTER TABLE statistics ADD COLUMN IF NOT EXISTS source_dataset TEXT;
+      ALTER TABLE statistics ADD COLUMN IF NOT EXISTS import_run_id TEXT;
+      ALTER TABLE statistics ADD COLUMN IF NOT EXISTS loaded_at TIMESTAMP;
+      ALTER TABLE statistics ADD COLUMN IF NOT EXISTS data_version TEXT;
+
+      CREATE TABLE IF NOT EXISTS etl_runs (
+        run_id TEXT PRIMARY KEY,
+        dataset_id TEXT NOT NULL,
+        data_version TEXT NOT NULL,
+        status TEXT NOT NULL,
+        row_count INTEGER,
+        error_message TEXT,
+        started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        published_at TIMESTAMP,
+        failed_at TIMESTAMP
+      );
+
+      CREATE INDEX IF NOT EXISTS etl_runs_dataset_started_idx
+      ON etl_runs(dataset_id, started_at);
+    `,
+  },
 ];
 
 export function getLatestMigrationVersion(): number {
