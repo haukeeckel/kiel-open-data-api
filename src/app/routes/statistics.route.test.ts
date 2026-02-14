@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { cleanupDuckDbFiles, makeAppAndSeed } from '../../test/helpers/app.js';
 import { type buildServer } from '../server.js';
@@ -295,7 +295,7 @@ describe('statistics endpoints', () => {
   let app: Awaited<ReturnType<typeof buildServer>>;
   let dbPath: string;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     const res = await makeAppAndSeed({
       registerRoutes: (appInstance) => {
         appInstance.get('/__boom', async () => {
@@ -325,7 +325,7 @@ describe('statistics endpoints', () => {
     dbPath = res.dbPath;
   });
 
-  afterEach(async () => {
+  afterAll(async () => {
     await app.close();
     cleanupDuckDbFiles(dbPath);
   });

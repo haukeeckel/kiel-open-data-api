@@ -3,7 +3,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createDb } from '../infra/db/duckdb.js';
 import { applyMigrations } from '../infra/db/migrations.js';
@@ -51,6 +51,24 @@ async function prepareMigratedDb(dbPath: string): Promise<void> {
   await withConn(dbPath, async (conn) => {
     await applyMigrations(conn);
   });
+}
+
+async function copyDbSnapshot(fromBasePath: string, toBasePath: string): Promise<void> {
+  await fs.copyFile(fromBasePath, toBasePath);
+
+  for (const suffix of ['.wal', '.shm']) {
+    const src = `${fromBasePath}${suffix}`;
+    const dst = `${toBasePath}${suffix}`;
+    try {
+      await fs.copyFile(src, dst);
+    } catch (err) {
+      const code =
+        typeof err === 'object' && err !== null && 'code' in err
+          ? (err as { code?: unknown }).code
+          : undefined;
+      if (code !== 'ENOENT') throw err;
+    }
+  }
 }
 
 async function queryCategories(conn: DuckDBConnection, indicator: string): Promise<string[]> {
@@ -142,11 +160,19 @@ async function queryLatestRun(
 // ── Tests ──────────────────────────────────────────────────────────────────
 
 describe('importDataset', () => {
+  let suiteTmp: string;
+  let templateDbPath: string;
   let tmp: string;
   let cacheDir: string;
   let csvPath: string;
   let dbPath: string;
   let restoreEnv: (() => void) | null = null;
+
+  beforeAll(async () => {
+    suiteTmp = mkTmpDir();
+    templateDbPath = path.join(suiteTmp, 'template.duckdb');
+    await prepareMigratedDb(templateDbPath);
+  });
 
   beforeEach(async () => {
     tmp = mkTmpDir();
@@ -155,7 +181,7 @@ describe('importDataset', () => {
     dbPath = path.join(cacheDir, 'test.duckdb');
 
     await fs.mkdir(cacheDir, { recursive: true });
-    await prepareMigratedDb(dbPath);
+    await copyDbSnapshot(templateDbPath, dbPath);
 
     restoreEnv = withTestEnv({ NODE_ENV: 'test' });
   });
@@ -165,6 +191,12 @@ describe('importDataset', () => {
     restoreEnv = null;
     try {
       fssync.rmSync(tmp, { recursive: true, force: true });
+    } catch {}
+  });
+
+  afterAll(() => {
+    try {
+      fssync.rmSync(suiteTmp, { recursive: true, force: true });
     } catch {}
   });
 
