@@ -1027,4 +1027,41 @@ describe('importDataset', () => {
       expect(await queryValue(conn, 'gender', 'Altstadt', 2023)).toBe(1220);
     });
   });
+
+  it('fails fast when staging import produces zero rows', async () => {
+    const csv =
+      [
+        'Merkmal;Stadtteil;2022;2023',
+        'Einwohner insgesamt;Altstadt;1213;1220',
+        'Einwohner insgesamt;Gaarden-Ost;17900;18000',
+      ].join('\n') + '\n';
+
+    await fs.writeFile(csvPath, csv, 'utf8');
+
+    const first = await importDataset(DISTRICTS_POPULATION, { csvPath, dbPath });
+    expect(first.imported).toBe(4);
+
+    if (DISTRICTS_POPULATION.format.type !== 'unpivot_years') {
+      throw new Error('Expected unpivot_years format for DISTRICTS_POPULATION');
+    }
+
+    const zeroRowsConfig = {
+      ...DISTRICTS_POPULATION,
+      format: {
+        ...DISTRICTS_POPULATION.format,
+        rows: DISTRICTS_POPULATION.format.rows.map((row, index) =>
+          index === 0 ? { ...row, filterValue: '__not_matching_any_row__' } : row,
+        ),
+      },
+    };
+
+    await expect(importDataset(zeroRowsConfig, { csvPath, dbPath })).rejects.toThrow(
+      /produced zero rows.*aborting publish/i,
+    );
+
+    await withConn(dbPath, async (conn) => {
+      expect(await queryCount(conn, 'population', 'total')).toBe(4);
+      expect(await queryValue(conn, 'population', 'Altstadt', 2023)).toBe(1220);
+    });
+  });
 });
