@@ -1,11 +1,7 @@
 import { DuckDBInstance } from '@duckdb/node-api';
 import { describe, expect, it } from 'vitest';
 
-import {
-  applyMigrations,
-  assertMigrationsUpToDate,
-  getLatestMigrationVersion,
-} from './migrations.js';
+import { applyMigrations, assertMigrationsUpToDate } from './migrations.js';
 
 describe('applyMigrations', () => {
   it('rejects NULL for every column in statistics', async () => {
@@ -165,11 +161,53 @@ describe('assertMigrationsUpToDate', () => {
       await conn.run(
         `INSERT INTO schema_migrations (version, name, hash) VALUES (1, 'create_statistics_table', 'hash');`,
       );
+      await expect(assertMigrationsUpToDate(conn)).rejects.toThrow(/missing versions/i);
+    } finally {
+      conn.closeSync();
+    }
+  });
 
-      const latest = getLatestMigrationVersion();
-      await expect(assertMigrationsUpToDate(conn)).rejects.toThrow(
-        new RegExp(`current=1, latest=${latest}`),
-      );
+  it('fails when an unknown migration version exists', async () => {
+    const db = await DuckDBInstance.create(':memory:');
+    const conn = await db.connect();
+
+    try {
+      await applyMigrations(conn);
+      await conn.run(`INSERT INTO schema_migrations (version, name, hash) VALUES (?, ?, ?);`, [
+        999,
+        'unknown_migration',
+        'hash',
+      ]);
+
+      await expect(assertMigrationsUpToDate(conn)).rejects.toThrow(/unknown versions/i);
+    } finally {
+      conn.closeSync();
+    }
+  });
+
+  it('fails on hash drift even when max version matches', async () => {
+    const db = await DuckDBInstance.create(':memory:');
+    const conn = await db.connect();
+
+    try {
+      await applyMigrations(conn);
+      await conn.run(`UPDATE schema_migrations SET hash = 'tampered_hash' WHERE version = 1;`);
+
+      await expect(assertMigrationsUpToDate(conn)).rejects.toThrow(/hash\/name drift/i);
+    } finally {
+      conn.closeSync();
+    }
+  });
+
+  it('fails when a middle migration is missing', async () => {
+    const db = await DuckDBInstance.create(':memory:');
+    const conn = await db.connect();
+
+    try {
+      await applyMigrations(conn);
+      await conn.run(`DELETE FROM schema_migrations WHERE version = 3;`);
+
+      await expect(assertMigrationsUpToDate(conn)).rejects.toThrow(/missing versions/i);
     } finally {
       conn.closeSync();
     }
