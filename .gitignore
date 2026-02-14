@@ -5,5 +5,6 @@ data
 .env
 
 .DS_Store
+# Debt docs are intentionally local-only (see README Debt Tracking Workflow)
 docs/technical-debt.md
 docs/technical-debt-pr-plan.md
