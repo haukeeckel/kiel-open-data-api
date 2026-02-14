@@ -4,6 +4,7 @@ import { StatisticsValidationError } from '../../domains/statistics/errors/stati
 import {
   type ApiErrorCode,
   type ErrorDetails,
+  type RateLimitDetails,
   sendBadRequest,
   sendError,
   sendInternalError,
@@ -40,6 +41,8 @@ function statusToApiCode(status: number): ApiErrorCode {
       return 'CONFLICT' as const;
     case 422:
       return 'UNPROCESSABLE_ENTITY' as const;
+    case 429:
+      return 'TOO_MANY_REQUESTS' as const;
     default:
       return 'CLIENT_ERROR' as const;
   }
@@ -55,9 +58,27 @@ function defaultMessageForStatus(status: number) {
       return 'Conflict';
     case 422:
       return 'Unprocessable Entity';
+    case 429:
+      return 'Too Many Requests';
     default:
       return 'Bad Request';
   }
+}
+
+function getRateLimitDetails(err: unknown): RateLimitDetails | undefined {
+  if (typeof err !== 'object' || err === null) return undefined;
+  if (!('statusCode' in err) || (err as { statusCode?: unknown }).statusCode !== 429) {
+    return undefined;
+  }
+  const retryAfter =
+    'ttl' in err && typeof (err as { ttl?: unknown }).ttl === 'number'
+      ? (err as { ttl: number }).ttl
+      : undefined;
+
+  return {
+    kind: 'rate_limit',
+    ...(retryAfter !== undefined ? { retryAfterMs: retryAfter } : {}),
+  };
 }
 
 export default fp(async function errorHandlerPlugin(app: FastifyInstance) {
@@ -81,11 +102,13 @@ export default fp(async function errorHandlerPlugin(app: FastifyInstance) {
       req.log.debug({ err, status }, 'client error');
       const message =
         err instanceof Error && err.message ? err.message : defaultMessageForStatus(status);
+      const details = getRateLimitDetails(err);
 
       return sendError(req, reply, {
         statusCode: status,
         code: statusToApiCode(status),
         message,
+        ...(details !== undefined ? { details } : {}),
       });
     }
 
