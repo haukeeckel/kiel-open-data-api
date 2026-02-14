@@ -301,10 +301,126 @@ describe('DuckDbStatisticsRepository', () => {
     });
   });
 
+  describe('listYears', () => {
+    it('returns distinct years sorted ascending without filters', async () => {
+      const result = await repo.listYears();
+      expect(result).toEqual({ rows: [2022, 2023] });
+    });
+
+    it('filters by indicator', async () => {
+      const result = await repo.listYears({ indicator: 'households' });
+      expect(result.rows).toEqual([2023]);
+    });
+
+    it('filters by areaType', async () => {
+      const result = await repo.listYears({ areaType: 'district' });
+      expect(result.rows).toEqual([2022, 2023]);
+    });
+
+    it('respects category filter', async () => {
+      const result = await repo.listYears({
+        category: 'single_person',
+      });
+
+      expect(result.rows).toEqual([2023]);
+    });
+
+    it('filters by area', async () => {
+      const result = await repo.listYears({ area: 'Wik' });
+      expect(result.rows).toEqual([2023]);
+    });
+
+    it('supports combined filters', async () => {
+      const result = await repo.listYears({
+        indicator: 'population',
+        areaType: 'district',
+        category: 'total',
+        area: 'Altstadt',
+      });
+      expect(result.rows).toEqual([2022, 2023]);
+    });
+
+    it('returns empty rows when nothing matches', async () => {
+      const result = await repo.listYears({ indicator: 'unknown' });
+      expect(result.rows).toEqual([]);
+    });
+  });
+
+  describe('getIndicatorMeta', () => {
+    it('returns grouped metadata with deterministic ordering', async () => {
+      const result = await repo.getIndicatorMeta('households');
+
+      expect(result).toEqual({
+        indicator: 'households',
+        areaTypes: [
+          {
+            areaType: 'district',
+            years: [2023],
+            categories: ['single_person', 'total'],
+            areas: ['Altstadt', 'Gaarden-Ost', 'Wik'],
+          },
+        ],
+      });
+    });
+
+    it('returns null for unknown indicator', async () => {
+      const result = await repo.getIndicatorMeta('unknown');
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('getYearMeta', () => {
+    it('returns grouped metadata with deterministic ordering', async () => {
+      const result = await repo.getYearMeta(2023);
+
+      expect(result).toMatchObject({
+        year: 2023,
+        areaTypes: [
+          {
+            areaType: 'district',
+            indicators: expect.arrayContaining(['households', 'population']),
+            categories: expect.arrayContaining(['single_person', 'total']),
+            areas: ['Altstadt', 'Gaarden-Ost', 'Schreventeich', 'Wik'],
+          },
+        ],
+      });
+      expect(result?.areaTypes[0]?.indicators).toEqual(['households', 'population']);
+    });
+
+    it('returns null for unknown year', async () => {
+      const result = await repo.getYearMeta(1999);
+      expect(result).toBeNull();
+    });
+  });
+
   describe('listIndicators', () => {
     it('returns distinct indicators sorted', async () => {
       const result = await repo.listIndicators();
 
+      expect(result.rows).toEqual(['households', 'population']);
+    });
+
+    it('filters by areaType', async () => {
+      const result = await repo.listIndicators({ areaType: 'district' });
+      expect(result.rows).toEqual(['households', 'population']);
+    });
+
+    it('filters by area', async () => {
+      const result = await repo.listIndicators({ area: 'Wik' });
+      expect(result.rows).toEqual(['households']);
+    });
+
+    it('filters by year', async () => {
+      const result = await repo.listIndicators({ year: 2022 });
+      expect(result.rows).toEqual(['population']);
+    });
+
+    it('supports combined filters', async () => {
+      const result = await repo.listIndicators({
+        areaType: 'district',
+        area: 'Altstadt',
+        year: 2023,
+      });
       expect(result.rows).toEqual(['households', 'population']);
     });
   });

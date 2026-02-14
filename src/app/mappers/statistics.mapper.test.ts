@@ -3,8 +3,10 @@ import { describe, expect, it } from 'vitest';
 import {
   toAreasQuery,
   toCategoriesQuery,
+  toIndicatorsQuery,
   toRankingQuery,
   toTimeseriesQuery,
+  toYearsQuery,
 } from './statistics.mapper.js';
 
 describe('statistics mappers', () => {
@@ -68,5 +70,32 @@ describe('statistics mappers', () => {
     } as const;
 
     expect(toCategoriesQuery(input)).toEqual(input);
+  });
+
+  it('maps empty years query', () => {
+    const input = {} as const;
+
+    expect(toYearsQuery(input)).toEqual({});
+  });
+
+  it('maps years query with optional filters', () => {
+    const input = {
+      indicator: 'population',
+      areaType: 'district',
+      category: 'total',
+      area: 'Altstadt',
+    } as const;
+
+    expect(toYearsQuery(input)).toEqual(input);
+  });
+
+  it('maps indicators reverse-lookup query', () => {
+    const input = {
+      areaType: 'district',
+      area: 'Altstadt',
+      year: 2023,
+    } as const;
+
+    expect(toIndicatorsQuery(input)).toEqual(input);
   });
 });
