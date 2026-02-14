@@ -22,7 +22,8 @@
     "migrate": "tsx src/db/cli/migrate.ts",
     "etl:fetch:dataset": "tsx src/etl/cli/fetch.ts",
     "etl:import:dataset": "tsx src/etl/cli/import.ts",
-    "etl:run:dataset": "tsx src/etl/cli/run.ts"
+    "etl:run:dataset": "tsx src/etl/cli/run.ts",
+    "etl:maint:dry-run": "tsx src/etl/cli/maint.ts --dry-run"
   },
   "lint-staged": {
     "*.{ts,js,json,md,yml,yaml}": [

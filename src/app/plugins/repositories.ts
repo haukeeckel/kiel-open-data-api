@@ -29,6 +29,8 @@ export default fp<RepositoriesPluginOptions>(async function repositoriesPlugin(
 
   const statisticsRepository = createDuckDbStatisticsRepository(dbManager, {
     queryTimeoutMs: env.DB_QUERY_TIMEOUT_MS,
+    slowQueryThresholdMs: env.OBS_SLOW_QUERY_THRESHOLD_MS,
+    planSampleEnabled: env.OBS_PLAN_SAMPLE_ENABLED,
     logger: dbLogger,
   });
 

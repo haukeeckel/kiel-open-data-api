@@ -60,6 +60,8 @@ describe('repositories plugin', () => {
     expect(assertMigrationsUpToDate).toHaveBeenCalledWith(conn);
     expect(createDuckDbStatisticsRepository).toHaveBeenCalledWith(dbManager, {
       queryTimeoutMs: 2000,
+      slowQueryThresholdMs: 500,
+      planSampleEnabled: false,
       logger: expect.any(Object),
     });
     expect(app.repos.statisticsRepository).toBe(repo);
@@ -93,6 +95,8 @@ describe('repositories plugin', () => {
       NODE_ENV: 'test',
       DB_POOL_SIZE: 7,
       DB_POOL_ACQUIRE_TIMEOUT_MS: 1500,
+      OBS_SLOW_QUERY_THRESHOLD_MS: 250,
+      OBS_PLAN_SAMPLE_ENABLED: true,
     });
 
     const dbManager = {
@@ -111,6 +115,13 @@ describe('repositories plugin', () => {
       dbPath: '/tmp/kiel-test.duckdb',
       poolSize: 7,
       acquireTimeoutMs: 1500,
+      logger: expect.any(Object),
+    });
+
+    expect(createDuckDbStatisticsRepository).toHaveBeenCalledWith(dbManager, {
+      queryTimeoutMs: 2000,
+      slowQueryThresholdMs: 250,
+      planSampleEnabled: true,
       logger: expect.any(Object),
     });
 

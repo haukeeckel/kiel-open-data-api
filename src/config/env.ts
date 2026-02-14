@@ -16,6 +16,21 @@ const EnvSchema = z
     DB_QUERY_TIMEOUT_MS: z.coerce.number().int().positive().default(2_000),
     DB_POOL_SIZE: z.coerce.number().int().min(1).max(64).default(4),
     DB_POOL_ACQUIRE_TIMEOUT_MS: z.coerce.number().int().positive().default(2_000),
+    METRICS_ENABLED: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .pipe(z.enum(['true', 'false']))
+      .optional(),
+    METRICS_TOKEN: z.string().trim().optional(),
+    METRICS_AUTH_HEADER: z.string().trim().default('x-metrics-token'),
+    OBS_SLOW_QUERY_THRESHOLD_MS: z.coerce.number().int().positive().default(500),
+    OBS_PLAN_SAMPLE_ENABLED: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .pipe(z.enum(['true', 'false']))
+      .optional(),
     SWAGGER_ROUTE_PREFIX: z.string().default('/docs'),
     SWAGGER_UI_ENABLED: z
       .string()
@@ -35,6 +50,15 @@ const EnvSchema = z
       env.SWAGGER_UI_ENABLED !== undefined
         ? env.SWAGGER_UI_ENABLED.toLowerCase() === 'true'
         : env.NODE_ENV !== 'production',
+    METRICS_ENABLED:
+      env.METRICS_ENABLED !== undefined
+        ? env.METRICS_ENABLED.toLowerCase() === 'true'
+        : env.NODE_ENV !== 'production',
+    METRICS_TOKEN: env.METRICS_TOKEN || undefined,
+    OBS_PLAN_SAMPLE_ENABLED:
+      env.OBS_PLAN_SAMPLE_ENABLED !== undefined
+        ? env.OBS_PLAN_SAMPLE_ENABLED.toLowerCase() === 'true'
+        : false,
   }));
 
 export type Env = z.infer<typeof EnvSchema>;

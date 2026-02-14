@@ -36,6 +36,8 @@ type RepositoryLogger = Pick<Logger, 'warn'>;
 
 type CreateRepositoryOptions = {
   queryTimeoutMs: number;
+  slowQueryThresholdMs?: number;
+  planSampleEnabled?: boolean;
   logger?: RepositoryLogger;
 };
 
@@ -45,6 +47,8 @@ type QueryArgs = {
   sql: string;
   values?: Array<string | number>;
   queryTimeoutMs: number;
+  slowQueryThresholdMs: number;
+  planSampleEnabled: boolean;
   logger: RepositoryLogger | undefined;
 };
 
@@ -81,6 +85,21 @@ async function runQueryWithTimeout(args: QueryArgs): Promise<DuckDBResultReader>
     const result = await Promise.race([queryPromise, timeoutPromise]);
     const seconds = Number(process.hrtime.bigint() - started) / 1_000_000_000;
     recordDbQuery(operation, 'ok', seconds);
+    const durationMs = seconds * 1000;
+    if (durationMs >= args.slowQueryThresholdMs) {
+      logger?.warn?.(
+        {
+          operation,
+          durationMs: Number(durationMs.toFixed(2)),
+          thresholdMs: args.slowQueryThresholdMs,
+        },
+        'slow repository query detected',
+      );
+      if (args.planSampleEnabled) {
+        // Stub hook: emit a clear marker for optional plan-sampling rollout.
+        logger?.warn?.({ operation }, 'query plan sampling is enabled but not yet implemented');
+      }
+    }
     return result;
   } catch (err) {
     const seconds = Number(process.hrtime.bigint() - started) / 1_000_000_000;
@@ -150,6 +169,8 @@ export function createDuckDbStatisticsRepository(
   options: CreateRepositoryOptions,
 ): StatisticsRepository {
   const queryTimeoutMs = options.queryTimeoutMs;
+  const slowQueryThresholdMs = options.slowQueryThresholdMs ?? 500;
+  const planSampleEnabled = options.planSampleEnabled ?? false;
   const logger = options.logger;
 
   return {
@@ -187,6 +208,8 @@ export function createDuckDbStatisticsRepository(
               sql,
               values: params,
               queryTimeoutMs,
+              slowQueryThresholdMs,
+              planSampleEnabled,
               logger,
             });
             const rows = reader.getRowObjects().map((r) => ({
@@ -239,6 +262,8 @@ export function createDuckDbStatisticsRepository(
               sql,
               values: params,
               queryTimeoutMs,
+              slowQueryThresholdMs,
+              planSampleEnabled,
               logger,
             });
             const rows = reader.getRowObjects().map((r) => requireString(r, 'area_name'));
@@ -268,6 +293,8 @@ export function createDuckDbStatisticsRepository(
               sql,
               values,
               queryTimeoutMs,
+              slowQueryThresholdMs,
+              planSampleEnabled,
               logger,
             });
             const rows = reader.getRowObjects().map((r) => requireString(r, 'category'));
@@ -304,6 +331,8 @@ export function createDuckDbStatisticsRepository(
               sql,
               values,
               queryTimeoutMs,
+              slowQueryThresholdMs,
+              planSampleEnabled,
               logger,
             });
             const rows = reader.getRowObjects().map((r) => ({
@@ -338,6 +367,8 @@ export function createDuckDbStatisticsRepository(
               operation: 'statistics.listIndicators',
               sql,
               queryTimeoutMs,
+              slowQueryThresholdMs,
+              planSampleEnabled,
               logger,
             });
             const rows = reader.getRowObjects().map((r) => requireString(r, 'indicator'));
@@ -359,6 +390,8 @@ export function createDuckDbStatisticsRepository(
               operation: 'statistics.listAreaTypes',
               sql,
               queryTimeoutMs,
+              slowQueryThresholdMs,
+              planSampleEnabled,
               logger,
             });
             const rows = reader.getRowObjects().map((r) => requireString(r, 'area_type'));

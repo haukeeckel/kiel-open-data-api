@@ -19,6 +19,11 @@ describe('getEnv', () => {
       DB_QUERY_TIMEOUT_MS: undefined,
       DB_POOL_SIZE: undefined,
       DB_POOL_ACQUIRE_TIMEOUT_MS: undefined,
+      METRICS_ENABLED: undefined,
+      METRICS_TOKEN: undefined,
+      METRICS_AUTH_HEADER: undefined,
+      OBS_SLOW_QUERY_THRESHOLD_MS: undefined,
+      OBS_PLAN_SAMPLE_ENABLED: undefined,
     });
 
     try {
@@ -35,6 +40,11 @@ describe('getEnv', () => {
       expect(env.DB_QUERY_TIMEOUT_MS).toBe(2_000);
       expect(env.DB_POOL_SIZE).toBe(4);
       expect(env.DB_POOL_ACQUIRE_TIMEOUT_MS).toBe(2_000);
+      expect(env.METRICS_ENABLED).toBe(true);
+      expect(env.METRICS_TOKEN).toBeUndefined();
+      expect(env.METRICS_AUTH_HEADER).toBe('x-metrics-token');
+      expect(env.OBS_SLOW_QUERY_THRESHOLD_MS).toBe(500);
+      expect(env.OBS_PLAN_SAMPLE_ENABLED).toBe(false);
     } finally {
       restoreEnv();
     }
@@ -53,6 +63,11 @@ describe('getEnv', () => {
       DB_QUERY_TIMEOUT_MS: 3210,
       DB_POOL_SIZE: 8,
       DB_POOL_ACQUIRE_TIMEOUT_MS: 1500,
+      METRICS_ENABLED: true,
+      METRICS_TOKEN: 'secret',
+      METRICS_AUTH_HEADER: 'x-custom-token',
+      OBS_SLOW_QUERY_THRESHOLD_MS: 750,
+      OBS_PLAN_SAMPLE_ENABLED: true,
     });
 
     try {
@@ -69,6 +84,26 @@ describe('getEnv', () => {
       expect(env.DB_QUERY_TIMEOUT_MS).toBe(3210);
       expect(env.DB_POOL_SIZE).toBe(8);
       expect(env.DB_POOL_ACQUIRE_TIMEOUT_MS).toBe(1500);
+      expect(env.METRICS_ENABLED).toBe(true);
+      expect(env.METRICS_TOKEN).toBe('secret');
+      expect(env.METRICS_AUTH_HEADER).toBe('x-custom-token');
+      expect(env.OBS_SLOW_QUERY_THRESHOLD_MS).toBe(750);
+      expect(env.OBS_PLAN_SAMPLE_ENABLED).toBe(true);
+    } finally {
+      restoreEnv();
+    }
+  });
+
+  it('defaults METRICS_ENABLED to false in production', () => {
+    const restoreEnv = withTestEnv({
+      NODE_ENV: 'production',
+      CORS_ORIGIN: 'https://example.com',
+      METRICS_ENABLED: undefined,
+    });
+
+    try {
+      const env = getEnv();
+      expect(env.METRICS_ENABLED).toBe(false);
     } finally {
       restoreEnv();
     }

@@ -292,6 +292,8 @@ const RANKING_CATEGORY_CASES = [
 // ---------------------------------------------------------------------------
 
 describe('statistics endpoints', () => {
+  const LONG_TEXT = 'x'.repeat(121);
+  const LONG_AREA = 'x'.repeat(201);
   let app: Awaited<ReturnType<typeof buildServer>>;
   let dbPath: string;
 
@@ -402,6 +404,18 @@ describe('statistics endpoints', () => {
       const res = await app.inject({
         method: 'GET',
         url: '/v1/timeseries?indicator=population&areaType=district&area=Altstadt&from=abc',
+      });
+      expect(res.statusCode).toBe(400);
+      expect(res.json()).toMatchObject({
+        error: { code: 'BAD_REQUEST', message: 'Invalid query parameters' },
+        requestId: expect.any(String),
+      });
+    });
+
+    it('returns 400 for overlong area parameter', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: `/v1/timeseries?indicator=population&areaType=district&area=${LONG_AREA}`,
       });
       expect(res.statusCode).toBe(400);
       expect(res.json()).toMatchObject({
@@ -521,6 +535,17 @@ describe('statistics endpoints', () => {
       });
     });
 
+    it('returns 400 for overlong like parameter', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: `/v1/areas?indicator=population&areaType=district&like=${LONG_TEXT}`,
+      });
+      expect(res.statusCode).toBe(400);
+      expect(res.json()).toMatchObject({
+        error: { code: 'BAD_REQUEST', message: 'Invalid query parameters' },
+      });
+    });
+
     it('returns distinct areas sorted', async () => {
       const res = await app.inject({
         method: 'GET',
@@ -594,6 +619,17 @@ describe('statistics endpoints', () => {
         },
       });
     });
+
+    it('returns 400 for overlong indicator', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: `/v1/categories?indicator=${LONG_TEXT}&areaType=district`,
+      });
+      expect(res.statusCode).toBe(400);
+      expect(res.json()).toMatchObject({
+        error: { code: 'BAD_REQUEST', message: 'Invalid query parameters' },
+      });
+    });
   });
 
   // ---- GET /v1/ranking ----
@@ -617,6 +653,17 @@ describe('statistics endpoints', () => {
       expect(res.json()).toMatchObject({
         error: { code: 'BAD_REQUEST', message: 'Invalid query parameters' },
         requestId: expect.any(String),
+      });
+    });
+
+    it('returns 400 for overlong category parameter', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: `/v1/ranking?indicator=population&areaType=district&year=2023&category=${LONG_TEXT}`,
+      });
+      expect(res.statusCode).toBe(400);
+      expect(res.json()).toMatchObject({
+        error: { code: 'BAD_REQUEST', message: 'Invalid query parameters' },
       });
     });
 
