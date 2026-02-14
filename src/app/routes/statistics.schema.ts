@@ -1,4 +1,13 @@
-import { ApiError } from '../../schemas/api.js';
+import {
+  ApiBadRequestError,
+  ApiConflictError,
+  ApiForbiddenError,
+  ApiInternalError,
+  ApiNotFoundError,
+  ApiTooManyRequestsError,
+  ApiUnauthorizedError,
+  ApiUnprocessableEntityError,
+} from '../../schemas/api.js';
 import {
   AreaTypesResponse,
   AreasQuery,
@@ -13,14 +22,14 @@ import {
 } from '../../schemas/statistics.js';
 
 const ERROR_RESPONSES = {
-  400: ApiError,
-  401: ApiError,
-  403: ApiError,
-  404: ApiError,
-  409: ApiError,
-  422: ApiError,
-  429: ApiError,
-  500: ApiError,
+  400: ApiBadRequestError,
+  401: ApiUnauthorizedError,
+  403: ApiForbiddenError,
+  404: ApiNotFoundError,
+  409: ApiConflictError,
+  422: ApiUnprocessableEntityError,
+  429: ApiTooManyRequestsError,
+  500: ApiInternalError,
 } as const;
 
 export const timeseriesRouteSchema = {
