@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import { describe, expect, it } from 'vitest';
 
+import { StatisticsNotFoundError } from '../../domains/statistics/errors/statisticsNotFoundError.js';
 import { StatisticsValidationError } from '../../domains/statistics/errors/statisticsValidationError.js';
 
 import errorHandlerPlugin from './errorHandler.js';
@@ -21,6 +22,25 @@ describe('errorHandler plugin', () => {
         code: 'BAD_REQUEST',
         message: 'bad',
         details: { foo: 'bar' },
+      },
+      requestId: expect.any(String),
+    });
+  });
+
+  it('maps domain not found error to 404', async () => {
+    const app = Fastify();
+    await app.register(errorHandlerPlugin);
+
+    app.get('/domain-not-found', async () => {
+      throw new StatisticsNotFoundError('indicator missing');
+    });
+
+    const res = await app.inject({ method: 'GET', url: '/domain-not-found' });
+    expect(res.statusCode).toBe(404);
+    expect(res.json()).toMatchObject({
+      error: {
+        code: 'NOT_FOUND',
+        message: 'indicator missing',
       },
       requestId: expect.any(String),
     });

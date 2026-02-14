@@ -37,6 +37,21 @@ describe('services plugin', () => {
         area: 'Altstadt',
         rows: [],
       }),
+      listYears: async () => ({
+        indicator,
+        areaType,
+        rows: [2023],
+      }),
+      getIndicatorMeta: async () => ({
+        indicator,
+        areaTypes: [{ areaType, years: [2023], categories: ['total'], areas: ['Altstadt'] }],
+      }),
+      getYearMeta: async () => ({
+        year: 2023,
+        areaTypes: [
+          { areaType, indicators: [indicator], categories: ['total'], areas: ['Altstadt'] },
+        ],
+      }),
       listIndicators: async () => ({ rows: [indicator] }),
       listAreaTypes: async () => ({ rows: [areaType] }),
     };

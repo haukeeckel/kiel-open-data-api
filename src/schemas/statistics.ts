@@ -91,8 +91,57 @@ export const RankingResponse = z.object({
   ),
 });
 
+export const YearsQuery = z.object({
+  indicator: Indicator.max(QUERY_TEXT_MAX).optional(),
+  areaType: AreaType.max(QUERY_TEXT_MAX).optional(),
+  category: Category.optional(),
+  area: z.string().min(1).max(QUERY_AREA_MAX).optional(),
+});
+
+export const YearsResponse = z.object({
+  rows: z.array(z.number().int()),
+});
+
+export const IndicatorsQuery = z.object({
+  areaType: AreaType.max(QUERY_TEXT_MAX).optional(),
+  area: z.string().min(1).max(QUERY_AREA_MAX).optional(),
+  year: z.coerce.number().int().optional(),
+});
+
 export const IndicatorsResponse = z.object({
   rows: z.array(z.string()),
+});
+
+export const IndicatorPathParams = z.object({
+  indicator: Indicator.max(QUERY_TEXT_MAX),
+});
+
+export const IndicatorMetaResponse = z.object({
+  indicator: z.string(),
+  areaTypes: z.array(
+    z.object({
+      areaType: z.string(),
+      years: z.array(z.number().int()),
+      categories: z.array(z.string()),
+      areas: z.array(z.string()),
+    }),
+  ),
+});
+
+export const YearPathParams = z.object({
+  year: z.coerce.number().int(),
+});
+
+export const YearMetaResponse = z.object({
+  year: z.number().int(),
+  areaTypes: z.array(
+    z.object({
+      areaType: z.string(),
+      indicators: z.array(z.string()),
+      categories: z.array(z.string()),
+      areas: z.array(z.string()),
+    }),
+  ),
 });
 
 export const AreaTypesResponse = z.object({

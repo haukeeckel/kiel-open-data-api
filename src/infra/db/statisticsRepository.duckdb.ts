@@ -24,6 +24,14 @@ function requireNumber(row: Record<string, unknown>, key: string): number {
   return num;
 }
 
+function requireInteger(row: Record<string, unknown>, key: string): number {
+  const value = requireNumber(row, key);
+  if (!Number.isInteger(value)) {
+    throw new Error(`statistics row invalid ${key}: expected integer`);
+  }
+  return value;
+}
+
 function requireString(row: Record<string, unknown>, key: string): string {
   const value = requireValue(row, key);
   if (typeof value !== 'string') {
@@ -356,16 +364,206 @@ export function createDuckDbStatisticsRepository(
       );
     },
 
-    async listIndicators() {
+    async listYears(input) {
+      return manager.withConnection((conn) =>
+        withRepositoryError(
+          'statistics.listYears',
+          async () => {
+            const values: Array<string | number> = [];
+            let sql = `
+          SELECT DISTINCT year
+          FROM statistics
+          `;
+            const conditions: string[] = [];
+            if (input?.indicator !== undefined) {
+              conditions.push('indicator = ?');
+              values.push(input.indicator);
+            }
+            if (input?.areaType !== undefined) {
+              conditions.push('area_type = ?');
+              values.push(input.areaType);
+            }
+            if (input?.category !== undefined) {
+              conditions.push('category = ?');
+              values.push(input.category);
+            }
+            if (input?.area !== undefined) {
+              conditions.push('area_name = ?');
+              values.push(input.area);
+            }
+            if (conditions.length > 0) {
+              sql += ` WHERE ${conditions.join(' AND ')}`;
+            }
+            sql += ` ORDER BY year ASC`;
+            const reader = await runQueryWithTimeout({
+              conn,
+              operation: 'statistics.listYears',
+              sql,
+              ...(values.length > 0 ? { values } : {}),
+              queryTimeoutMs,
+              slowQueryThresholdMs,
+              planSampleEnabled,
+              logger,
+            });
+            const rows = reader.getRowObjects().map((r) => requireInteger(r, 'year'));
+            return { rows };
+          },
+          logger,
+        ),
+      );
+    },
+
+    async getYearMeta(year) {
+      return manager.withConnection((conn) =>
+        withRepositoryError(
+          'statistics.getYearMeta',
+          async () => {
+            const sql = `
+          SELECT area_type, indicator, category, area_name
+          FROM statistics
+          WHERE year = ?
+          GROUP BY area_type, indicator, category, area_name
+          `;
+            const reader = await runQueryWithTimeout({
+              conn,
+              operation: 'statistics.getYearMeta',
+              sql,
+              values: [year],
+              queryTimeoutMs,
+              slowQueryThresholdMs,
+              planSampleEnabled,
+              logger,
+            });
+            const rows = reader.getRowObjects();
+            if (rows.length === 0) return null;
+
+            const byAreaType = new Map<
+              string,
+              { indicators: Set<string>; categories: Set<string>; areas: Set<string> }
+            >();
+            for (const row of rows) {
+              const areaType = requireString(row, 'area_type');
+              const indicator = requireString(row, 'indicator');
+              const category = requireString(row, 'category');
+              const area = requireString(row, 'area_name');
+
+              const current = byAreaType.get(areaType) ?? {
+                indicators: new Set<string>(),
+                categories: new Set<string>(),
+                areas: new Set<string>(),
+              };
+              current.indicators.add(indicator);
+              current.categories.add(category);
+              current.areas.add(area);
+              byAreaType.set(areaType, current);
+            }
+
+            const areaTypes = Array.from(byAreaType.entries())
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([areaType, value]) => ({
+                areaType,
+                indicators: Array.from(value.indicators).sort((a, b) => a.localeCompare(b)),
+                categories: Array.from(value.categories).sort((a, b) => a.localeCompare(b)),
+                areas: Array.from(value.areas).sort((a, b) => a.localeCompare(b)),
+              }));
+
+            return { year, areaTypes };
+          },
+          logger,
+        ),
+      );
+    },
+
+    async getIndicatorMeta(indicator) {
+      return manager.withConnection((conn) =>
+        withRepositoryError(
+          'statistics.getIndicatorMeta',
+          async () => {
+            const sql = `
+          SELECT area_type, area_name, year, category
+          FROM statistics
+          WHERE indicator = ?
+          GROUP BY area_type, area_name, year, category
+          `;
+            const reader = await runQueryWithTimeout({
+              conn,
+              operation: 'statistics.getIndicatorMeta',
+              sql,
+              values: [indicator],
+              queryTimeoutMs,
+              slowQueryThresholdMs,
+              planSampleEnabled,
+              logger,
+            });
+            const rows = reader.getRowObjects();
+            if (rows.length === 0) return null;
+
+            const byAreaType = new Map<
+              string,
+              { years: Set<number>; categories: Set<string>; areas: Set<string> }
+            >();
+            for (const row of rows) {
+              const areaType = requireString(row, 'area_type');
+              const area = requireString(row, 'area_name');
+              const year = requireInteger(row, 'year');
+              const category = requireString(row, 'category');
+
+              const current = byAreaType.get(areaType) ?? {
+                years: new Set<number>(),
+                categories: new Set<string>(),
+                areas: new Set<string>(),
+              };
+              current.years.add(year);
+              current.categories.add(category);
+              current.areas.add(area);
+              byAreaType.set(areaType, current);
+            }
+
+            const areaTypes = Array.from(byAreaType.entries())
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([areaType, value]) => ({
+                areaType,
+                years: Array.from(value.years).sort((a, b) => a - b),
+                categories: Array.from(value.categories).sort((a, b) => a.localeCompare(b)),
+                areas: Array.from(value.areas).sort((a, b) => a.localeCompare(b)),
+              }));
+
+            return { indicator, areaTypes };
+          },
+          logger,
+        ),
+      );
+    },
+
+    async listIndicators(query) {
       return manager.withConnection((conn) =>
         withRepositoryError(
           'statistics.listIndicators',
           async () => {
-            const sql = `SELECT DISTINCT indicator FROM statistics ORDER BY indicator ASC`;
+            const values: Array<string | number> = [];
+            let sql = `SELECT DISTINCT indicator FROM statistics`;
+            const conditions: string[] = [];
+            if (query?.areaType !== undefined) {
+              conditions.push('area_type = ?');
+              values.push(query.areaType);
+            }
+            if (query?.area !== undefined) {
+              conditions.push('area_name = ?');
+              values.push(query.area);
+            }
+            if (query?.year !== undefined) {
+              conditions.push('year = ?');
+              values.push(query.year);
+            }
+            if (conditions.length > 0) {
+              sql += ` WHERE ${conditions.join(' AND ')}`;
+            }
+            sql += ` ORDER BY indicator ASC`;
             const reader = await runQueryWithTimeout({
               conn,
               operation: 'statistics.listIndicators',
               sql,
+              ...(values.length > 0 ? { values } : {}),
               queryTimeoutMs,
               slowQueryThresholdMs,
               planSampleEnabled,

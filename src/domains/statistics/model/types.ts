@@ -27,6 +27,13 @@ export type CategoriesQuery = {
   areaType: string;
 };
 
+export type YearsQuery = {
+  indicator?: string;
+  areaType?: string;
+  category?: string;
+  area?: string;
+};
+
 export type RankingQuery = {
   indicator: string;
   areaType: string;
@@ -80,6 +87,40 @@ export type RankingResult = {
 
 export type IndicatorsResult = {
   rows: string[];
+};
+
+export type IndicatorsQuery = {
+  areaType?: string;
+  area?: string;
+  year?: number;
+};
+
+export type YearsResult = {
+  rows: number[];
+};
+
+export type YearMetaAreaType = {
+  areaType: string;
+  indicators: string[];
+  categories: string[];
+  areas: string[];
+};
+
+export type YearMetaResult = {
+  year: number;
+  areaTypes: YearMetaAreaType[];
+};
+
+export type IndicatorMetaAreaType = {
+  areaType: string;
+  years: number[];
+  categories: string[];
+  areas: string[];
+};
+
+export type IndicatorMetaResult = {
+  indicator: string;
+  areaTypes: IndicatorMetaAreaType[];
 };
 
 export type AreaTypesResult = {

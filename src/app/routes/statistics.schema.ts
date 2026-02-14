@@ -14,11 +14,18 @@ import {
   AreasResponse,
   CategoriesQuery,
   CategoriesResponse,
+  IndicatorMetaResponse,
+  IndicatorPathParams,
+  IndicatorsQuery,
   IndicatorsResponse,
   RankingQuery,
   RankingResponse,
   TimeseriesQuery,
   TimeseriesResponse,
+  YearMetaResponse,
+  YearPathParams,
+  YearsQuery,
+  YearsResponse,
 } from '../../schemas/statistics.js';
 
 const ERROR_RESPONSES = {
@@ -87,8 +94,45 @@ export const indicatorsRouteSchema = {
   schema: {
     tags: ['statistics'],
     description: 'List all available indicators',
+    querystring: IndicatorsQuery,
     response: {
       200: IndicatorsResponse,
+      ...ERROR_RESPONSES,
+    },
+  },
+};
+
+export const indicatorMetaRouteSchema = {
+  schema: {
+    tags: ['statistics'],
+    description: 'Get grouped metadata for one indicator',
+    params: IndicatorPathParams,
+    response: {
+      200: IndicatorMetaResponse,
+      ...ERROR_RESPONSES,
+    },
+  },
+};
+
+export const yearsRouteSchema = {
+  schema: {
+    tags: ['statistics'],
+    description: 'List available years with optional discovery filters',
+    querystring: YearsQuery,
+    response: {
+      200: YearsResponse,
+      ...ERROR_RESPONSES,
+    },
+  },
+};
+
+export const yearMetaRouteSchema = {
+  schema: {
+    tags: ['statistics'],
+    description: 'Get grouped metadata for one year',
+    params: YearPathParams,
+    response: {
+      200: YearMetaResponse,
       ...ERROR_RESPONSES,
     },
   },

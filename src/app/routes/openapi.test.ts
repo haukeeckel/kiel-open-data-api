@@ -42,6 +42,9 @@ describe('openapi', () => {
     expect(body.paths).toHaveProperty('/v1/categories');
     expect(body.paths).toHaveProperty('/v1/ranking');
     expect(body.paths).toHaveProperty('/v1/indicators');
+    expect(body.paths).toHaveProperty('/v1/indicators/{indicator}');
+    expect(body.paths).toHaveProperty('/v1/years');
+    expect(body.paths).toHaveProperty('/v1/years/{year}');
     expect(body.paths).toHaveProperty('/v1/area-types');
     expect(body.paths).not.toHaveProperty('/metrics');
 

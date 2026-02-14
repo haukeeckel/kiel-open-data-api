@@ -54,6 +54,47 @@ function createFakeRepo(): StatisticsRepository {
     async listIndicators() {
       return { rows: ['households', 'population'] };
     },
+    async listYears(input) {
+      if (!input || (input.indicator === undefined && input.areaType === undefined)) {
+        return { rows: [2022, 2023] };
+      }
+      if (
+        input.indicator === 'population' &&
+        input.areaType === 'district' &&
+        (input.category === undefined || input.category === 'total')
+      ) {
+        return { rows: [2022, 2023] };
+      }
+      return { rows: [] };
+    },
+    async getYearMeta(year) {
+      if (year !== 2023) return null;
+      return {
+        year,
+        areaTypes: [
+          {
+            areaType: 'district',
+            indicators: ['population'],
+            categories: ['total'],
+            areas: ['Altstadt'],
+          },
+        ],
+      };
+    },
+    async getIndicatorMeta(indicator) {
+      if (indicator !== 'population') return null;
+      return {
+        indicator,
+        areaTypes: [
+          {
+            areaType: 'district',
+            years: [2022, 2023],
+            categories: ['total'],
+            areas: ['Altstadt'],
+          },
+        ],
+      };
+    },
     async listAreaTypes() {
       return { rows: ['district'] };
     },
@@ -205,11 +246,127 @@ describe('StatisticsQueryService', () => {
     expect(result.rows).toEqual(['households', 'population']);
   });
 
+  it('passes listIndicators filters through to repository', async () => {
+    const repo = createFakeRepo();
+    const listIndicatorsSpy = vi.spyOn(repo, 'listIndicators');
+    const svc = new StatisticsQueryService(repo);
+
+    await svc.listIndicators({ areaType: 'district', area: 'Altstadt', year: 2023 });
+
+    expect(listIndicatorsSpy).toHaveBeenCalledWith({
+      areaType: 'district',
+      area: 'Altstadt',
+      year: 2023,
+    });
+  });
+
   it('passes listAreaTypes through to repository', async () => {
     const svc = new StatisticsQueryService(createFakeRepo());
 
     const result = await svc.listAreaTypes();
     expect(result.rows).toEqual(['district']);
+  });
+
+  it('passes listYears filters through to repository', async () => {
+    const repo = createFakeRepo();
+    const listYearsSpy = vi.spyOn(repo, 'listYears');
+    const svc = new StatisticsQueryService(repo);
+
+    const result = await svc.listYears({
+      indicator: 'population',
+      areaType: 'district',
+      category: 'total',
+      area: 'Altstadt',
+    });
+
+    expect(listYearsSpy).toHaveBeenCalledWith({
+      indicator: 'population',
+      areaType: 'district',
+      category: 'total',
+      area: 'Altstadt',
+    });
+    expect(result.rows).toEqual([2022, 2023]);
+  });
+
+  it('returns empty list when listYears has no matches', async () => {
+    const svc = new StatisticsQueryService(createFakeRepo());
+
+    await expect(
+      svc.listYears({
+        indicator: 'population',
+        areaType: 'district',
+        category: 'single_person',
+      }),
+    ).resolves.toEqual({ rows: [] });
+  });
+
+  it('validates areaType when passed to listYears', async () => {
+    const svc = new StatisticsQueryService(createFakeRepo());
+
+    await expect(svc.listYears({ areaType: 'unknown' })).rejects.toMatchObject({
+      name: 'StatisticsValidationError',
+      message: 'Unknown areaType: unknown',
+      details: {
+        kind: 'domain_validation',
+        field: 'areaType',
+        value: 'unknown',
+        allowed: ['district'],
+      },
+    });
+  });
+
+  it('returns year metadata from repository', async () => {
+    const svc = new StatisticsQueryService(createFakeRepo());
+
+    const result = await svc.getYearMeta(2023);
+
+    expect(result).toEqual({
+      year: 2023,
+      areaTypes: [
+        {
+          areaType: 'district',
+          indicators: ['population'],
+          categories: ['total'],
+          areas: ['Altstadt'],
+        },
+      ],
+    });
+  });
+
+  it('throws not found when year metadata does not exist', async () => {
+    const svc = new StatisticsQueryService(createFakeRepo());
+
+    await expect(svc.getYearMeta(1999)).rejects.toMatchObject({
+      name: 'StatisticsNotFoundError',
+      message: 'Year not found: 1999',
+    });
+  });
+
+  it('returns indicator metadata from repository', async () => {
+    const svc = new StatisticsQueryService(createFakeRepo());
+
+    const result = await svc.getIndicatorMeta('population');
+
+    expect(result).toEqual({
+      indicator: 'population',
+      areaTypes: [
+        {
+          areaType: 'district',
+          years: [2022, 2023],
+          categories: ['total'],
+          areas: ['Altstadt'],
+        },
+      ],
+    });
+  });
+
+  it('throws not found when indicator metadata does not exist', async () => {
+    const svc = new StatisticsQueryService(createFakeRepo());
+
+    await expect(svc.getIndicatorMeta('unknown')).rejects.toMatchObject({
+      name: 'StatisticsNotFoundError',
+      message: 'Indicator not found: unknown',
+    });
   });
 
   it('throws domain validation error for unknown indicator', async () => {

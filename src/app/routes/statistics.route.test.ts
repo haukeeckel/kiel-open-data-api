@@ -481,6 +481,168 @@ describe('statistics endpoints', () => {
         ],
       });
     });
+
+    it('filters indicators by areaType', async () => {
+      const res = await app.inject({ method: 'GET', url: '/v1/indicators?areaType=district' });
+      expect(res.statusCode).toBe(200);
+      expect(res.json().rows).toContain('population');
+      expect(res.json().rows).toContain('gender');
+    });
+
+    it('filters indicators by areaType and area', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/indicators?areaType=district&area=Altstadt',
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json().rows).toContain('population');
+      expect(res.json().rows).toContain('gender');
+    });
+
+    it('filters indicators by year', async () => {
+      const res = await app.inject({ method: 'GET', url: '/v1/indicators?year=2018' });
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({ rows: ['unemployed_rate'] });
+    });
+
+    it('filters indicators by area without areaType', async () => {
+      const res = await app.inject({ method: 'GET', url: '/v1/indicators?area=Wik' });
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({ rows: ['households'] });
+    });
+  });
+
+  // ---- GET /v1/indicators/:indicator ----
+
+  describe('GET /v1/indicators/:indicator', () => {
+    it('returns grouped metadata for an indicator', async () => {
+      const res = await app.inject({ method: 'GET', url: '/v1/indicators/gender' });
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        indicator: 'gender',
+        areaTypes: [
+          {
+            areaType: 'district',
+            years: [2022, 2023],
+            categories: ['female', 'male', 'total'],
+            areas: ['Altstadt', 'Vorstadt'],
+          },
+        ],
+      });
+    });
+
+    it('returns 404 for unknown indicator', async () => {
+      const res = await app.inject({ method: 'GET', url: '/v1/indicators/unknown' });
+      expect(res.statusCode).toBe(404);
+      expect(res.json()).toMatchObject({
+        error: { code: 'NOT_FOUND', message: 'Indicator not found: unknown' },
+        requestId: expect.any(String),
+      });
+    });
+  });
+
+  // ---- GET /v1/years ----
+
+  describe('GET /v1/years', () => {
+    it('returns years without filters', async () => {
+      const res = await app.inject({ method: 'GET', url: '/v1/years' });
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({ rows: [2018, 2019, 2020, 2022, 2023] });
+    });
+
+    it('filters years by indicator and areaType', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/years?indicator=gender&areaType=district',
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({ rows: [2022, 2023] });
+    });
+
+    it('filters years by category', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/years?indicator=gender&areaType=district&category=single_person',
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({ rows: [] });
+    });
+
+    it('filters years by area', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/years?area=Wik',
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({ rows: [2023] });
+    });
+
+    it('returns empty rows for unknown indicator context', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/years?indicator=unknown',
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({ rows: [] });
+    });
+
+    it('returns 400 for unknown areaType filter', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/years?areaType=unknown',
+      });
+      expect(res.statusCode).toBe(400);
+      expect(res.json()).toMatchObject({
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'Unknown areaType: unknown',
+        },
+      });
+    });
+  });
+
+  // ---- GET /v1/years/:year ----
+
+  describe('GET /v1/years/:year', () => {
+    it('returns grouped metadata for a year', async () => {
+      const res = await app.inject({ method: 'GET', url: '/v1/years/2023' });
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        year: 2023,
+        areaTypes: [
+          {
+            areaType: 'district',
+            indicators: [
+              'age_groups',
+              'foreign_age_groups',
+              'foreign_count',
+              'foreign_gender',
+              'foreign_nationalities_selected',
+              'gender',
+              'households',
+              'marital_status',
+              'migrant_gender',
+              'population',
+              'religion',
+              'unemployed_count',
+            ],
+            categories: expect.any(Array),
+            areas: ['Altstadt', 'Gaarden-Ost', 'Schreventeich', 'Vorstadt', 'Wik'],
+          },
+        ],
+      });
+      expect((res.json().areaTypes[0] as { categories: string[] }).categories).toContain('total');
+      expect((res.json().areaTypes[0] as { categories: string[] }).categories).toContain('male');
+    });
+
+    it('returns 404 for unknown year', async () => {
+      const res = await app.inject({ method: 'GET', url: '/v1/years/1999' });
+      expect(res.statusCode).toBe(404);
+      expect(res.json()).toMatchObject({
+        error: { code: 'NOT_FOUND', message: 'Year not found: 1999' },
+        requestId: expect.any(String),
+      });
+    });
   });
 
   // ---- GET /v1/area-types ----

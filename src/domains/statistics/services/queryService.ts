@@ -1,6 +1,14 @@
+import { StatisticsNotFoundError } from '../errors/statisticsNotFoundError.js';
 import { StatisticsValidationError } from '../errors/statisticsValidationError.js';
 
-import type { AreasQuery, CategoriesQuery, RankingQuery, TimeseriesQuery } from '../model/types.js';
+import type {
+  AreasQuery,
+  CategoriesQuery,
+  IndicatorsQuery,
+  RankingQuery,
+  TimeseriesQuery,
+  YearsQuery,
+} from '../model/types.js';
 import type { StatisticsRepository } from '../ports/statisticsRepository.js';
 
 export class StatisticsQueryService {
@@ -93,8 +101,34 @@ export class StatisticsQueryService {
     return this.repo.getRanking(input);
   }
 
-  async listIndicators() {
-    return this.repo.listIndicators();
+  async listYears(input: YearsQuery = {}) {
+    if (input.areaType !== undefined) {
+      await this.assertKnownAreaType(input.areaType);
+    }
+    return this.repo.listYears(input);
+  }
+
+  async getYearMeta(year: number) {
+    const result = await this.repo.getYearMeta(year);
+    if (result === null) {
+      throw new StatisticsNotFoundError(`Year not found: ${year}`);
+    }
+    return result;
+  }
+
+  async getIndicatorMeta(indicator: string) {
+    const result = await this.repo.getIndicatorMeta(indicator);
+    if (result === null) {
+      throw new StatisticsNotFoundError(`Indicator not found: ${indicator}`);
+    }
+    return result;
+  }
+
+  async listIndicators(query?: IndicatorsQuery) {
+    if (query?.areaType !== undefined) {
+      await this.assertKnownAreaType(query.areaType);
+    }
+    return this.repo.listIndicators(query);
   }
 
   async listAreaTypes() {
