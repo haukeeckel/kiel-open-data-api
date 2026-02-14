@@ -256,6 +256,24 @@ ETL writes one run record per dataset execution into `etl_runs`:
   Ranking of areas by value for a given indicator/year.
   If `category` is omitted, ranking rows can contain mixed categories.
 
+- `GET /v1/indicators`
+  List distinct indicators.
+  Optional reverse-lookup filters: `areaType`, `area`, `year`.
+  `area` can be used with or without `areaType`.
+
+- `GET /v1/indicators/:indicator`
+  Grouped indicator metadata by area type, including available years, categories, and areas.
+  Returns `404` if the indicator does not exist.
+
+- `GET /v1/years`
+  List distinct years.
+  Optional discovery filters: `indicator`, `areaType`, `category`, `area`.
+  Empty matches return `200` with `rows: []`.
+
+- `GET /v1/years/:year`
+  Grouped year metadata by area type, including available indicators, categories, and areas.
+  Returns `404` if the year does not exist.
+
 ## Metrics Exposure
 
 `/metrics` is intentionally controlled:

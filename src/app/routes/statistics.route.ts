@@ -3,17 +3,22 @@ import { type ZodTypeProvider } from 'fastify-type-provider-zod';
 import {
   toAreasQuery,
   toCategoriesQuery,
+  toIndicatorsQuery,
   toRankingQuery,
   toTimeseriesQuery,
+  toYearsQuery,
 } from '../mappers/statistics.mapper.js';
 
 import {
   areaTypesRouteSchema,
   areasRouteSchema,
   categoriesRouteSchema,
+  indicatorMetaRouteSchema,
   indicatorsRouteSchema,
   rankingRouteSchema,
   timeseriesRouteSchema,
+  yearMetaRouteSchema,
+  yearsRouteSchema,
 } from './statistics.schema.js';
 
 import type { FastifyInstance } from 'fastify';
@@ -25,8 +30,20 @@ export default async function statisticsRoutes(app: FastifyInstance) {
     return app.services.statisticsQuery.listAreaTypes();
   });
 
-  r.get('/indicators', indicatorsRouteSchema, async () => {
-    return app.services.statisticsQuery.listIndicators();
+  r.get('/indicators', indicatorsRouteSchema, async (req) => {
+    return app.services.statisticsQuery.listIndicators(toIndicatorsQuery(req.query));
+  });
+
+  r.get('/indicators/:indicator', indicatorMetaRouteSchema, async (req) => {
+    return app.services.statisticsQuery.getIndicatorMeta(req.params.indicator);
+  });
+
+  r.get('/years', yearsRouteSchema, async (req) => {
+    return app.services.statisticsQuery.listYears(toYearsQuery(req.query));
+  });
+
+  r.get('/years/:year', yearMetaRouteSchema, async (req) => {
+    return app.services.statisticsQuery.getYearMeta(req.params.year);
   });
 
   r.get('/areas', areasRouteSchema, async (req) => {
