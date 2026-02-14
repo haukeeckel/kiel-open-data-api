@@ -47,27 +47,25 @@ describe('duckdbConnectionManager', () => {
     vi.clearAllMocks();
   });
 
-  it('creates a pool and uses round-robin for operations', async () => {
+  it('creates a pool and leases distinct connections while both are busy', async () => {
     const db = makeDb([makeConn('c1'), makeConn('c2')]);
     createDbMock.mockResolvedValue(db as unknown as DuckDBInstance);
 
     const manager = createDuckDbConnectionManager({ dbPath: '/tmp/test.duckdb', poolSize: 2 });
 
     const seen: string[] = [];
-    await manager.withConnection(async (conn) => {
-      seen.push((conn as unknown as MockConn).id);
-      return undefined;
-    });
-    await manager.withConnection(async (conn) => {
-      seen.push((conn as unknown as MockConn).id);
-      return undefined;
-    });
-    await manager.withConnection(async (conn) => {
-      seen.push((conn as unknown as MockConn).id);
-      return undefined;
-    });
+    await Promise.all([
+      manager.withConnection(async (conn) => {
+        seen.push((conn as unknown as MockConn).id);
+        await new Promise((resolve) => setTimeout(resolve, 15));
+      }),
+      manager.withConnection(async (conn) => {
+        seen.push((conn as unknown as MockConn).id);
+        await new Promise((resolve) => setTimeout(resolve, 15));
+      }),
+    ]);
 
-    expect(seen).toEqual(['c1', 'c2', 'c1']);
+    expect(new Set(seen)).toEqual(new Set(['c1', 'c2']));
     expect(createDbMock).toHaveBeenCalledTimes(1);
     expect(db.connect).toHaveBeenCalledTimes(2);
 
@@ -75,41 +73,7 @@ describe('duckdbConnectionManager', () => {
     expect(db.closeSync).toHaveBeenCalledTimes(1);
   });
 
-  it('reconnects and retries once when selected connection is broken', async () => {
-    const broken = makeConn('broken');
-    const oldOther = makeConn('old-other');
-    const newA = makeConn('new-a');
-    const newB = makeConn('new-b');
-
-    broken.run.mockRejectedValue(new Error('connection closed'));
-
-    const db1 = makeDb([broken, oldOther]);
-    const db2 = makeDb([newA, newB]);
-    createDbMock
-      .mockResolvedValueOnce(db1 as unknown as DuckDBInstance)
-      .mockResolvedValueOnce(db2 as unknown as DuckDBInstance);
-
-    const manager = createDuckDbConnectionManager({ dbPath: '/tmp/test.duckdb', poolSize: 2 });
-
-    const seen: string[] = [];
-    const result = await manager.withConnection(async (conn) => {
-      const id = (conn as unknown as MockConn).id;
-      seen.push(id);
-      if (id === 'broken') throw new Error('query failed on broken connection');
-      return 'ok';
-    });
-
-    expect(result).toBe('ok');
-    expect(seen).toEqual(['broken', 'new-a']);
-    expect(createDbMock).toHaveBeenCalledTimes(2);
-    expect(broken.closeSync).toHaveBeenCalledTimes(1);
-    expect(oldOther.closeSync).toHaveBeenCalledTimes(1);
-    expect(db1.closeSync).toHaveBeenCalledTimes(1);
-
-    await manager.close();
-  });
-
-  it('does not reconnect on query errors when connection ping succeeds', async () => {
+  it('propagates query errors and keeps manager usable', async () => {
     const connA = makeConn('a');
     const connB = makeConn('b');
     const db = makeDb([connA, connB]);
@@ -125,21 +89,61 @@ describe('duckdbConnectionManager', () => {
 
     expect(createDbMock).toHaveBeenCalledTimes(1);
 
+    await expect(
+      manager.withConnection(async (conn) => (conn as unknown as MockConn).id),
+    ).resolves.toMatch(/a|b/);
+
     await manager.close();
   });
 
-  it('healthcheck returns false when reconnect cannot recover', async () => {
+  it('healthcheck returns false when selected connection is broken', async () => {
     const broken = makeConn('broken');
     broken.run.mockRejectedValue(new Error('connection closed'));
 
     const db = makeDb([broken]);
-    createDbMock
-      .mockResolvedValueOnce(db as unknown as DuckDBInstance)
-      .mockRejectedValueOnce(new Error('db create failed'));
+    createDbMock.mockResolvedValueOnce(db as unknown as DuckDBInstance);
 
     const manager = createDuckDbConnectionManager({ dbPath: '/tmp/test.duckdb', poolSize: 1 });
 
     await expect(manager.healthcheck()).resolves.toBe(false);
+    await manager.close();
+  });
+
+  it('serializes concurrent init and creates state once', async () => {
+    const db = makeDb([makeConn('c1')]);
+    createDbMock.mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      return db as unknown as DuckDBInstance;
+    });
+
+    const manager = createDuckDbConnectionManager({ dbPath: '/tmp/test.duckdb', poolSize: 1 });
+
+    await Promise.all([
+      manager.withConnection(async () => undefined),
+      manager.withConnection(async () => undefined),
+    ]);
+
+    expect(createDbMock).toHaveBeenCalledTimes(1);
+    await manager.close();
+  });
+
+  it('times out when waiting for a free lease too long', async () => {
+    const db = makeDb([makeConn('c1')]);
+    createDbMock.mockResolvedValue(db as unknown as DuckDBInstance);
+    const manager = createDuckDbConnectionManager({
+      dbPath: '/tmp/test.duckdb',
+      poolSize: 1,
+      acquireTimeoutMs: 10,
+    });
+
+    const blocker = manager.withConnection(
+      async () => await new Promise((resolve) => setTimeout(resolve, 50)),
+    );
+
+    await expect(manager.withConnection(async () => undefined)).rejects.toThrow(
+      /waiting for a DB connection lease/i,
+    );
+    await blocker;
     await manager.close();
   });
 });

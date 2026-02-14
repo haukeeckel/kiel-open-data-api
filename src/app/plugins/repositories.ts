@@ -17,7 +17,12 @@ export default fp<RepositoriesPluginOptions>(async function repositoriesPlugin(
   const env = opts?.env ?? getEnv();
   const dbPath = getDuckDbPath(env);
   const dbLogger = app.log.child({ name: 'db' });
-  const dbManager = createDuckDbConnectionManager({ dbPath, poolSize: 4, logger: dbLogger });
+  const dbManager = createDuckDbConnectionManager({
+    dbPath,
+    poolSize: env.DB_POOL_SIZE,
+    acquireTimeoutMs: env.DB_POOL_ACQUIRE_TIMEOUT_MS,
+    logger: dbLogger,
+  });
 
   // Migrations must run before app startup via `pnpm migrate`.
   await dbManager.withConnection(assertMigrationsUpToDate);

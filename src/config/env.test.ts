@@ -17,6 +17,8 @@ describe('getEnv', () => {
       RATE_LIMIT_MAX: undefined,
       RATE_LIMIT_WINDOW_MS: undefined,
       DB_QUERY_TIMEOUT_MS: undefined,
+      DB_POOL_SIZE: undefined,
+      DB_POOL_ACQUIRE_TIMEOUT_MS: undefined,
     });
 
     try {
@@ -31,6 +33,8 @@ describe('getEnv', () => {
       expect(env.RATE_LIMIT_MAX).toBe(100);
       expect(env.RATE_LIMIT_WINDOW_MS).toBe(60_000);
       expect(env.DB_QUERY_TIMEOUT_MS).toBe(2_000);
+      expect(env.DB_POOL_SIZE).toBe(4);
+      expect(env.DB_POOL_ACQUIRE_TIMEOUT_MS).toBe(2_000);
     } finally {
       restoreEnv();
     }
@@ -47,6 +51,8 @@ describe('getEnv', () => {
       RATE_LIMIT_MAX: 50,
       RATE_LIMIT_WINDOW_MS: 5000,
       DB_QUERY_TIMEOUT_MS: 3210,
+      DB_POOL_SIZE: 8,
+      DB_POOL_ACQUIRE_TIMEOUT_MS: 1500,
     });
 
     try {
@@ -61,6 +67,8 @@ describe('getEnv', () => {
       expect(env.RATE_LIMIT_MAX).toBe(50);
       expect(env.RATE_LIMIT_WINDOW_MS).toBe(5000);
       expect(env.DB_QUERY_TIMEOUT_MS).toBe(3210);
+      expect(env.DB_POOL_SIZE).toBe(8);
+      expect(env.DB_POOL_ACQUIRE_TIMEOUT_MS).toBe(1500);
     } finally {
       restoreEnv();
     }
@@ -140,6 +148,27 @@ describe('getEnv', () => {
 
     try {
       expect(() => getEnv()).toThrow();
+    } finally {
+      restoreEnv();
+    }
+  });
+
+  it('resolves dotenv behavior per getEnv call after NODE_ENV changes', () => {
+    const restoreEnv = withTestEnv({
+      NODE_ENV: 'test',
+      CORS_ORIGIN: undefined,
+      SWAGGER_UI_ENABLED: undefined,
+    });
+
+    try {
+      let env = getEnv();
+      expect(env.NODE_ENV).toBe('test');
+
+      process.env['NODE_ENV'] = 'development';
+      resetEnvForTests();
+
+      env = getEnv();
+      expect(env.NODE_ENV).toBe('development');
     } finally {
       restoreEnv();
     }

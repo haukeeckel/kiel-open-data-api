@@ -74,6 +74,20 @@ const migrations: Migration[] = [
       ON statistics(indicator, area_type, area_name, year, category);
     `,
   },
+  {
+    version: 6,
+    name: 'add_hot_path_indexes',
+    up: `
+      CREATE INDEX IF NOT EXISTS statistics_ranking_idx
+      ON statistics(indicator, area_type, year, category, value);
+
+      CREATE INDEX IF NOT EXISTS statistics_category_lookup_idx
+      ON statistics(indicator, area_type, category);
+
+      CREATE INDEX IF NOT EXISTS statistics_area_type_lookup_idx
+      ON statistics(area_type);
+    `,
+  },
 ];
 
 export function getLatestMigrationVersion(): number {

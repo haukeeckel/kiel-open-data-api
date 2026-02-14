@@ -14,6 +14,8 @@ const EnvSchema = z
     RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
     RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
     DB_QUERY_TIMEOUT_MS: z.coerce.number().int().positive().default(2_000),
+    DB_POOL_SIZE: z.coerce.number().int().min(1).max(64).default(4),
+    DB_POOL_ACQUIRE_TIMEOUT_MS: z.coerce.number().int().positive().default(2_000),
     SWAGGER_ROUTE_PREFIX: z.string().default('/docs'),
     SWAGGER_UI_ENABLED: z
       .string()
@@ -38,11 +40,11 @@ const EnvSchema = z
 export type Env = z.infer<typeof EnvSchema>;
 
 let cachedEnv: Env | null = null;
-const isTestEnv = process.env['NODE_ENV'] === 'test';
 
 export function getEnv(): Env {
   if (cachedEnv) return cachedEnv;
-  if (!isTestEnv) {
+  const isTestRuntime = process.env['NODE_ENV'] === 'test' || process.env['VITEST'] === 'true';
+  if (!isTestRuntime) {
     dotenv.config();
   }
   cachedEnv = EnvSchema.parse(process.env);

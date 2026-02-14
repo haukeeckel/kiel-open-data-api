@@ -60,12 +60,18 @@ function summarizeValues(values?: Array<string | number>): string {
 async function runQueryWithTimeout(args: QueryArgs): Promise<DuckDBResultReader> {
   const { conn, operation, sql, values, queryTimeoutMs, logger } = args;
   let timeout: NodeJS.Timeout | undefined;
+  let settled = false;
+  let timedOut = false;
   const started = process.hrtime.bigint();
 
   try {
-    const queryPromise = conn.runAndReadAll(sql, values);
+    const queryPromise = conn.runAndReadAll(sql, values).finally(() => {
+      settled = true;
+    });
     const timeoutPromise = new Promise<never>((_, reject) => {
       timeout = setTimeout(() => {
+        if (settled) return;
+        timedOut = true;
         try {
           conn.interrupt();
         } catch {}
@@ -85,6 +91,24 @@ async function runQueryWithTimeout(args: QueryArgs): Promise<DuckDBResultReader>
         'repository query timed out',
       );
       throw err;
+    }
+    if (timedOut) {
+      const timeoutErr = new RepositoryQueryTimeoutError({
+        operation,
+        timeoutMs: queryTimeoutMs,
+        cause: err,
+      });
+      recordDbQuery(operation, 'timeout', seconds);
+      logger?.warn?.(
+        {
+          operation,
+          timeoutMs: queryTimeoutMs,
+          values: summarizeValues(values),
+          err: toError(err),
+        },
+        'repository query timed out after interrupt',
+      );
+      throw timeoutErr;
     }
     const wrapped = new RepositoryInfraError({
       operation,

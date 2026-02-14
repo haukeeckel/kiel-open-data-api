@@ -4,6 +4,7 @@ import type { DbLogger } from './logger.js';
 import type { DuckDBConnection, DuckDBInstance } from '@duckdb/node-api';
 
 const DEFAULT_POOL_SIZE = 4;
+const DEFAULT_ACQUIRE_TIMEOUT_MS = 2_000;
 
 type LoggerLike = DbLogger;
 
@@ -16,12 +17,16 @@ export type DuckDbConnectionManager = {
 type CreateDuckDbConnectionManagerOptions = {
   dbPath: string;
   poolSize?: number;
+  acquireTimeoutMs?: number;
   logger?: LoggerLike;
 };
 
 type State = {
   db: DuckDBInstance;
-  connections: DuckDBConnection[];
+  connections: Array<{
+    conn: DuckDBConnection;
+    leased: boolean;
+  }>;
 };
 
 function toError(err: unknown): Error {
@@ -33,37 +38,72 @@ async function ping(conn: DuckDBConnection): Promise<void> {
   await conn.run('SELECT 1');
 }
 
+class PoolAcquireTimeoutError extends Error {
+  readonly timeoutMs: number;
+
+  constructor(timeoutMs: number) {
+    super(`Timed out while waiting for a DB connection lease after ${timeoutMs}ms`);
+    this.name = 'PoolAcquireTimeoutError';
+    this.timeoutMs = timeoutMs;
+  }
+}
+
+class ConnectionManagerClosedError extends Error {
+  constructor() {
+    super('DuckDB connection manager is closed');
+    this.name = 'ConnectionManagerClosedError';
+  }
+}
+
 export function createDuckDbConnectionManager(
   options: CreateDuckDbConnectionManagerOptions,
 ): DuckDbConnectionManager {
   const poolSize = Math.max(1, options.poolSize ?? DEFAULT_POOL_SIZE);
+  const acquireTimeoutMs = Math.max(1, options.acquireTimeoutMs ?? DEFAULT_ACQUIRE_TIMEOUT_MS);
   const logger = options.logger;
 
   let state: State | null = null;
-  let roundRobin = 0;
-  let reconnectInFlight: Promise<void> | null = null;
+  let initInFlight: Promise<State> | null = null;
+  let isClosed = false;
+  const waitQueue: Array<{
+    resolve: (conn: DuckDBConnection) => void;
+    reject: (err: unknown) => void;
+    timer: NodeJS.Timeout;
+    isSettled: boolean;
+  }> = [];
 
   const init = async (): Promise<State> => {
     const db = await createDb(options.dbPath, logger !== undefined ? { logger } : undefined);
-    const connections: DuckDBConnection[] = [];
+    const connections: State['connections'] = [];
     for (let i = 0; i < poolSize; i += 1) {
-      connections.push(await db.connect());
+      connections.push({ conn: await db.connect(), leased: false });
     }
     return { db, connections };
   };
 
   const ensureState = async (): Promise<State> => {
-    if (!state) {
-      state = await init();
+    if (isClosed) {
+      throw new ConnectionManagerClosedError();
     }
-    return state;
+    if (state) return state;
+    if (!initInFlight) {
+      initInFlight = init()
+        .then((nextState) => {
+          state = nextState;
+          return nextState;
+        })
+        .finally(() => {
+          initInFlight = null;
+        });
+    }
+    return await initInFlight;
   };
 
   const closeState = (current: State | null): void => {
     if (!current) return;
     for (const conn of current.connections) {
       try {
-        conn.closeSync();
+        conn.conn.closeSync();
       } catch {}
     }
     try {
@@ -71,49 +111,75 @@ export function createDuckDbConnectionManager(
     } catch {}
   };
 
-  const reconnect = async (reason: unknown): Promise<void> => {
-    if (!reconnectInFlight) {
-      reconnectInFlight = (async () => {
-        const prev = state;
-        state = null;
-        roundRobin = 0;
-        closeState(prev);
-        logger?.warn?.({ err: toError(reason) }, 'duckdb manager: reconnecting');
-        state = await init();
-      })().finally(() => {
-        reconnectInFlight = null;
-      });
+  const dequeueWaiter = (): (typeof waitQueue)[number] | undefined => {
+    for (let i = 0; i < waitQueue.length; i += 1) {
+      const waiter = waitQueue[i];
+      if (!waiter) continue;
+      waitQueue.splice(i, 1);
+      if (waiter.isSettled) {
+        i -= 1;
+        continue;
+      }
+      return waiter;
     }
-    await reconnectInFlight;
+    return undefined;
   };
 
-  const selectConnection = (current: State): DuckDBConnection => {
-    const index = roundRobin % current.connections.length;
-    roundRobin += 1;
-    return current.connections[index] as DuckDBConnection;
+  const tryLease = (current: State): DuckDBConnection | null => {
+    const free = current.connections.find((entry) => !entry.leased);
+    if (!free) return null;
+    free.leased = true;
+    return free.conn;
+  };
+
+  const releaseLease = (leasedConn: DuckDBConnection): void => {
+    if (!state) return;
+    const entry = state.connections.find((item) => item.conn === leasedConn);
+    if (!entry) return;
+    entry.leased = false;
+
+    const waiter = dequeueWaiter();
+    if (!waiter) return;
+    clearTimeout(waiter.timer);
+    waiter.isSettled = true;
+
+    const nextConn = tryLease(state);
+    if (!nextConn) {
+      waiter.reject(new Error('Lease queue resumed without available connection'));
+      return;
+    }
+    waiter.resolve(nextConn);
+  };
+
+  const acquireLease = async (): Promise<DuckDBConnection> => {
+    const current = await ensureState();
+    const immediate = tryLease(current);
+    if (immediate) return immediate;
+
+    return await new Promise<DuckDBConnection>((resolve, reject) => {
+      const waiter = {
+        resolve,
+        reject,
+        timer: setTimeout(() => {
+          waiter.isSettled = true;
+          reject(new PoolAcquireTimeoutError(acquireTimeoutMs));
+        }, acquireTimeoutMs),
+        isSettled: false,
+      };
+      waitQueue.push(waiter);
+    });
   };
 
   return {
     async withConnection<T>(fn: (conn: DuckDBConnection) => Promise<T>): Promise<T> {
-      const current = await ensureState();
-      const conn = selectConnection(current);
-
+      const conn = await acquireLease();
       try {
         return await fn(conn);
-      } catch (firstErr) {
-        let isConnectionHealthy = true;
-        try {
-          await ping(conn);
-        } catch {
-          isConnectionHealthy = false;
-        }
-
-        if (isConnectionHealthy) throw firstErr;
-
-        await reconnect(firstErr);
-        const recovered = await ensureState();
-        const retryConn = selectConnection(recovered);
-        return await fn(retryConn);
+      } catch (err) {
+        logger?.warn?.({ err: toError(err) }, 'duckdb manager: query failed');
+        throw err;
+      } finally {
+        releaseLease(conn);
       }
     },
 
@@ -131,8 +197,13 @@ export function createDuckDbConnectionManager(
     },
 
     async close(): Promise<void> {
-      if (reconnectInFlight) {
-        await reconnectInFlight;
+      isClosed = true;
+      while (waitQueue.length > 0) {
+        const waiter = waitQueue.shift();
+        if (!waiter || waiter.isSettled) continue;
+        clearTimeout(waiter.timer);
+        waiter.isSettled = true;
+        waiter.reject(new ConnectionManagerClosedError());
       }
       const current = state;
       state = null;

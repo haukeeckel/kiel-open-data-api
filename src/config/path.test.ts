@@ -17,6 +17,8 @@ function makeEnv(overrides: Partial<Env> = {}): Env {
     RATE_LIMIT_MAX: 100,
     RATE_LIMIT_WINDOW_MS: 60_000,
     DB_QUERY_TIMEOUT_MS: 2_000,
+    DB_POOL_SIZE: 4,
+    DB_POOL_ACQUIRE_TIMEOUT_MS: 2_000,
     SWAGGER_ROUTE_PREFIX: '/docs',
     SWAGGER_UI_ENABLED: true,
     ...overrides,

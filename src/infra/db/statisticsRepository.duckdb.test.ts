@@ -372,6 +372,32 @@ describe('DuckDbStatisticsRepository', () => {
 
       await expect(strictRepo.listIndicators()).rejects.toBeInstanceOf(RepositoryInfraError);
     });
+
+    it('keeps timeout classification when query rejects after interrupt', async () => {
+      let rejectQuery: ((err: unknown) => void) | undefined;
+      const interrupt = vi.fn(() => {
+        rejectQuery?.(new Error('interrupted by timeout'));
+      });
+      const mockConn = {
+        runAndReadAll: vi.fn(
+          () =>
+            new Promise((_, reject) => {
+              rejectQuery = reject;
+            }),
+        ),
+        interrupt,
+      } as unknown as DuckDBConnection;
+
+      const manager: DuckDbConnectionManager = {
+        withConnection: async (fn) => fn(mockConn),
+        healthcheck: async () => true,
+        close: async () => undefined,
+      };
+      const timedRepo = createDuckDbStatisticsRepository(manager, { queryTimeoutMs: 1 });
+
+      await expect(timedRepo.listIndicators()).rejects.toBeInstanceOf(RepositoryQueryTimeoutError);
+      expect(interrupt).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('query metrics', () => {
