@@ -21,6 +21,11 @@ function makeEnv(overrides: Partial<Env> = {}): Env {
     DB_POOL_ACQUIRE_TIMEOUT_MS: 2_000,
     SWAGGER_ROUTE_PREFIX: '/docs',
     SWAGGER_UI_ENABLED: true,
+    METRICS_ENABLED: true,
+    METRICS_TOKEN: undefined,
+    METRICS_AUTH_HEADER: 'x-metrics-token',
+    OBS_SLOW_QUERY_THRESHOLD_MS: 500,
+    OBS_PLAN_SAMPLE_ENABLED: false,
     ...overrides,
   };
 }
