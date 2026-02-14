@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import { getEnv } from '../config/env.js';
 import { getDuckDbPath, getCacheDir } from '../config/path.js';
 import { createDb } from '../infra/db/duckdb.js';
-import { applyMigrations } from '../infra/db/migrations.js';
+import { assertMigrationsUpToDate } from '../infra/db/migrations.js';
 
 import { durationMs, nowMs } from './etlContext.js';
 import { getEtlLogger } from './etlLogger.js';
@@ -551,7 +551,7 @@ export async function importDataset(
   };
 
   try {
-    await applyMigrations(conn);
+    await assertMigrationsUpToDate(conn);
 
     await runStep('load_csv_temp_table', async () => {
       await conn.run(
@@ -574,54 +574,50 @@ export async function importDataset(
       'etl.import: detected columns',
     );
 
-    let imported: number;
+    const imported = await runStep('transaction_insert_rows', async () => {
+      await conn.run(`
+        CREATE OR REPLACE TEMP TABLE ${quoteIdentifier(IMPORT_ROWS_TABLE_NAME)} (
+          indicator TEXT,
+          area_type TEXT,
+          area_name TEXT,
+          year INTEGER,
+          value DOUBLE,
+          unit TEXT,
+          category TEXT
+        );
+      `);
+      await conn.run(
+        `DROP INDEX IF EXISTS ${quoteIdentifier(`${IMPORT_ROWS_TABLE_NAME}_unique_idx`)};`,
+      );
+      await conn.run(`
+        CREATE UNIQUE INDEX ${quoteIdentifier(`${IMPORT_ROWS_TABLE_NAME}_unique_idx`)}
+        ON ${quoteIdentifier(IMPORT_ROWS_TABLE_NAME)}(indicator, area_type, area_name, year, category);
+      `);
+
+      if (config.format.type === 'unpivot_years') {
+        return await importUnpivotYears({
+          conn,
+          config,
+          cols,
+          yearCols,
+        });
+      }
+      if (config.format.type === 'unpivot_categories') {
+        return await importUnpivotCategories({
+          conn,
+          config,
+          cols,
+        });
+      }
+      return assertNever(config.format);
+    });
 
     await conn.run('BEGIN TRANSACTION');
     try {
-      imported = await runStep('transaction_insert_rows', async () => {
-        await conn.run(`
-          CREATE OR REPLACE TEMP TABLE ${quoteIdentifier(IMPORT_ROWS_TABLE_NAME)} (
-            indicator TEXT,
-            area_type TEXT,
-            area_name TEXT,
-            year INTEGER,
-            value DOUBLE,
-            unit TEXT,
-            category TEXT
-          );
-        `);
-        await conn.run(
-          `DROP INDEX IF EXISTS ${quoteIdentifier(`${IMPORT_ROWS_TABLE_NAME}_unique_idx`)};`,
-        );
-        await conn.run(`
-          CREATE UNIQUE INDEX ${quoteIdentifier(`${IMPORT_ROWS_TABLE_NAME}_unique_idx`)}
-          ON ${quoteIdentifier(IMPORT_ROWS_TABLE_NAME)}(indicator, area_type, area_name, year, category);
-        `);
-
-        let importedRows: number;
-        if (config.format.type === 'unpivot_years') {
-          importedRows = await importUnpivotYears({
-            conn,
-            config,
-            cols,
-            yearCols,
-          });
-        } else if (config.format.type === 'unpivot_categories') {
-          importedRows = await importUnpivotCategories({
-            conn,
-            config,
-            cols,
-          });
-        } else {
-          return assertNever(config.format);
-        }
-
-        await conn.run(`
-          INSERT OR REPLACE INTO statistics
-          SELECT * FROM ${quoteIdentifier(IMPORT_ROWS_TABLE_NAME)};
-        `);
-        return importedRows;
-      });
+      await conn.run(`
+        INSERT OR REPLACE INTO statistics
+        SELECT * FROM ${quoteIdentifier(IMPORT_ROWS_TABLE_NAME)};
+      `);
       await runStep('transaction_delete_scope', async () => {
         await deleteStaleRowsForDataset({ conn, config, log, ctx });
       });
