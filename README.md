@@ -102,7 +102,8 @@ cp .env.example .env
   Port to listen on (default: `3000`, valid range: `1-65535`)
 
 - `DUCKDB_PATH`
-  Path to DuckDB database file (default: `data/kiel.<env>.duckdb`, e.g. `data/kiel.development.duckdb`)
+  Optional path override for DuckDB database file.
+  If unset, default is `data/kiel.<env>.duckdb` (e.g. `data/kiel.development.duckdb`)
   For tests we use `:memory:` to avoid lock conflicts.
 
 - `CORS_ORIGIN`
@@ -119,6 +120,12 @@ cp .env.example .env
 
 - `DB_QUERY_TIMEOUT_MS`
   DB query timeout in ms for repository operations (default: `2000`)
+
+- `DB_POOL_SIZE`
+  Number of DB connections in the pool (default: `4`, valid range: `1-64`)
+
+- `DB_POOL_ACQUIRE_TIMEOUT_MS`
+  Max wait time in ms to acquire a pooled connection (default: `2000`)
 
 - `METRICS_ENABLED`
   Enable `/metrics` endpoint (default: `false` in production, `true` otherwise)
@@ -263,6 +270,29 @@ Example:
 ```bash
 curl -H "x-metrics-token: $METRICS_TOKEN" http://127.0.0.1:3000/metrics
 ```
+
+## Debt Tracking Workflow
+
+Debt planning files are intentionally local-only in this repository:
+
+- `docs/technical-debt.md`
+- `docs/technical-debt-pr-plan.md`
+
+Both files are ignored via `.gitignore` and should not be committed.
+Implementation outcomes should be captured in regular versioned PRs/commits.
+
+## Test Fixture Maintenance
+
+Statistics seed data for integration tests is maintained as structured fixtures:
+
+- `src/test/fixtures/statisticsSeed.ts`
+- `src/test/helpers/statisticsSeedBuilder.ts`
+
+When extending seed data:
+
+1. Add records to `statisticsSeedRows`.
+2. Keep record shape consistent (`indicator`, `areaType`, `areaName`, `year`, `value`, `unit`, `category`).
+3. Avoid reintroducing large inline SQL blocks in test helpers.
 
 ## Notes
 
