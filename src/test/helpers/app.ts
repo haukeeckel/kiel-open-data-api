@@ -10,6 +10,8 @@ import { applyMigrations } from '../../infra/db/migrations.js';
 
 import { setTestEnv } from './env.js';
 
+import type { Env } from '../../config/env.js';
+
 export function makeTestDbPath() {
   const id = crypto.randomUUID();
   return path.join(getCacheDir(), `test-${id}.duckdb`);
@@ -166,6 +168,7 @@ export async function seedStatistics(db: DuckDBInstance) {
 
 type MakeAppOptions = {
   registerRoutes?: (app: Awaited<ReturnType<typeof buildServer>>) => void | Promise<void>;
+  env?: Partial<Env>;
 };
 
 export async function makeAppAndSeed(options: MakeAppOptions = {}) {
@@ -173,7 +176,11 @@ export async function makeAppAndSeed(options: MakeAppOptions = {}) {
 
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
-  setTestEnv({ NODE_ENV: 'test', DUCKDB_PATH: dbPath });
+  setTestEnv({
+    NODE_ENV: 'test',
+    DUCKDB_PATH: dbPath,
+    ...(options.env ?? {}),
+  });
 
   // Seed first, then close so the app can open its own instance
   const db = await DuckDBInstance.create(dbPath);
