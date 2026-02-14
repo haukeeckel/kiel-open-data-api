@@ -612,6 +612,13 @@ export async function importDataset(
       return assertNever(config.format);
     });
 
+    if (imported === 0) {
+      throw new Error(
+        `ETL import produced zero rows for dataset ${config.id}. ` +
+          `Aborting publish to preserve existing data.`,
+      );
+    }
+
     await conn.run('BEGIN TRANSACTION');
     try {
       await conn.run(`
