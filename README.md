@@ -177,7 +177,7 @@ pnpm etl:run:dataset districts_migrant_gender
 
 ETL writes into a normalized (tidy) table:
 
-`statistics(indicator, area_type, area_name, year, value, unit, category)`
+`statistics(indicator, area_type, area_name, year, value, unit, category, source_dataset, import_run_id, loaded_at, data_version)`
 
 Example:
 
@@ -188,6 +188,19 @@ Example:
 - value: `1220`
 - unit: `persons`
 - category: `total`
+- source_dataset: `districts_population`
+- import_run_id: UUID for ETL run tracking
+- loaded_at: timestamp when row was imported
+- data_version: import source version fingerprint
+
+### ETL run metadata
+
+ETL writes one run record per dataset execution into `etl_runs`:
+
+- `status`: `started`, `published`, `failed`
+- `started_at`, `published_at`, `failed_at`
+- `row_count` on successful publish
+- `error_message` on failed runs
 
 ## API Endpoints
 

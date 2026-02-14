@@ -116,6 +116,29 @@ async function queryCount(
   return Number(reader.getRowObjects()[0]?.['c']);
 }
 
+async function queryLatestRun(
+  conn: DuckDBConnection,
+  datasetId: string,
+): Promise<{ status: string; rowCount: number | null; dataVersion: string; hasFailedAt: boolean }> {
+  const reader = await conn.runAndReadAll(
+    `
+    SELECT status, row_count, data_version, failed_at
+    FROM etl_runs
+    WHERE dataset_id = ?
+    ORDER BY started_at DESC
+    LIMIT 1;
+    `,
+    [datasetId],
+  );
+  const row = reader.getRowObjects()[0];
+  return {
+    status: String(row?.['status']),
+    rowCount: row?.['row_count'] === null ? null : Number(row?.['row_count']),
+    dataVersion: String(row?.['data_version']),
+    hasFailedAt: row?.['failed_at'] != null,
+  };
+}
+
 // ── Tests ──────────────────────────────────────────────────────────────────
 
 describe('importDataset', () => {
@@ -164,6 +187,39 @@ describe('importDataset', () => {
 
     await withConn(dbPath, async (conn) => {
       expect(await queryCount(conn, 'population')).toBe(4);
+    });
+  });
+
+  it('stores run metadata and lineage columns for successful imports', async () => {
+    const csv =
+      ['Merkmal;Stadtteil;2022;2023', 'Einwohner insgesamt;Altstadt;1213;1220'].join('\n') + '\n';
+
+    await fs.writeFile(csvPath, csv, 'utf8');
+    await importDataset(DISTRICTS_POPULATION, { csvPath, dbPath });
+
+    await withConn(dbPath, async (conn) => {
+      const run = await queryLatestRun(conn, DISTRICTS_POPULATION.id);
+      expect(run.status).toBe('published');
+      expect(run.rowCount).toBe(2);
+      expect(run.dataVersion).toMatch(/^size:\d+;mtimeMs:\d+$/);
+      expect(run.hasFailedAt).toBe(false);
+
+      const rowReader = await conn.runAndReadAll(
+        `
+        SELECT source_dataset, import_run_id, loaded_at, data_version
+        FROM statistics
+        WHERE indicator = 'population'
+        ORDER BY year DESC
+        LIMIT 1;
+        `,
+      );
+      const row = rowReader.getRowObjects()[0];
+      expect(String(row?.['source_dataset'])).toBe(DISTRICTS_POPULATION.id);
+      expect(String(row?.['import_run_id'])).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+      );
+      expect(row?.['loaded_at']).toBeDefined();
+      expect(String(row?.['data_version'])).toMatch(/^size:\d+;mtimeMs:\d+$/);
     });
   });
 
@@ -1062,6 +1118,9 @@ describe('importDataset', () => {
     await withConn(dbPath, async (conn) => {
       expect(await queryCount(conn, 'population', 'total')).toBe(4);
       expect(await queryValue(conn, 'population', 'Altstadt', 2023)).toBe(1220);
+      const run = await queryLatestRun(conn, DISTRICTS_POPULATION.id);
+      expect(run.status).toBe('failed');
+      expect(run.hasFailedAt).toBe(true);
     });
   });
 });
