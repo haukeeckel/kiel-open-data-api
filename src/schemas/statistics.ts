@@ -9,12 +9,16 @@ import {
 
 const Indicator = z.string().min(1);
 const AreaType = z.string().min(1);
+const QUERY_TEXT_MAX = 120;
+const QUERY_AREA_MAX = 200;
+const QUERY_LIKE_MAX = 120;
+const Category = z.string().min(1).max(QUERY_TEXT_MAX);
 
 export const TimeseriesQuery = z.object({
-  indicator: Indicator,
-  areaType: AreaType,
-  area: z.string().min(1),
-  category: z.string().min(1).optional(),
+  indicator: Indicator.max(QUERY_TEXT_MAX),
+  areaType: AreaType.max(QUERY_TEXT_MAX),
+  area: z.string().min(1).max(QUERY_AREA_MAX),
+  category: Category.optional(),
   from: z.coerce.number().int().optional(),
   to: z.coerce.number().int().optional(),
 });
@@ -34,10 +38,10 @@ export const TimeseriesResponse = z.object({
 });
 
 export const AreasQuery = z.object({
-  indicator: Indicator,
-  areaType: AreaType,
-  category: z.string().min(1).optional(),
-  like: z.string().min(1).optional(),
+  indicator: Indicator.max(QUERY_TEXT_MAX),
+  areaType: AreaType.max(QUERY_TEXT_MAX),
+  category: Category.optional(),
+  like: z.string().min(1).max(QUERY_LIKE_MAX).optional(),
 });
 
 export const AreasResponse = z.object({
@@ -47,8 +51,8 @@ export const AreasResponse = z.object({
 });
 
 export const CategoriesQuery = z.object({
-  indicator: Indicator,
-  areaType: AreaType,
+  indicator: Indicator.max(QUERY_TEXT_MAX),
+  areaType: AreaType.max(QUERY_TEXT_MAX),
 });
 
 export const CategoriesResponse = z.object({
@@ -58,10 +62,10 @@ export const CategoriesResponse = z.object({
 });
 
 export const RankingQuery = z.object({
-  indicator: Indicator,
-  areaType: AreaType,
+  indicator: Indicator.max(QUERY_TEXT_MAX),
+  areaType: AreaType.max(QUERY_TEXT_MAX),
   year: z.coerce.number().int(),
-  category: z.string().min(1).optional(),
+  category: Category.optional(),
   limit: z.coerce
     .number()
     .int()
