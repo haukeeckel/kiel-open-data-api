@@ -56,9 +56,31 @@ pnpm test
 ### Build & Run
 
 ```bash
+pnpm migrate
 pnpm build
 pnpm start
 ```
+
+## Database Migrations
+
+Run migrations explicitly before starting the API:
+
+```bash
+pnpm migrate
+```
+
+Recommended local sequence:
+
+1. `pnpm migrate`
+2. `pnpm start` (or `pnpm dev`)
+
+Recommended deployment sequence:
+
+1. Run migration job (`pnpm migrate`) once.
+2. Roll out application instances.
+
+The API no longer applies migrations automatically at startup. This avoids
+concurrent migration attempts in multi-instance deployments.
 
 ## Configuration
 

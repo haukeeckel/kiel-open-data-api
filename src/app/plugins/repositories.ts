@@ -3,7 +3,7 @@ import fp from 'fastify-plugin';
 import { type Env, getEnv } from '../../config/env.js';
 import { getDuckDbPath } from '../../config/path.js';
 import { createDuckDbConnectionManager } from '../../infra/db/duckdbConnectionManager.js';
-import { applyMigrations } from '../../infra/db/migrations.js';
+import { assertMigrationsUpToDate } from '../../infra/db/migrations.js';
 import { createDuckDbStatisticsRepository } from '../../infra/db/statisticsRepository.duckdb.js';
 
 import type { FastifyInstance } from 'fastify';
@@ -19,9 +19,8 @@ export default fp<RepositoriesPluginOptions>(async function repositoriesPlugin(
   const dbLogger = app.log.child({ name: 'db' });
   const dbManager = createDuckDbConnectionManager({ dbPath, poolSize: 4, logger: dbLogger });
 
-  // TODO: consider a dedicated `pnpm migrate` CLI command if migrations
-  // become long-running or the app moves to a multi-instance setup.
-  await dbManager.withConnection(applyMigrations);
+  // Migrations must run before app startup via `pnpm migrate`.
+  await dbManager.withConnection(assertMigrationsUpToDate);
 
   const statisticsRepository = createDuckDbStatisticsRepository(dbManager, {
     queryTimeoutMs: env.DB_QUERY_TIMEOUT_MS,
