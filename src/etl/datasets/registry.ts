@@ -1,41 +1,14 @@
-import { DISTRICTS_AGE_GROUPS } from './districts_age_groups.js';
-import { DISTRICTS_AREA_HECTARES } from './districts_area_hectares.js';
-import { DISTRICTS_FOREIGN_AGE_GROUPS } from './districts_foreign_age_groups.js';
-import { DISTRICTS_FOREIGN_COUNT } from './districts_foreign_count.js';
-import { DISTRICTS_FOREIGN_GENDER } from './districts_foreign_gender.js';
-import { DISTRICTS_FOREIGN_NATIONALITIES_SELECTED } from './districts_foreign_nationalities_selected.js';
-import { DISTRICTS_GENDER } from './districts_gender.js';
-import { DISTRICTS_HOUSEHOLDS_TYPE_SIZE } from './districts_households_type_size.js';
-import { DISTRICTS_MARITAL_STATUS } from './districts_marital_status.js';
-import { DISTRICTS_MIGRANT_GENDER } from './districts_migrant_gender.js';
-import { DISTRICTS_POPULATION } from './districts_population.js';
-import { DISTRICTS_RELIGION } from './districts_religion.js';
-import { DISTRICTS_UNEMPLOYED_COUNT } from './districts_unemployed_count.js';
-import { DISTRICTS_UNEMPLOYED_RATE } from './districts_unemployed_rate.js';
-import { type DatasetConfig } from './types.js';
+import { DATASET_MANIFEST, buildDatasetManifestIndex } from './manifest.js';
 
-const ALL_DATASETS: readonly DatasetConfig[] = [
-  DISTRICTS_POPULATION,
-  DISTRICTS_HOUSEHOLDS_TYPE_SIZE,
-  DISTRICTS_MARITAL_STATUS,
-  DISTRICTS_GENDER,
-  DISTRICTS_FOREIGN_AGE_GROUPS,
-  DISTRICTS_FOREIGN_COUNT,
-  DISTRICTS_FOREIGN_GENDER,
-  DISTRICTS_FOREIGN_NATIONALITIES_SELECTED,
-  DISTRICTS_AGE_GROUPS,
-  DISTRICTS_AREA_HECTARES,
-  DISTRICTS_MIGRANT_GENDER,
-  DISTRICTS_UNEMPLOYED_COUNT,
-  DISTRICTS_UNEMPLOYED_RATE,
-  DISTRICTS_RELIGION,
-];
+import type { DatasetConfig } from './types.js';
+
+const DATASET_INDEX = buildDatasetManifestIndex(DATASET_MANIFEST);
 
 export function getDataset(id: string): DatasetConfig {
-  const dataset = ALL_DATASETS.find((el) => el.id === id);
+  const dataset = DATASET_INDEX.get(id);
 
-  if (dataset == undefined) {
-    const known = ALL_DATASETS.map(({ id: datasetId }) => datasetId).join(', ');
+  if (dataset === undefined) {
+    const known = getAllDatasetIds().join(', ');
     throw new Error(`Unknown dataset id: ${id}. Known dataset ids: ${known}`);
   }
 
@@ -43,9 +16,9 @@ export function getDataset(id: string): DatasetConfig {
 }
 
 export function getAllDatasets(): readonly DatasetConfig[] {
-  return ALL_DATASETS;
+  return DATASET_MANIFEST;
 }
 
 export function getAllDatasetIds(): readonly string[] {
-  return ALL_DATASETS.map(({ id }) => id);
+  return [...DATASET_INDEX.keys()];
 }
