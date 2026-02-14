@@ -6,6 +6,7 @@ import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createDb } from '../infra/db/duckdb.js';
+import { applyMigrations } from '../infra/db/migrations.js';
 import { withTestEnv } from '../test/helpers/env.js';
 
 import { DISTRICTS_AGE_GROUPS } from './datasets/districts_age_groups.js';
@@ -44,6 +45,12 @@ async function withConn(
   } finally {
     conn.closeSync();
   }
+}
+
+async function prepareMigratedDb(dbPath: string): Promise<void> {
+  await withConn(dbPath, async (conn) => {
+    await applyMigrations(conn);
+  });
 }
 
 async function queryCategories(conn: DuckDBConnection, indicator: string): Promise<string[]> {
@@ -125,6 +132,7 @@ describe('importDataset', () => {
     dbPath = path.join(cacheDir, 'test.duckdb');
 
     await fs.mkdir(cacheDir, { recursive: true });
+    await prepareMigratedDb(dbPath);
 
     restoreEnv = withTestEnv({ NODE_ENV: 'test' });
   });
@@ -275,6 +283,17 @@ describe('importDataset', () => {
     await expect(importDataset(DISTRICTS_POPULATION, { csvPath: missing, dbPath })).rejects.toThrow(
       /CSV file not found/i,
     );
+  });
+
+  it('fails fast when DB schema was not migrated', async () => {
+    const freshDbPath = path.join(cacheDir, 'fresh-not-migrated.duckdb');
+    const csv =
+      ['Merkmal;Stadtteil;2022;2023', 'Einwohner insgesamt;Altstadt;1213;1220'].join('\n') + '\n';
+    await fs.writeFile(csvPath, csv, 'utf8');
+
+    await expect(
+      importDataset(DISTRICTS_POPULATION, { csvPath, dbPath: freshDbPath }),
+    ).rejects.toThrow(/run "pnpm migrate" before starting the app/i);
   });
 
   it('imports with csv path containing apostrophe', async () => {
@@ -958,7 +977,7 @@ describe('importDataset', () => {
       format: {
         ...DISTRICTS_POPULATION.format,
         rows: DISTRICTS_POPULATION.format.rows.map((row, index) =>
-          index === 0 ? { ...row, valueExpression: `CAST('not-a-number' AS INTEGER)` } : row,
+          index === 0 ? { ...row, valueExpression: `does_not_exist` } : row,
         ),
       },
     };
@@ -996,7 +1015,7 @@ describe('importDataset', () => {
       format: {
         ...DISTRICTS_GENDER.format,
         columns: DISTRICTS_GENDER.format.columns.map((column, index) =>
-          index === 0 ? { ...column, valueExpression: `CAST('not-a-number' AS INTEGER)` } : column,
+          index === 0 ? { ...column, valueExpression: `does_not_exist` } : column,
         ),
       },
     };
@@ -1006,6 +1025,43 @@ describe('importDataset', () => {
     await withConn(dbPath, async (conn) => {
       expect(await queryCount(conn, 'gender', 'total')).toBe(4);
       expect(await queryValue(conn, 'gender', 'Altstadt', 2023)).toBe(1220);
+    });
+  });
+
+  it('fails fast when staging import produces zero rows', async () => {
+    const csv =
+      [
+        'Merkmal;Stadtteil;2022;2023',
+        'Einwohner insgesamt;Altstadt;1213;1220',
+        'Einwohner insgesamt;Gaarden-Ost;17900;18000',
+      ].join('\n') + '\n';
+
+    await fs.writeFile(csvPath, csv, 'utf8');
+
+    const first = await importDataset(DISTRICTS_POPULATION, { csvPath, dbPath });
+    expect(first.imported).toBe(4);
+
+    if (DISTRICTS_POPULATION.format.type !== 'unpivot_years') {
+      throw new Error('Expected unpivot_years format for DISTRICTS_POPULATION');
+    }
+
+    const zeroRowsConfig = {
+      ...DISTRICTS_POPULATION,
+      format: {
+        ...DISTRICTS_POPULATION.format,
+        rows: DISTRICTS_POPULATION.format.rows.map((row, index) =>
+          index === 0 ? { ...row, filterValue: '__not_matching_any_row__' } : row,
+        ),
+      },
+    };
+
+    await expect(importDataset(zeroRowsConfig, { csvPath, dbPath })).rejects.toThrow(
+      /produced zero rows.*aborting publish/i,
+    );
+
+    await withConn(dbPath, async (conn) => {
+      expect(await queryCount(conn, 'population', 'total')).toBe(4);
+      expect(await queryValue(conn, 'population', 'Altstadt', 2023)).toBe(1220);
     });
   });
 });

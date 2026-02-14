@@ -95,9 +95,17 @@ export function getLatestMigrationVersion(): number {
   return latest;
 }
 
-export async function assertMigrationsUpToDate(conn: DuckDBConnection): Promise<void> {
-  const latestVersion = getLatestMigrationVersion();
+function getMigrationManifest(): Map<number, { name: string; hash: string }> {
+  const ordered = [...migrations].sort((a, b) => a.version - b.version);
+  return new Map(
+    ordered.map((migration) => [
+      migration.version,
+      { name: migration.name, hash: hashMigration(migration) },
+    ]),
+  );
+}
 
+export async function assertMigrationsUpToDate(conn: DuckDBConnection): Promise<void> {
   const tableReader = await conn.runAndReadAll(
     `
     SELECT COUNT(*) AS c
@@ -113,14 +121,54 @@ export async function assertMigrationsUpToDate(conn: DuckDBConnection): Promise<
     );
   }
 
-  const versionReader = await conn.runAndReadAll(
-    `SELECT COALESCE(MAX(version), 0) AS max_version FROM schema_migrations;`,
+  const appliedReader = await conn.runAndReadAll(
+    `SELECT version, name, hash FROM schema_migrations ORDER BY version ASC;`,
   );
-  const currentVersion = Number(versionReader.getRowObjects()[0]?.['max_version'] ?? 0);
+  const manifest = getMigrationManifest();
+  const appliedRows = appliedReader.getRowObjects().map((row) => ({
+    version: Number(row['version']),
+    name: String(row['name']),
+    hash: String(row['hash']),
+  }));
 
-  if (currentVersion !== latestVersion) {
+  const missing = [...manifest.keys()]
+    .filter((version) => !appliedRows.some((row) => row.version === version))
+    .sort((a, b) => a - b);
+  const unknown = appliedRows
+    .filter((row) => !manifest.has(row.version))
+    .map((row) => row.version)
+    .sort((a, b) => a - b);
+  const mismatches = appliedRows
+    .map((row) => {
+      const expected = manifest.get(row.version);
+      if (!expected) return null;
+      if (row.hash !== expected.hash || row.name !== expected.name) {
+        return {
+          version: row.version,
+          expectedName: expected.name,
+          actualName: row.name,
+        };
+      }
+      return null;
+    })
+    .filter((value): value is NonNullable<typeof value> => value !== null);
+
+  if (missing.length > 0 || unknown.length > 0 || mismatches.length > 0) {
+    const details: string[] = [];
+    if (missing.length > 0) details.push(`missing versions: [${missing.join(', ')}]`);
+    if (unknown.length > 0) details.push(`unknown versions: [${unknown.join(', ')}]`);
+    if (mismatches.length > 0) {
+      details.push(
+        `hash/name drift: [${mismatches
+          .map(
+            (mismatch) =>
+              `${mismatch.version} (expected=${mismatch.expectedName}, actual=${mismatch.actualName})`,
+          )
+          .join(', ')}]`,
+      );
+    }
     throw new Error(
-      `Database schema is out of date (current=${currentVersion}, latest=${latestVersion}). ` +
+      `Database schema is inconsistent (${details.join('; ')}). ` +
         `Run "pnpm migrate" before starting the app.`,
     );
   }

@@ -14,10 +14,6 @@ vi.mock('../etlLogger.js', () => ({
   getEtlLogger: vi.fn(() => ({ log, ctx: {} })),
 }));
 
-vi.mock('../fetchDataset.js', () => ({
-  fetchDataset: vi.fn(async () => ({ updated: true, path: '/tmp/test.csv' })),
-}));
-
 vi.mock('../importDataset.js', () => ({
   importDataset: vi.fn(async () => ({
     imported: 1,
@@ -27,40 +23,25 @@ vi.mock('../importDataset.js', () => ({
 }));
 
 import { DISTRICTS_POPULATION } from '../datasets/districts_population.js';
-import { fetchDataset } from '../fetchDataset.js';
 import { importDataset } from '../importDataset.js';
 
-import { runCli } from './run.js';
+import { runCli } from './import.js';
 
-describe('etl run cli', () => {
+describe('etl import cli', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('passes retry flags to fetchDataset', async () => {
-    const exitCode = await runCli([
-      DISTRICTS_POPULATION.id,
-      '--retries',
-      '4',
-      '--base-delay-ms',
-      '10',
-      '--max-delay-ms=20',
-      '--timeout-ms=30',
-    ]);
+  it('imports selected dataset successfully', async () => {
+    const exitCode = await runCli([DISTRICTS_POPULATION.id]);
 
     expect(exitCode).toBe(0);
-    expect(fetchDataset).toHaveBeenCalledWith(
+    expect(importDataset).toHaveBeenCalledWith(
       expect.objectContaining({ id: DISTRICTS_POPULATION.id }),
-      {
-        retries: 4,
-        baseDelayMs: 10,
-        maxDelayMs: 20,
-        timeoutMs: 30,
-      },
     );
   });
 
-  it('warns and continues when csv is missing during import', async () => {
+  it('warns and continues when csv is missing', async () => {
     vi.mocked(importDataset).mockRejectedValueOnce(
       new Error('CSV file not found: /tmp/missing.csv'),
     );
@@ -70,23 +51,11 @@ describe('etl run cli', () => {
     expect(exitCode).toBe(0);
     expect(log.warn).toHaveBeenCalledWith(
       expect.objectContaining({ dataset: DISTRICTS_POPULATION.id }),
-      'etl.run: import skipped (csv missing)',
+      'etl.import: skipped (csv missing)',
     );
   });
 
-  it('fails on non-csv import errors', async () => {
-    vi.mocked(importDataset).mockRejectedValueOnce(new Error('boom'));
-
-    const exitCode = await runCli([DISTRICTS_POPULATION.id]);
-
-    expect(exitCode).toBe(1);
-    expect(log.error).toHaveBeenCalledWith(
-      expect.objectContaining({ err: expect.any(Error) }),
-      'etl.run: fatal',
-    );
-  });
-
-  it('fails on migration boundary errors and does not treat them as csv skip', async () => {
+  it('fails on migration boundary errors and does not skip', async () => {
     vi.mocked(importDataset).mockRejectedValueOnce(
       new Error('Database schema is inconsistent. Run "pnpm migrate" before starting the app.'),
     );
@@ -94,9 +63,13 @@ describe('etl run cli', () => {
     const exitCode = await runCli([DISTRICTS_POPULATION.id]);
 
     expect(exitCode).toBe(1);
+    expect(log.error).toHaveBeenCalledWith(
+      expect.objectContaining({ err: expect.any(Error) }),
+      'etl.import: fatal',
+    );
     expect(log.warn).not.toHaveBeenCalledWith(
       expect.anything(),
-      'etl.run: import skipped (csv missing)',
+      'etl.import: skipped (csv missing)',
     );
   });
 });

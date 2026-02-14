@@ -133,6 +133,9 @@ This project uses DuckDB as an embedded analytics database. The DB file is store
 
 ### ETL (Dataset-basiert)
 
+Important: ETL does not apply migrations automatically.
+Run `pnpm migrate` before any `pnpm etl:*` command.
+
 Fetch and import all configured datasets into DuckDB:
 
 ```bash
