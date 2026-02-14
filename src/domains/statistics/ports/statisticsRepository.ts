@@ -4,11 +4,16 @@ import type {
   AreasResult,
   CategoriesQuery,
   CategoriesResult,
+  IndicatorMetaResult,
+  IndicatorsQuery,
   IndicatorsResult,
   RankingQuery,
   RankingResult,
   TimeseriesQuery,
   TimeseriesResult,
+  YearMetaResult,
+  YearsQuery,
+  YearsResult,
 } from '../model/types.js';
 
 export type StatisticsRepository = {
@@ -20,7 +25,13 @@ export type StatisticsRepository = {
 
   getRanking(input: RankingQuery): Promise<RankingResult>;
 
-  listIndicators(): Promise<IndicatorsResult>;
+  listYears(input?: YearsQuery): Promise<YearsResult>;
+
+  getYearMeta(year: number): Promise<YearMetaResult | null>;
+
+  getIndicatorMeta(indicator: string): Promise<IndicatorMetaResult | null>;
+
+  listIndicators(query?: IndicatorsQuery): Promise<IndicatorsResult>;
 
   listAreaTypes(): Promise<AreaTypesResult>;
 };
