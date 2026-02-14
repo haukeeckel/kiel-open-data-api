@@ -1,4 +1,5 @@
 import { flushLogger } from '../../logger/flush.js';
+import { CsvFileNotFoundError } from '../errors.js';
 import { getEtlLogger } from '../etlLogger.js';
 import { importDataset } from '../importDataset.js';
 
@@ -14,8 +15,7 @@ export async function runCli(argv: readonly string[]): Promise<number> {
         const res = await importDataset(dataset);
         log.info({ dataset: dataset.id, ...res }, 'etl.import: done');
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        if (message.includes('CSV file not found:')) {
+        if (err instanceof CsvFileNotFoundError) {
           log.warn({ dataset: dataset.id, err }, 'etl.import: skipped (csv missing)');
           continue;
         }
