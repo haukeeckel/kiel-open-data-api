@@ -1,5 +1,6 @@
 import fp from 'fastify-plugin';
 
+import { StatisticsNotFoundError } from '../../domains/statistics/errors/statisticsNotFoundError.js';
 import { StatisticsValidationError } from '../../domains/statistics/errors/statisticsValidationError.js';
 import {
   type ApiErrorCode,
@@ -87,6 +88,12 @@ export default fp(async function errorHandlerPlugin(app: FastifyInstance) {
     if (err instanceof StatisticsValidationError) {
       req.log.debug({ err }, 'domain validation failed');
       return sendBadRequest(req, reply, err.message, err.details);
+    }
+
+    // 1b) Domain not found => 404
+    if (err instanceof StatisticsNotFoundError) {
+      req.log.debug({ err }, 'domain entity not found');
+      return sendNotFound(req, reply, err.message);
     }
 
     const status = getStatusCode(err);
