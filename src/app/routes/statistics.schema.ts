@@ -1,4 +1,13 @@
-import { ApiError } from '../../schemas/api.js';
+import {
+  ApiBadRequestError,
+  ApiConflictError,
+  ApiForbiddenError,
+  ApiInternalError,
+  ApiNotFoundError,
+  ApiTooManyRequestsError,
+  ApiUnauthorizedError,
+  ApiUnprocessableEntityError,
+} from '../../schemas/api.js';
 import {
   AreaTypesResponse,
   AreasQuery,
@@ -12,6 +21,17 @@ import {
   TimeseriesResponse,
 } from '../../schemas/statistics.js';
 
+const ERROR_RESPONSES = {
+  400: ApiBadRequestError,
+  401: ApiUnauthorizedError,
+  403: ApiForbiddenError,
+  404: ApiNotFoundError,
+  409: ApiConflictError,
+  422: ApiUnprocessableEntityError,
+  429: ApiTooManyRequestsError,
+  500: ApiInternalError,
+} as const;
+
 export const timeseriesRouteSchema = {
   schema: {
     tags: ['statistics'],
@@ -20,8 +40,7 @@ export const timeseriesRouteSchema = {
     querystring: TimeseriesQuery,
     response: {
       200: TimeseriesResponse,
-      400: ApiError,
-      500: ApiError,
+      ...ERROR_RESPONSES,
     },
   },
 };
@@ -34,8 +53,7 @@ export const areasRouteSchema = {
     querystring: AreasQuery,
     response: {
       200: AreasResponse,
-      400: ApiError,
-      500: ApiError,
+      ...ERROR_RESPONSES,
     },
   },
 };
@@ -47,8 +65,7 @@ export const categoriesRouteSchema = {
     querystring: CategoriesQuery,
     response: {
       200: CategoriesResponse,
-      400: ApiError,
-      500: ApiError,
+      ...ERROR_RESPONSES,
     },
   },
 };
@@ -61,8 +78,7 @@ export const rankingRouteSchema = {
     querystring: RankingQuery,
     response: {
       200: RankingResponse,
-      400: ApiError,
-      500: ApiError,
+      ...ERROR_RESPONSES,
     },
   },
 };
@@ -73,7 +89,7 @@ export const indicatorsRouteSchema = {
     description: 'List all available indicators',
     response: {
       200: IndicatorsResponse,
-      500: ApiError,
+      ...ERROR_RESPONSES,
     },
   },
 };
@@ -84,7 +100,7 @@ export const areaTypesRouteSchema = {
     description: 'List all available area types',
     response: {
       200: AreaTypesResponse,
-      500: ApiError,
+      ...ERROR_RESPONSES,
     },
   },
 };

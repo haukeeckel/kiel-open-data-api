@@ -83,4 +83,23 @@ describe('api smoke', () => {
       app.swagger = originalSwagger;
     }
   });
+
+  it('GET / hides docs endpoints when swagger ui is disabled', async () => {
+    const disabled = await makeAppAndSeed({
+      env: {
+        SWAGGER_UI_ENABLED: false,
+      },
+    });
+
+    try {
+      const res = await disabled.app.inject({ method: 'GET', url: '/' });
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toMatchObject({ name: API_NAME });
+      expect(res.json().endpoints).not.toContain('/docs');
+      expect(res.json().endpoints).not.toContain('/docs/json');
+    } finally {
+      await disabled.app.close();
+      cleanupDuckDbFiles(disabled.dbPath);
+    }
+  });
 });

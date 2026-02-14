@@ -44,5 +44,9 @@ describe('openapi', () => {
     expect(body.paths).toHaveProperty('/v1/indicators');
     expect(body.paths).toHaveProperty('/v1/area-types');
     expect(body.paths).not.toHaveProperty('/metrics');
+
+    expect(body.paths['/v1/timeseries'].get.responses).toHaveProperty('429');
+    expect(body.paths['/v1/ranking'].get.responses).toHaveProperty('429');
+    expect(body.paths['/v1/categories'].get.responses).toHaveProperty('400');
   });
 });

@@ -61,6 +61,28 @@ describe('http errors', () => {
     });
   });
 
+  it('sendError supports too many requests code', () => {
+    const req = makeRequest('abc');
+    const reply = makeReply();
+
+    sendError(req, reply, {
+      statusCode: 429,
+      code: 'TOO_MANY_REQUESTS',
+      message: 'Too Many Requests',
+      details: { kind: 'rate_limit', retryAfterMs: 1000 },
+    });
+
+    expect(reply.code).toHaveBeenCalledWith(429);
+    expect(reply.send).toHaveBeenCalledWith({
+      error: {
+        code: 'TOO_MANY_REQUESTS',
+        message: 'Too Many Requests',
+        details: { kind: 'rate_limit', retryAfterMs: 1000 },
+      },
+      requestId: 'abc',
+    });
+  });
+
   it('sendBadRequest defaults to 400 with optional details', () => {
     const req = makeRequest('abc');
     const reply = makeReply();

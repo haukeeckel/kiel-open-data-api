@@ -313,6 +313,12 @@ describe('statistics endpoints', () => {
           Object.assign(err, { statusCode: 409 });
           throw err;
         });
+
+        appInstance.get('/__429', async () => {
+          const err = new Error('rate limited');
+          Object.assign(err, { statusCode: 429, ttl: 1000 });
+          throw err;
+        });
       },
     });
     app = res.app;
@@ -360,6 +366,22 @@ describe('statistics endpoints', () => {
     expect(res.statusCode).toBe(500);
     expect(res.json()).toMatchObject({
       error: { code: 'INTERNAL', message: 'Internal Server Error' },
+      requestId: expect.any(String),
+    });
+  });
+
+  it('returns 429 error contract for rate limited requests', async () => {
+    const res = await app.inject({ method: 'GET', url: '/__429' });
+    expect(res.statusCode).toBe(429);
+    expect(res.json()).toMatchObject({
+      error: {
+        code: 'TOO_MANY_REQUESTS',
+        message: 'rate limited',
+        details: {
+          kind: 'rate_limit',
+          retryAfterMs: 1000,
+        },
+      },
       requestId: expect.any(String),
     });
   });
@@ -479,13 +501,24 @@ describe('statistics endpoints', () => {
       });
     });
 
-    it('returns empty rows for unknown areaType', async () => {
+    it('returns 400 for unknown areaType', async () => {
       const res = await app.inject({
         method: 'GET',
         url: '/v1/areas?indicator=population&areaType=unknown&like=gaard',
       });
-      expect(res.statusCode).toBe(200);
-      expect(res.json()).toMatchObject({ rows: [] });
+      expect(res.statusCode).toBe(400);
+      expect(res.json()).toMatchObject({
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'Unknown areaType: unknown',
+          details: {
+            kind: 'domain_validation',
+            field: 'areaType',
+            value: 'unknown',
+            allowed: ['district'],
+          },
+        },
+      });
     });
 
     it('returns distinct areas sorted', async () => {
@@ -542,6 +575,25 @@ describe('statistics endpoints', () => {
       expect(res.statusCode).toBe(200);
       expect(res.json()).toEqual({ indicator, areaType: 'district', rows });
     });
+
+    it('returns 400 for unknown indicator', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: `/v1/categories?indicator=unknown&areaType=district`,
+      });
+      expect(res.statusCode).toBe(400);
+      expect(res.json()).toMatchObject({
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'Unknown indicator: unknown',
+          details: {
+            kind: 'domain_validation',
+            field: 'indicator',
+            value: 'unknown',
+          },
+        },
+      });
+    });
   });
 
   // ---- GET /v1/ranking ----
@@ -577,6 +629,25 @@ describe('statistics endpoints', () => {
       expect(res.json().rows).toEqual([
         { area: 'Altstadt', value: 1220, unit: 'persons', category: 'total' },
       ]);
+    });
+
+    it('returns 400 for unknown category', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/ranking?indicator=population&areaType=district&year=2023&category=other',
+      });
+      expect(res.statusCode).toBe(400);
+      expect(res.json()).toMatchObject({
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'Unknown category: other',
+          details: {
+            kind: 'domain_validation',
+            field: 'category',
+            value: 'other',
+          },
+        },
+      });
     });
 
     it.each(RANKING_UNFILTERED_CASES)(

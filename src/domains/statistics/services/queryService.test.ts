@@ -25,6 +25,13 @@ function createFakeRepo(): StatisticsRepository {
       };
     },
     async listCategories(input) {
+      if (input.indicator === 'households') {
+        return {
+          indicator: input.indicator,
+          areaType: input.areaType,
+          rows: ['single_person', 'total'],
+        };
+      }
       return {
         indicator: input.indicator,
         areaType: input.areaType,
@@ -88,7 +95,7 @@ describe('StatisticsQueryService', () => {
       indicator: 'households',
       areaType: 'district',
     });
-    expect(result.rows).toEqual(['total']);
+    expect(result.rows).toEqual(['single_person', 'total']);
   });
 
   it('passes timeseries category through and returns repository rows unchanged', async () => {
@@ -203,5 +210,70 @@ describe('StatisticsQueryService', () => {
 
     const result = await svc.listAreaTypes();
     expect(result.rows).toEqual(['district']);
+  });
+
+  it('throws domain validation error for unknown indicator', async () => {
+    const svc = new StatisticsQueryService(createFakeRepo());
+
+    await expect(
+      svc.listAreas({
+        indicator: 'unknown',
+        areaType: 'district',
+      }),
+    ).rejects.toMatchObject({
+      name: 'StatisticsValidationError',
+      message: 'Unknown indicator: unknown',
+      details: {
+        kind: 'domain_validation',
+        field: 'indicator',
+        value: 'unknown',
+        allowed: ['households', 'population'],
+      },
+    });
+  });
+
+  it('throws domain validation error for unknown areaType', async () => {
+    const svc = new StatisticsQueryService(createFakeRepo());
+
+    await expect(
+      svc.getRanking({
+        indicator: 'population',
+        areaType: 'unknown',
+        year: 2023,
+        limit: 10,
+        order: 'desc',
+      }),
+    ).rejects.toMatchObject({
+      name: 'StatisticsValidationError',
+      message: 'Unknown areaType: unknown',
+      details: {
+        kind: 'domain_validation',
+        field: 'areaType',
+        value: 'unknown',
+        allowed: ['district'],
+      },
+    });
+  });
+
+  it('throws domain validation error for unknown category', async () => {
+    const svc = new StatisticsQueryService(createFakeRepo());
+
+    await expect(
+      svc.getTimeseries({
+        indicator: 'households',
+        areaType: 'district',
+        area: 'Altstadt',
+        category: 'other',
+      }),
+    ).rejects.toMatchObject({
+      name: 'StatisticsValidationError',
+      message: 'Unknown category: other',
+      details: {
+        kind: 'domain_validation',
+        field: 'category',
+        value: 'other',
+        allowed: ['single_person', 'total'],
+      },
+    });
   });
 });

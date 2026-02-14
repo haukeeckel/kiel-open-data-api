@@ -69,6 +69,32 @@ describe('errorHandler plugin', () => {
     });
   });
 
+  it('maps rate limit errors to 429 with typed code', async () => {
+    const app = Fastify();
+    await app.register(errorHandlerPlugin);
+
+    app.get('/rate-limit', async () => {
+      const err = new Error('Rate limit exceeded');
+      (err as { statusCode?: number }).statusCode = 429;
+      (err as { ttl?: number }).ttl = 1000;
+      throw err;
+    });
+
+    const res = await app.inject({ method: 'GET', url: '/rate-limit' });
+    expect(res.statusCode).toBe(429);
+    expect(res.json()).toMatchObject({
+      error: {
+        code: 'TOO_MANY_REQUESTS',
+        message: 'Rate limit exceeded',
+        details: {
+          kind: 'rate_limit',
+          retryAfterMs: 1000,
+        },
+      },
+      requestId: expect.any(String),
+    });
+  });
+
   it('maps unhandled errors to 500', async () => {
     const app = Fastify();
     await app.register(errorHandlerPlugin);
