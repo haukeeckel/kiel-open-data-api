@@ -12,6 +12,8 @@ type TestEnv = Partial<
     | 'RATE_LIMIT_MAX'
     | 'RATE_LIMIT_WINDOW_MS'
     | 'DB_QUERY_TIMEOUT_MS'
+    | 'DB_POOL_SIZE'
+    | 'DB_POOL_ACQUIRE_TIMEOUT_MS'
     | 'SWAGGER_ROUTE_PREFIX'
     | 'SWAGGER_UI_ENABLED'
   >

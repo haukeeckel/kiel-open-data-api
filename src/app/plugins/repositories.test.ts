@@ -53,6 +53,7 @@ describe('repositories plugin', () => {
     expect(createDuckDbConnectionManager).toHaveBeenCalledWith({
       dbPath: '/tmp/kiel-test.duckdb',
       poolSize: 4,
+      acquireTimeoutMs: 2000,
       logger: expect.any(Object),
     });
     expect(dbManager.withConnection).toHaveBeenCalledWith(assertMigrationsUpToDate);
@@ -84,6 +85,35 @@ describe('repositories plugin', () => {
 
     const app = Fastify();
     await expect(app.register(repositoriesPlugin, { env })).rejects.toThrow(err.message);
+    await app.close();
+  });
+
+  it('wires pool settings from env into db manager', async () => {
+    const env = makeEnv({
+      NODE_ENV: 'test',
+      DB_POOL_SIZE: 7,
+      DB_POOL_ACQUIRE_TIMEOUT_MS: 1500,
+    });
+
+    const dbManager = {
+      withConnection: vi.fn(async () => undefined),
+      healthcheck: vi.fn(async () => true),
+      close: vi.fn(async () => undefined),
+    };
+
+    (createDuckDbConnectionManager as ReturnType<typeof vi.fn>).mockReturnValue(dbManager);
+    (createDuckDbStatisticsRepository as ReturnType<typeof vi.fn>).mockReturnValue({});
+
+    const app = Fastify();
+    await app.register(repositoriesPlugin, { env });
+
+    expect(createDuckDbConnectionManager).toHaveBeenCalledWith({
+      dbPath: '/tmp/kiel-test.duckdb',
+      poolSize: 7,
+      acquireTimeoutMs: 1500,
+      logger: expect.any(Object),
+    });
+
     await app.close();
   });
 });
