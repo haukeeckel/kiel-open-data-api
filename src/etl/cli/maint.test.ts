@@ -1,10 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const log = {
-  info: vi.fn(),
-  warn: vi.fn(),
-  error: vi.fn(),
-};
+const log = createCliTestLogger();
 
 vi.mock('../../config/env.js', () => ({
   getEnv: vi.fn(),
@@ -35,6 +31,7 @@ import { getDuckDbPath } from '../../config/path.js';
 import { createDb } from '../../infra/db/duckdb.js';
 import { assertMigrationsUpToDate } from '../../infra/db/migrations.js';
 import { flushLogger } from '../../logger/flush.js';
+import { createCliTestLogger } from '../../test/fixtures/cliLogger.fixtures.js';
 import { makeEnv } from '../../test/helpers/makeEnv.js';
 
 import { runCli } from './maint.js';
