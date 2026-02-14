@@ -294,6 +294,12 @@ When extending seed data:
 2. Keep record shape consistent (`indicator`, `areaType`, `areaName`, `year`, `value`, `unit`, `category`).
 3. Avoid reintroducing large inline SQL blocks in test helpers.
 
+General fixture convention:
+
+1. Large or reusable fixture data from `*.test.ts` should live in `src/test/fixtures/`.
+2. Prefer one fixture module per test context (for example `statisticsRoute.fixtures.ts`).
+3. Keep tiny, test-local one-off values inline where that improves readability.
+
 ## Notes
 
 - Local DB tools (Beekeeper, etc.) can lock `data/kiel.duckdb`. If you see lock errors,
