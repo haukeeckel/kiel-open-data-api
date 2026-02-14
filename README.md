@@ -117,6 +117,24 @@ cp .env.example .env
 - `RATE_LIMIT_WINDOW_MS`
   Rate limit window in ms (default: `60000`)
 
+- `DB_QUERY_TIMEOUT_MS`
+  DB query timeout in ms for repository operations (default: `2000`)
+
+- `METRICS_ENABLED`
+  Enable `/metrics` endpoint (default: `false` in production, `true` otherwise)
+
+- `METRICS_TOKEN`
+  Optional shared token required to access `/metrics`
+
+- `METRICS_AUTH_HEADER`
+  Header carrying metrics token (default: `x-metrics-token`)
+
+- `OBS_SLOW_QUERY_THRESHOLD_MS`
+  Slow-query warning threshold in ms for repository observability (default: `500`)
+
+- `OBS_PLAN_SAMPLE_ENABLED`
+  Enables slow-query plan-sampling scaffold logs (default: `false`)
+
 - `SWAGGER_ROUTE_PREFIX`
   Swagger UI route prefix (default: `/docs`)
 
@@ -173,6 +191,12 @@ pnpm etl:run:dataset districts_foreign_count
 pnpm etl:run:dataset districts_migrant_gender
 ```
 
+ETL maintenance planning (dry-run only, no data changes):
+
+```bash
+pnpm etl:maint:dry-run
+```
+
 ### Statistics schema
 
 ETL writes into a normalized (tidy) table:
@@ -224,6 +248,21 @@ ETL writes one run record per dataset execution into `etl_runs`:
 - `GET /v1/ranking`
   Ranking of areas by value for a given indicator/year.
   If `category` is omitted, ranking rows can contain mixed categories.
+
+## Metrics Exposure
+
+`/metrics` is intentionally controlled:
+
+- Disabled in production by default.
+- Enabled explicitly via `METRICS_ENABLED=true`.
+- If `METRICS_TOKEN` is set, requests must provide the configured auth header
+  (`METRICS_AUTH_HEADER`, default `x-metrics-token`).
+
+Example:
+
+```bash
+curl -H "x-metrics-token: $METRICS_TOKEN" http://127.0.0.1:3000/metrics
+```
 
 ## Notes
 
