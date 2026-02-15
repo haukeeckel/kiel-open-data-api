@@ -4,7 +4,7 @@ x-api-env: &api-env
   NODE_ENV: production
   HOST: 0.0.0.0
   PORT: '3000'
-  CORS_ORIGIN: http://localhost:3000
+  CORS_ORIGIN: ${CORS_ORIGIN:?CORS_ORIGIN must be set for docker compose}
   STATS_VALIDATION_CACHE_ENABLED: 'true'
   STATS_VALIDATION_CACHE_TTL_MS: '30000'
 
