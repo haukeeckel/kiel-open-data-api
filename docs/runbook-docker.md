@@ -36,6 +36,23 @@ docker compose build
 docker compose up -d api-blue api-green gateway
 ```
 
+Swagger UI in production-profile compose is disabled by default.
+Enable it explicitly only when needed:
+
+```bash
+export SWAGGER_UI_ENABLED=true
+docker compose up -d api-blue api-green gateway
+```
+
+For a dev-style compose start:
+
+```bash
+export NODE_ENV=development
+export CORS_ORIGIN=http://localhost:3000
+export SWAGGER_UI_ENABLED=true
+docker compose up -d api-blue api-green gateway
+```
+
 Set initial active side (default file points to blue):
 
 ```bash
