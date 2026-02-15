@@ -3,7 +3,7 @@ set -eu
 
 prefix="${BACKUP_FILE_PREFIX:-kiel}"
 retention="${BACKUP_RETENTION_COUNT:-10}"
-duckdb_path="${DUCKDB_PATH:-data/kiel.duckdb}"
+duckdb_path="${DUCKDB_PATH:-data/active.duckdb}"
 
 case "$duckdb_path" in
   /*) db_path="$duckdb_path" ;;
