@@ -13,6 +13,7 @@ import { DISTRICTS_RELIGION } from './districts_religion.js';
 import { DISTRICTS_UNEMPLOYED_COUNT } from './districts_unemployed_count.js';
 import { DISTRICTS_UNEMPLOYED_RATE } from './districts_unemployed_rate.js';
 import { SUBDISTRICTS_AGE_GROUPS } from './subdistricts_age_groups.js';
+import { SUBDISTRICTS_FOREIGN_GENDER } from './subdistricts_foreign_gender.js';
 import { SUBDISTRICTS_GENDER } from './subdistricts_gender.js';
 import { SUBDISTRICTS_POPULATION } from './subdistricts_population.js';
 
@@ -36,6 +37,7 @@ export const DATASET_MANIFEST: readonly DatasetConfig[] = [
   SUBDISTRICTS_POPULATION,
   SUBDISTRICTS_AGE_GROUPS,
   SUBDISTRICTS_GENDER,
+  SUBDISTRICTS_FOREIGN_GENDER,
 ];
 
 export function validateDatasetManifest(datasets: readonly DatasetConfig[]): void {
