@@ -1,5 +1,8 @@
+import * as fssync from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { Readable, Transform } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 
 import { getCacheDir } from '../config/path.js';
 
@@ -9,6 +12,7 @@ import { fetchWithRetry } from './fetchWithRetry.js';
 
 import type { DatasetConfig } from './datasets/types.js';
 import type { FetchRetryOptions } from './fetchWithRetry.js';
+import type { ReadableStream as NodeReadableStream } from 'node:stream/web';
 
 type Meta = {
   etag?: string;
@@ -65,6 +69,36 @@ async function writeFileAtomic(filePath: string, content: string): Promise<void>
   try {
     await fs.writeFile(tmpPath, content, 'utf8');
     await fs.rename(tmpPath, filePath);
+  } catch (err) {
+    try {
+      await fs.unlink(tmpPath);
+    } catch {}
+    throw err;
+  }
+}
+
+async function writeResponseBodyAtomic(filePath: string, res: Response): Promise<number> {
+  if (!res.body) {
+    throw new Error('Fetch failed: response body is empty');
+  }
+
+  const tmpPath = `${filePath}.tmp`;
+  let bytes = 0;
+  const counter = new Transform({
+    transform(chunk, _encoding, callback) {
+      bytes += Buffer.isBuffer(chunk) ? chunk.byteLength : Buffer.byteLength(chunk);
+      callback(null, chunk);
+    },
+  });
+
+  try {
+    await pipeline(
+      Readable.fromWeb(res.body as unknown as NodeReadableStream),
+      counter,
+      fssync.createWriteStream(tmpPath),
+    );
+    await fs.rename(tmpPath, filePath);
+    return bytes;
   } catch (err) {
     try {
       await fs.unlink(tmpPath);
@@ -222,10 +256,7 @@ export async function fetchDataset(
     throw new Error(`Fetch failed: ${res.status} ${res.statusText}`);
   }
 
-  const text = await res.text();
-  await writeFileAtomic(outCsv, text);
-
-  const bytes = Buffer.byteLength(text, 'utf8');
+  const bytes = await writeResponseBodyAtomic(outCsv, res);
   const nextMeta: Meta = {};
   const etag = res.headers.get('etag');
   const lastModified = res.headers.get('last-modified');

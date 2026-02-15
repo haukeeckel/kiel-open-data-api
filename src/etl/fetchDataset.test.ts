@@ -98,6 +98,47 @@ describe('fetchDataset', () => {
     });
   });
 
+  it('writes via streaming without calling text() in success path', async () => {
+    const csv = 'Merkmal;Stadtteil;2023\nEinwohner insgesamt;Altstadt;1220\n';
+    const encoder = new TextEncoder();
+    const outCsv = path.join(cacheDir, 'kiel_bevoelkerung_stadtteile.csv');
+    const outCsvTmp = `${outCsv}.tmp`;
+    const textSpy = vi.fn(async () => {
+      throw new Error('text() should not be called on successful fetch');
+    });
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL | Request) => {
+        const url = String(input);
+        if (url.includes('Kiel_open_data.json')) {
+          return new Response(JSON.stringify([]), { status: 200 });
+        }
+
+        return {
+          status: 200,
+          ok: true,
+          headers: {
+            get: () => null,
+          },
+          body: new ReadableStream<Uint8Array>({
+            start(controller) {
+              controller.enqueue(encoder.encode(csv));
+              controller.close();
+            },
+          }),
+          text: textSpy,
+        } as unknown as Response;
+      }),
+    );
+
+    const res = await fetchDataset(DISTRICTS_POPULATION, { cacheDir });
+    expect(res).toEqual({ updated: true, path: outCsv });
+    expect(textSpy).not.toHaveBeenCalled();
+    expect(await fs.readFile(outCsv, 'utf8')).toBe(csv);
+    expect(fssync.existsSync(outCsvTmp)).toBe(false);
+  });
+
   it('sends conditional headers and returns updated=false on 304', async () => {
     const outMeta = path.join(cacheDir, 'kiel_bevoelkerung_stadtteile.meta.json');
     const catalog = [
