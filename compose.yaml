@@ -1,50 +1,102 @@
 name: kiel-dashboard-api
 
-x-app-env: &app-env
+x-api-env: &api-env
   NODE_ENV: production
   HOST: 0.0.0.0
   PORT: '3000'
   CORS_ORIGIN: http://localhost:3000
-  DUCKDB_PATH: data/kiel.duckdb
   STATS_VALIDATION_CACHE_ENABLED: 'true'
   STATS_VALIDATION_CACHE_TTL_MS: '30000'
 
-x-app-volumes: &app-volumes
-  - duckdb_data:/app/data
-  - etl_cache:/app/data/cache
+x-api-base: &api-base
+  build: .
+  environment: *api-env
+  volumes:
+    - duckdb_data:/app/data
+    - etl_cache:/app/data/cache
+  restart: unless-stopped
+  healthcheck:
+    test: ['CMD-SHELL', 'curl -f http://127.0.0.1:3000/health || exit 1']
+    interval: 15s
+    timeout: 5s
+    retries: 5
+    start_period: 20s
 
 services:
-  api:
-    build: .
-    environment: *app-env
+  gateway:
+    image: nginx:1.27-alpine
+    depends_on:
+      - api-blue
+      - api-green
     ports:
       - '3000:3000'
-    volumes: *app-volumes
+    volumes:
+      - ./ops/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ops/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./ops/nginx/upstreams:/etc/nginx/upstreams:ro
     restart: unless-stopped
     healthcheck:
-      test: ['CMD-SHELL', 'curl -f http://127.0.0.1:3000/health || exit 1']
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:3000/health >/dev/null 2>&1 || exit 1']
       interval: 15s
       timeout: 5s
       retries: 5
-      start_period: 20s
+      start_period: 10s
+
+  api-blue:
+    <<: *api-base
+    environment:
+      <<: *api-env
+      DUCKDB_PATH: data/kiel-blue.duckdb
+
+  api-green:
+    <<: *api-base
+    environment:
+      <<: *api-env
+      DUCKDB_PATH: data/kiel-green.duckdb
 
   migrate:
     build: .
-    environment: *app-env
-    volumes: *app-volumes
-    command: ['node', 'dist/db/cli/migrate.js']
+    environment:
+      <<: *api-env
+      TARGET_COLOR: green
+    volumes:
+      - duckdb_data:/app/data
+      - etl_cache:/app/data/cache
+    command:
+      - sh
+      - -ec
+      - |
+        case "$${TARGET_COLOR}" in
+          blue|green) export DUCKDB_PATH="data/kiel-$${TARGET_COLOR}.duckdb" ;;
+          *) echo "migrate: TARGET_COLOR must be blue or green" >&2; exit 2 ;;
+        esac
+        node dist/db/cli/migrate.js
     restart: 'no'
 
   etl:
     build: .
-    environment: *app-env
-    volumes: *app-volumes
-    command: ['node', 'dist/etl/cli/run.js', '--all']
+    environment:
+      <<: *api-env
+      TARGET_COLOR: green
+    volumes:
+      - duckdb_data:/app/data
+      - etl_cache:/app/data/cache
+    command:
+      - sh
+      - -ec
+      - |
+        case "$${TARGET_COLOR}" in
+          blue|green) export DUCKDB_PATH="data/kiel-$${TARGET_COLOR}.duckdb" ;;
+          *) echo "etl: TARGET_COLOR must be blue or green" >&2; exit 2 ;;
+        esac
+        node dist/etl/cli/run.js --all
     restart: 'no'
 
   backup:
     build: .
-    environment: *app-env
+    environment:
+      <<: *api-env
+      DUCKDB_PATH: data/active.duckdb
     volumes:
       - duckdb_data:/app/data
       - duckdb_backups:/backups
@@ -53,33 +105,14 @@ services:
 
   restore:
     build: .
-    environment: *app-env
+    environment:
+      <<: *api-env
+      DUCKDB_PATH: data/active.duckdb
     volumes:
       - duckdb_data:/app/data
       - duckdb_backups:/backups
     command: ['/app/scripts/ops/restore.sh']
     restart: 'no'
-
-  etl-cron:
-    build: .
-    profiles: ['cron']
-    environment:
-      <<: *app-env
-      ETL_CRON_INTERVAL_SEC: '86400'
-    volumes:
-      - duckdb_data:/app/data
-      - etl_cache:/app/data/cache
-      - duckdb_backups:/backups
-    command:
-      - 'sh'
-      - '-ec'
-      - |
-        while true; do
-          /app/scripts/ops/backup.sh
-          node dist/etl/cli/run.js --all || echo "etl-cron: etl failed; retrying next interval"
-          sleep "$${ETL_CRON_INTERVAL_SEC:-86400}"
-        done
-    restart: unless-stopped
 
 volumes:
   duckdb_data:

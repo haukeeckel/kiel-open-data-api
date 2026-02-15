@@ -6,7 +6,7 @@ if [ "${BACKUP_FILE:-}" = "" ]; then
   exit 1
 fi
 
-duckdb_path="${DUCKDB_PATH:-data/kiel.duckdb}"
+duckdb_path="${DUCKDB_PATH:-data/active.duckdb}"
 case "$duckdb_path" in
   /*) db_path="$duckdb_path" ;;
   *) db_path="/app/$duckdb_path" ;;

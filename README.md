@@ -300,65 +300,50 @@ Example:
 curl -H "x-metrics-token: $METRICS_TOKEN" http://127.0.0.1:3000/metrics
 ```
 
-## Docker / Compose Betrieb
+## Docker / Compose Betrieb (Blue/Green DuckDB)
 
-This repository includes a minimal Docker Compose operating baseline for
-DuckDB stateful runtime:
+This repository includes a Docker Compose blue/green operating baseline:
 
-- persistent DB volume (`duckdb_data`)
-- persistent ETL cache volume (`etl_cache`)
-- backup volume (`duckdb_backups`)
-- separated jobs for migration (`migrate`) and ETL (`etl`)
-- optional cron profile (`etl-cron`), disabled by default
+- `gateway` (nginx) serves traffic on port `3000`
+- `api-blue` uses `data/kiel-blue.duckdb`
+- `api-green` uses `data/kiel-green.duckdb`
+- jobs: `migrate`, `etl`, `backup`, `restore`
+- traffic cutover is done via `ops/nginx/upstreams/active.conf`
 
-Build image and run first migration:
+Build and start services:
 
 ```bash
 docker compose build
-docker compose run --rm migrate
-```
-
-Start API:
-
-```bash
-docker compose up -d api
+docker compose up -d gateway api-blue api-green
 curl http://127.0.0.1:3000/health
 ```
 
-Manual ETL operation (stop API first to avoid DuckDB lock conflicts):
+Prepare inactive color (backup + migrate + ETL + health):
 
 ```bash
-docker compose stop api
-docker compose run --rm backup
-docker compose run --rm etl
-docker compose up -d api
+./scripts/ops/etl-bluegreen.sh
 ```
 
-Restore from backup:
+Switch traffic to inactive color:
+
+```bash
+./scripts/ops/cutover.sh
+```
+
+Rollback to previous color:
+
+```bash
+./scripts/ops/rollback.sh
+```
+
+Restore from backup (writes to `data/active.duckdb` symlink target):
 
 ```bash
 docker compose run --rm -e BACKUP_FILE=<backup-file> restore
-docker compose run --rm migrate
 ```
 
-Optional cron profile:
-
-```bash
-docker compose --profile cron up -d etl-cron
-```
-
-Detailed operational flows and troubleshooting:
+Detailed operational flow and troubleshooting:
 `docs/runbook-docker.md`.
-
-## Debt Tracking Workflow
-
-Debt planning files are intentionally local-only in this repository:
-
-- `docs/technical-debt.md`
-- `docs/technical-debt-pr-plan.md`
-
-Both files are ignored via `.gitignore` and should not be committed.
-Implementation outcomes should be captured in regular versioned PRs/commits.
 
 ## Test Fixture Maintenance
 
@@ -381,7 +366,5 @@ General fixture convention:
 
 ## Notes
 
-- Local DB tools (Beekeeper, etc.) can lock `data/kiel.duckdb`. If you see lock errors,
-  close the tool or set `DUCKDB_PATH` to another file. Tests already use `:memory:`.
 - If you want the API to be reachable from other devices in your network, set:
   `HOST=0.0.0.0` (be aware this exposes the service in your LAN).

@@ -1,15 +1,16 @@
-# Docker Runbook (DuckDB Stateful Betrieb)
+# Docker Runbook (Blue/Green DuckDB Betrieb)
 
-This runbook defines the baseline operation for Docker Compose v2.
+This runbook defines zero-downtime cutover for Docker Compose v2.
 
 ## Services
 
-- `api`: HTTP API service
-- `migrate`: one-shot migration job (`pnpm migrate`)
-- `etl`: one-shot ETL job (`pnpm etl:run`)
-- `backup`: one-shot DuckDB snapshot job
+- `gateway`: nginx entrypoint on `:3000`
+- `api-blue`: API bound to `data/kiel-blue.duckdb`
+- `api-green`: API bound to `data/kiel-green.duckdb`
+- `migrate`: one-shot migration job for `TARGET_COLOR`
+- `etl`: one-shot ETL job for `TARGET_COLOR`
+- `backup`: one-shot snapshot job (default DB path: `data/active.duckdb`)
 - `restore`: one-shot restore job (requires `BACKUP_FILE`)
-- `etl-cron`: optional ETL loop service (`--profile cron`)
 
 ## Volumes
 
@@ -17,143 +18,129 @@ This runbook defines the baseline operation for Docker Compose v2.
 - `etl_cache` -> `/app/data/cache`
 - `duckdb_backups` -> `/backups`
 
-Default DB location inside container:
-`DUCKDB_PATH=data/kiel.duckdb`
+## Config files
 
-Production mode requires `CORS_ORIGIN`. Compose sets a default:
-`CORS_ORIGIN=http://localhost:3000`.
-Override it for your real frontend origin in production.
+- `ops/nginx/upstreams/active.conf` decides current live color
+- `scripts/ops/resolve-colors.sh` reads active/inactive color
 
-## 1. Build
+## 1. Build and bootstrap
 
 ```bash
 docker compose build
+docker compose up -d api-blue api-green gateway
 ```
 
-## 2. Initial Setup (fresh environment)
-
-Run migrations before starting API:
+Set initial active side (default file points to blue):
 
 ```bash
-docker compose run --rm migrate
-docker compose up -d api
-```
-
-Verify:
-
-```bash
+./scripts/ops/cutover.sh blue
 curl http://127.0.0.1:3000/health
 ```
 
-## 3. Manual ETL Standard Flow
+## 2. Standard refresh cycle (no downtime)
 
-For ETL, stop API first to avoid DuckDB file lock conflicts.
-Always create a backup snapshot before ETL:
+Prepare inactive color:
 
 ```bash
-docker compose stop api
+./scripts/ops/etl-bluegreen.sh
+```
+
+This runs:
+
+1. backup of active DB
+2. `migrate` on inactive color
+3. `etl` on inactive color
+4. start/check inactive API service
+
+Cut over traffic:
+
+```bash
+./scripts/ops/cutover.sh
+```
+
+## 3. Rollback
+
+Rollback to previous color:
+
+```bash
+./scripts/ops/rollback.sh
+```
+
+Or explicitly choose color:
+
+```bash
+./scripts/ops/rollback.sh blue
+./scripts/ops/rollback.sh green
+```
+
+## 4. Job commands (manual)
+
+Run migration on one color:
+
+```bash
+docker compose run --rm -e TARGET_COLOR=blue migrate
+docker compose run --rm -e TARGET_COLOR=green migrate
+```
+
+Run ETL on one color:
+
+```bash
+docker compose run --rm -e TARGET_COLOR=blue etl
+docker compose run --rm -e TARGET_COLOR=green etl
+```
+
+## 5. Backup and restore
+
+Create backup from active DB marker:
+
+```bash
 docker compose run --rm backup
-docker compose run --rm etl
-docker compose up -d api
 ```
 
-This is the default production-safe flow for this baseline.
-
-## 4. Backup Details
-
-Backup service uses:
-
-- `BACKUP_FILE_PREFIX` (default: `kiel`)
-- `BACKUP_RETENTION_COUNT` (default: `10`)
-
-Example with custom retention:
-
-```bash
-docker compose run --rm -e BACKUP_RETENTION_COUNT=20 backup
-```
-
-## 5. Restore Flow
-
-1. Stop API:
-
-```bash
-docker compose stop api
-```
-
-2. List available snapshots:
-
-```bash
-docker compose run --rm backup sh -c "ls -1 /backups"
-```
-
-3. Restore one snapshot:
+Restore from backup file:
 
 ```bash
 docker compose run --rm -e BACKUP_FILE=<backup-file> restore
 ```
 
-4. Re-run migrations and start API:
+After restore, run migration on target color and cut over if needed.
 
-```bash
-docker compose run --rm migrate
-docker compose up -d api
-```
+## 6. Caching baseline
 
-## 6. Optional Cron Profile
+No external cache service is used.
 
-Cron-like ETL is optional and disabled by default.
-
-Enable:
-
-```bash
-docker compose --profile cron up -d etl-cron
-```
-
-Disable:
-
-```bash
-docker compose --profile cron stop etl-cron
-docker compose --profile cron rm -f etl-cron
-```
-
-Change interval (seconds):
-
-```bash
-docker compose --profile cron run --rm -e ETL_CRON_INTERVAL_SEC=43200 etl-cron
-```
-
-## 7. Caching Baseline
-
-No external cache service is used in this baseline.
-
-- API validation cache is controlled via:
+- API validation cache:
   - `STATS_VALIDATION_CACHE_ENABLED`
   - `STATS_VALIDATION_CACHE_TTL_MS`
-- ETL download cache is persisted in `etl_cache` volume.
+- ETL download cache remains on persistent `etl_cache` volume.
 
-## 8. Operational Guardrails
+## 7. Guardrails
 
-- DuckDB file access is process-exclusive in this setup. Keep only one DB process active.
-- Do not run `migrate` and `etl` concurrently.
-- Stop `api` before running `migrate`, `etl`, or `restore`.
-- Keep backup-before-ETL as standard procedure.
-- Prefer one writer pattern for DuckDB jobs to avoid lock contention.
+- Do not run ETL and migration against the same color concurrently.
+- Always ETL into inactive color first.
+- Cut over only after inactive API is healthy.
+- Keep `active.conf` and DB symlink (`/app/data/active.duckdb`) aligned via `cutover.sh`.
 
-## 9. Troubleshooting
+## 8. Troubleshooting
 
-Healthcheck failing:
+Gateway not healthy:
 
-1. `docker compose logs api`
-2. Ensure migration was executed: `docker compose run --rm migrate`
-3. Verify `DUCKDB_PATH` points to mounted data directory.
+1. `docker compose logs gateway`
+2. validate nginx config mount (`ops/nginx/*`)
+3. ensure at least one API service is healthy
+
+Color resolution issues:
+
+1. `cat ops/nginx/upstreams/active.conf`
+2. `./scripts/ops/resolve-colors.sh`
+
+Cutover health failures:
+
+1. `docker compose logs api-blue`
+2. `docker compose logs api-green`
+3. rerun ETL on inactive side, then retry cutover
 
 DuckDB lock errors:
 
-1. Stop API and all concurrent jobs (`etl`, `migrate`, external DB tools).
-2. Retry with strict sequence: `migrate` -> `api`.
-3. For ETL: `stop api` -> `backup` -> `etl` -> `start api`.
-
-Restore errors:
-
-1. Check file exists: `docker compose run --rm backup sh -c "ls -1 /backups"`
-2. Retry with exact `BACKUP_FILE` value.
+- Ensure no out-of-band tools hold DB files
+- Ensure jobs target inactive color, not active color
