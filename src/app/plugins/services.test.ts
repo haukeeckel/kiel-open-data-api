@@ -1,8 +1,9 @@
 import Fastify from 'fastify';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { ORDERS } from '../../domains/statistics/model/types.js';
 import { StatisticsQueryService } from '../../domains/statistics/services/queryService.js';
+import { makeEnv } from '../../test/helpers/makeEnv.js';
 
 import servicesPlugin from './services.js';
 
@@ -69,5 +70,65 @@ describe('services plugin', () => {
       limit: 1,
     });
     expect(result).toMatchObject({ limit: 1 });
+  });
+
+  it('passes validation cache settings from env to query service behavior', async () => {
+    const indicator = 'population';
+    const areaType = 'district';
+    const order = ORDERS[1]!;
+    const app = Fastify();
+    const statisticsRepository = {
+      getRanking: vi.fn(async () => ({
+        indicator,
+        areaType,
+        year: 2023,
+        order,
+        limit: 1,
+        rows: [],
+      })),
+      listAreas: vi.fn(async () => ({ indicator, areaType, rows: [] })),
+      listCategories: vi.fn(async () => ({ indicator, areaType, rows: ['total'] })),
+      getTimeseries: vi.fn(async () => ({ indicator, areaType, areas: ['Altstadt'], rows: [] })),
+      listYears: vi.fn(async () => ({ rows: [2023] })),
+      getIndicatorMeta: vi.fn(async () => ({
+        indicator,
+        areaTypes: [{ areaType, years: [2023], categories: ['total'], areas: ['Altstadt'] }],
+      })),
+      getYearMeta: vi.fn(async () => ({
+        year: 2023,
+        areaTypes: [
+          { areaType, indicators: [indicator], categories: ['total'], areas: ['Altstadt'] },
+        ],
+      })),
+      listIndicators: vi.fn(async () => ({ rows: [indicator] })),
+      listAreaTypes: vi.fn(async () => ({ rows: [areaType] })),
+    };
+
+    app.decorate('repos', { statisticsRepository });
+
+    await app.register(servicesPlugin, {
+      env: makeEnv({
+        STATS_VALIDATION_CACHE_ENABLED: false,
+        STATS_VALIDATION_CACHE_TTL_MS: 60_000,
+      }),
+    });
+
+    await app.services.statisticsQuery.getRanking({
+      indicator,
+      areaType,
+      year: 2023,
+      order,
+      limit: 1,
+    });
+    await app.services.statisticsQuery.getRanking({
+      indicator,
+      areaType,
+      year: 2023,
+      order,
+      limit: 1,
+    });
+
+    expect(statisticsRepository.listIndicators).toHaveBeenCalledTimes(2);
+    expect(statisticsRepository.listAreaTypes).toHaveBeenCalledTimes(2);
   });
 });
