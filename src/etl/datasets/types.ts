@@ -69,6 +69,7 @@ export type DatasetConfig = {
   url: string;
   csvFilename: string;
   csvDelimiter?: string | undefined;
+  columnAliases?: Record<string, readonly string[]> | undefined;
   areaType: string;
   areaColumn?: string | undefined;
   areaExpression?: string | undefined;

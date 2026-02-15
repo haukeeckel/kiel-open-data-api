@@ -120,7 +120,9 @@ export async function importDataset(
       );
     });
 
-    const cols = await runStep('normalize_headers', async () => normalizeRawHeaders(conn));
+    const cols = await runStep('normalize_headers', async () =>
+      normalizeRawHeaders(conn, config.columnAliases),
+    );
 
     const { imported, yearCols } = await runStep('transaction_insert_rows', async () => {
       return importIntoStage({
