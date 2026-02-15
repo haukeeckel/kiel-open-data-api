@@ -13,6 +13,8 @@ export function makeEnv(overrides: Partial<Env> = {}): Env {
     DB_QUERY_TIMEOUT_MS: 2_000,
     DB_POOL_SIZE: 4,
     DB_POOL_ACQUIRE_TIMEOUT_MS: 2_000,
+    STATS_VALIDATION_CACHE_ENABLED: true,
+    STATS_VALIDATION_CACHE_TTL_MS: 30_000,
     METRICS_ENABLED: true,
     METRICS_TOKEN: undefined,
     METRICS_AUTH_HEADER: 'x-metrics-token',

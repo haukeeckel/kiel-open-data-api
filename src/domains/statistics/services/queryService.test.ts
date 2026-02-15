@@ -299,6 +299,129 @@ describe('StatisticsQueryService', () => {
     expect(result.rows).toEqual(['district']);
   });
 
+  it('reuses validation lookups within TTL when cache is enabled', async () => {
+    const repo = createFakeRepo();
+    const listIndicatorsSpy = vi.spyOn(repo, 'listIndicators');
+    const listAreaTypesSpy = vi.spyOn(repo, 'listAreaTypes');
+    const svc = new StatisticsQueryService(repo, {
+      validationCacheEnabled: true,
+      validationCacheTtlMs: 30_000,
+    });
+
+    await svc.getRanking({
+      indicator: 'population',
+      areaType: 'district',
+      year: 2023,
+      limit: 10,
+      order: 'desc',
+    });
+    await svc.getRanking({
+      indicator: 'population',
+      areaType: 'district',
+      year: 2023,
+      limit: 10,
+      order: 'desc',
+    });
+
+    expect(listIndicatorsSpy).toHaveBeenCalledTimes(1);
+    expect(listAreaTypesSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('refreshes validation cache entries after TTL expires', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+    try {
+      const repo = createFakeRepo();
+      const listIndicatorsSpy = vi.spyOn(repo, 'listIndicators');
+      const svc = new StatisticsQueryService(repo, {
+        validationCacheEnabled: true,
+        validationCacheTtlMs: 1_000,
+      });
+
+      await svc.getRanking({
+        indicator: 'population',
+        areaType: 'district',
+        year: 2023,
+        limit: 10,
+        order: 'desc',
+      });
+      vi.setSystemTime(new Date('2026-01-01T00:00:02Z'));
+      await svc.getRanking({
+        indicator: 'population',
+        areaType: 'district',
+        year: 2023,
+        limit: 10,
+        order: 'desc',
+      });
+
+      expect(listIndicatorsSpy).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('uses category cache per indicator/areaType key', async () => {
+    const repo = createFakeRepo();
+    const listCategoriesSpy = vi.spyOn(repo, 'listCategories');
+    const svc = new StatisticsQueryService(repo, {
+      validationCacheEnabled: true,
+      validationCacheTtlMs: 30_000,
+    });
+
+    await svc.getRanking({
+      indicator: 'households',
+      areaType: 'district',
+      year: 2023,
+      limit: 10,
+      order: 'desc',
+      categories: ['total'],
+    });
+    await svc.getRanking({
+      indicator: 'households',
+      areaType: 'district',
+      year: 2023,
+      limit: 10,
+      order: 'desc',
+      categories: ['single_person'],
+    });
+    await svc.getRanking({
+      indicator: 'population',
+      areaType: 'district',
+      year: 2023,
+      limit: 10,
+      order: 'desc',
+      categories: ['total'],
+    });
+
+    expect(listCategoriesSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('calls repository validations each time when cache is disabled', async () => {
+    const repo = createFakeRepo();
+    const listIndicatorsSpy = vi.spyOn(repo, 'listIndicators');
+    const svc = new StatisticsQueryService(repo, {
+      validationCacheEnabled: false,
+      validationCacheTtlMs: 30_000,
+    });
+
+    await svc.getRanking({
+      indicator: 'population',
+      areaType: 'district',
+      year: 2023,
+      limit: 10,
+      order: 'desc',
+    });
+    await svc.getRanking({
+      indicator: 'population',
+      areaType: 'district',
+      year: 2023,
+      limit: 10,
+      order: 'desc',
+    });
+
+    expect(listIndicatorsSpy).toHaveBeenCalledTimes(2);
+  });
+
   it('passes listYears filters through to repository', async () => {
     const repo = createFakeRepo();
     const listYearsSpy = vi.spyOn(repo, 'listYears');

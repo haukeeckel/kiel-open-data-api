@@ -11,8 +11,83 @@ import type {
 } from '../model/types.js';
 import type { StatisticsRepository } from '../ports/statisticsRepository.js';
 
+type CacheEntry = {
+  value: string[];
+  expiresAt: number;
+};
+
+type StatisticsQueryServiceOptions = {
+  validationCacheEnabled?: boolean;
+  validationCacheTtlMs?: number;
+};
+
 export class StatisticsQueryService {
-  constructor(private readonly repo: StatisticsRepository) {}
+  private readonly validationCacheEnabled: boolean;
+  private readonly validationCacheTtlMs: number;
+  private indicatorsCache: CacheEntry | null = null;
+  private areaTypesCache: CacheEntry | null = null;
+  private readonly categoriesCache = new Map<string, CacheEntry>();
+
+  constructor(
+    private readonly repo: StatisticsRepository,
+    options: StatisticsQueryServiceOptions = {},
+  ) {
+    this.validationCacheEnabled = options.validationCacheEnabled ?? true;
+    this.validationCacheTtlMs = options.validationCacheTtlMs ?? 30_000;
+  }
+
+  private nowMs(): number {
+    return Date.now();
+  }
+
+  private isFresh(entry: CacheEntry | null): entry is CacheEntry {
+    return entry !== null && entry.expiresAt > this.nowMs();
+  }
+
+  private cacheKey(indicator: string, areaType: string): string {
+    return `${indicator}::${areaType}`;
+  }
+
+  private async loadIndicators(): Promise<string[]> {
+    if (!this.validationCacheEnabled) {
+      return (await this.repo.listIndicators()).rows;
+    }
+    if (this.isFresh(this.indicatorsCache)) {
+      return this.indicatorsCache.value;
+    }
+    const rows = (await this.repo.listIndicators()).rows;
+    this.indicatorsCache = { value: rows, expiresAt: this.nowMs() + this.validationCacheTtlMs };
+    return rows;
+  }
+
+  private async loadAreaTypes(): Promise<string[]> {
+    if (!this.validationCacheEnabled) {
+      return (await this.repo.listAreaTypes()).rows;
+    }
+    if (this.isFresh(this.areaTypesCache)) {
+      return this.areaTypesCache.value;
+    }
+    const rows = (await this.repo.listAreaTypes()).rows;
+    this.areaTypesCache = { value: rows, expiresAt: this.nowMs() + this.validationCacheTtlMs };
+    return rows;
+  }
+
+  private async loadCategories(indicator: string, areaType: string): Promise<string[]> {
+    if (!this.validationCacheEnabled) {
+      return (await this.repo.listCategories({ indicator, areaType })).rows;
+    }
+    const key = this.cacheKey(indicator, areaType);
+    const cached = this.categoriesCache.get(key) ?? null;
+    if (this.isFresh(cached)) {
+      return cached.value;
+    }
+    const rows = (await this.repo.listCategories({ indicator, areaType })).rows;
+    this.categoriesCache.set(key, {
+      value: rows,
+      expiresAt: this.nowMs() + this.validationCacheTtlMs,
+    });
+    return rows;
+  }
 
   private throwUnknownDomainValue(args: {
     field: 'indicator' | 'areaType' | 'category';
@@ -29,23 +104,23 @@ export class StatisticsQueryService {
   }
 
   private async assertKnownIndicator(indicator: string): Promise<void> {
-    const indicators = await this.repo.listIndicators();
-    if (!indicators.rows.includes(indicator)) {
+    const indicators = await this.loadIndicators();
+    if (!indicators.includes(indicator)) {
       this.throwUnknownDomainValue({
         field: 'indicator',
         value: indicator,
-        allowed: indicators.rows,
+        allowed: indicators,
       });
     }
   }
 
   private async assertKnownAreaType(areaType: string): Promise<void> {
-    const areaTypes = await this.repo.listAreaTypes();
-    if (!areaTypes.rows.includes(areaType)) {
+    const areaTypes = await this.loadAreaTypes();
+    if (!areaTypes.includes(areaType)) {
       this.throwUnknownDomainValue({
         field: 'areaType',
         value: areaType,
-        allowed: areaTypes.rows,
+        allowed: areaTypes,
       });
     }
   }
@@ -56,12 +131,12 @@ export class StatisticsQueryService {
     category: string | undefined,
   ): Promise<void> {
     if (category === undefined) return;
-    const categories = await this.repo.listCategories({ indicator, areaType });
-    if (!categories.rows.includes(category)) {
+    const categories = await this.loadCategories(indicator, areaType);
+    if (!categories.includes(category)) {
       this.throwUnknownDomainValue({
         field: 'category',
         value: category,
-        allowed: categories.rows,
+        allowed: categories,
       });
     }
   }
@@ -72,13 +147,13 @@ export class StatisticsQueryService {
     categories: string[] | undefined,
   ): Promise<void> {
     if (categories === undefined || categories.length === 0) return;
-    const allowed = await this.repo.listCategories({ indicator, areaType });
-    const unknown = categories.find((category) => !allowed.rows.includes(category));
+    const allowed = await this.loadCategories(indicator, areaType);
+    const unknown = categories.find((category) => !allowed.includes(category));
     if (unknown !== undefined) {
       this.throwUnknownDomainValue({
         field: 'category',
         value: unknown,
-        allowed: allowed.rows,
+        allowed,
       });
     }
   }

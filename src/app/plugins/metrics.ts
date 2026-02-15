@@ -18,7 +18,7 @@ export default fp<MetricsPluginOptions>(async function metricsPlugin(app: Fastif
   });
 
   app.addHook('onResponse', async (req, reply) => {
-    const route = req.routeOptions.url ?? '<unknown>';
+    const route = req.routeOptions.url ?? (reply.statusCode === 404 ? '<not_found>' : '<unknown>');
     if (route === '/metrics') return;
 
     const startedAt = requestStartNs.get(req);

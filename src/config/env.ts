@@ -16,6 +16,13 @@ const EnvSchema = z
     DB_QUERY_TIMEOUT_MS: z.coerce.number().int().positive().default(2_000),
     DB_POOL_SIZE: z.coerce.number().int().min(1).max(64).default(4),
     DB_POOL_ACQUIRE_TIMEOUT_MS: z.coerce.number().int().positive().default(2_000),
+    STATS_VALIDATION_CACHE_ENABLED: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .pipe(z.enum(['true', 'false']))
+      .optional(),
+    STATS_VALIDATION_CACHE_TTL_MS: z.coerce.number().int().positive().default(30_000),
     METRICS_ENABLED: z
       .string()
       .trim()
@@ -46,6 +53,10 @@ const EnvSchema = z
   .transform((env) => ({
     ...env,
     CORS_ORIGIN: env.CORS_ORIGIN || (env.NODE_ENV === 'production' ? '' : '*'),
+    STATS_VALIDATION_CACHE_ENABLED:
+      env.STATS_VALIDATION_CACHE_ENABLED !== undefined
+        ? env.STATS_VALIDATION_CACHE_ENABLED.toLowerCase() === 'true'
+        : true,
     SWAGGER_UI_ENABLED:
       env.SWAGGER_UI_ENABLED !== undefined
         ? env.SWAGGER_UI_ENABLED.toLowerCase() === 'true'

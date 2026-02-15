@@ -146,4 +146,59 @@ describe('duckdbConnectionManager', () => {
     await blocker;
     await manager.close();
   });
+
+  it('cleans up timed-out waiters and continues serving later requests', async () => {
+    const db = makeDb([makeConn('c1')]);
+    createDbMock.mockResolvedValue(db as unknown as DuckDBInstance);
+    const manager = createDuckDbConnectionManager({
+      dbPath: '/tmp/test.duckdb',
+      poolSize: 1,
+      acquireTimeoutMs: 10,
+    });
+
+    const blocker = manager.withConnection(
+      async () => await new Promise((resolve) => setTimeout(resolve, 40)),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 2));
+
+    const timedOut = await Promise.allSettled(
+      Array.from({ length: 5 }, () => manager.withConnection(async () => undefined)),
+    );
+    expect(timedOut.every((result) => result.status === 'rejected')).toBe(true);
+
+    await blocker;
+
+    await expect(
+      manager.withConnection(async (conn) => (conn as unknown as MockConn).id),
+    ).resolves.toBe('c1');
+
+    await manager.close();
+  });
+
+  it('handles bursty contention without stuck leases after timeouts', async () => {
+    const db = makeDb([makeConn('c1')]);
+    createDbMock.mockResolvedValue(db as unknown as DuckDBInstance);
+    const manager = createDuckDbConnectionManager({
+      dbPath: '/tmp/test.duckdb',
+      poolSize: 1,
+      acquireTimeoutMs: 5,
+    });
+
+    const bursts = await Promise.allSettled(
+      Array.from({ length: 20 }, (_, i) =>
+        manager.withConnection(async () => {
+          if (i === 0) {
+            await new Promise((resolve) => setTimeout(resolve, 30));
+          }
+          return i;
+        }),
+      ),
+    );
+
+    const rejectedCount = bursts.filter((r) => r.status === 'rejected').length;
+    expect(rejectedCount).toBeGreaterThan(0);
+
+    await expect(manager.withConnection(async () => 'ok')).resolves.toBe('ok');
+    await manager.close();
+  });
 });
