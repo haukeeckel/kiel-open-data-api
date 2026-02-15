@@ -204,6 +204,7 @@ pnpm etl:run:dataset districts_foreign_gender
 pnpm etl:run:dataset districts_foreign_count
 pnpm etl:run:dataset districts_migrant_gender
 pnpm etl:run:dataset subdistricts_population
+pnpm etl:run:dataset subdistricts_age_groups
 ```
 
 ETL maintenance planning (dry-run only, no data changes):
