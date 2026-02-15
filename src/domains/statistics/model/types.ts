@@ -9,8 +9,8 @@ export const RANKING_LIMIT_DEFAULT = 50;
 export type TimeseriesQuery = {
   indicator: string;
   areaType: string;
-  area: string;
-  category?: string;
+  areas: string[];
+  categories?: string[];
   from?: number;
   to?: number;
 };
@@ -38,12 +38,14 @@ export type RankingQuery = {
   indicator: string;
   areaType: string;
   year: number;
-  category?: string;
+  categories?: string[];
+  areas?: string[];
   limit: number;
   order: Order;
 };
 
 export type TimeseriesRow = {
+  area: string;
   year: number;
   value: number;
   unit: string;
@@ -60,7 +62,7 @@ export type RankingRow = {
 export type TimeseriesResult = {
   indicator: string;
   areaType: string;
-  area: string;
+  areas: string[];
   rows: TimeseriesRow[];
 };
 

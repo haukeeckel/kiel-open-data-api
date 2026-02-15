@@ -16,12 +16,19 @@ import type {
 } from '../../schemas/statistics.js';
 import type { z } from 'zod';
 
+function parseCsvParam(value: string | undefined): string[] | undefined {
+  if (value === undefined) return undefined;
+  return Array.from(new Set(value.split(',').map((part) => part.trim())));
+}
+
 export function toTimeseriesQuery(query: z.infer<typeof TimeseriesSchema>): TimeseriesQuery {
+  const areas = parseCsvParam(query.area) ?? [];
+  const categories = parseCsvParam(query.category);
   return {
     indicator: query.indicator,
     areaType: query.areaType,
-    area: query.area,
-    ...(query.category !== undefined ? { category: query.category } : {}),
+    areas,
+    ...(categories !== undefined ? { categories } : {}),
     ...(query.from !== undefined ? { from: query.from } : {}),
     ...(query.to !== undefined ? { to: query.to } : {}),
   };
@@ -44,11 +51,14 @@ export function toCategoriesQuery(query: z.infer<typeof CategoriesSchema>): Cate
 }
 
 export function toRankingQuery(query: z.infer<typeof RankingSchema>): RankingQuery {
+  const categories = parseCsvParam(query.category);
+  const areas = parseCsvParam(query.area);
   return {
     indicator: query.indicator,
     areaType: query.areaType,
     year: query.year,
-    ...(query.category !== undefined ? { category: query.category } : {}),
+    ...(categories !== undefined ? { categories } : {}),
+    ...(areas !== undefined ? { areas } : {}),
     limit: query.limit,
     order: query.order,
   };

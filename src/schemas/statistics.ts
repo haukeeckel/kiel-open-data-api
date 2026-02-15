@@ -14,11 +14,29 @@ const QUERY_AREA_MAX = 200;
 const QUERY_LIKE_MAX = 120;
 const Category = z.string().min(1).max(QUERY_TEXT_MAX);
 
+function hasNoEmptyCsvTokens(value: string): boolean {
+  const parts = value.split(',').map((part) => part.trim());
+  return parts.length > 0 && parts.every((part) => part.length > 0);
+}
+
+function csvTokenMax(max: number) {
+  return (value: string) => value.split(',').every((part) => part.trim().length <= max);
+}
+
 export const TimeseriesQuery = z.object({
   indicator: Indicator.max(QUERY_TEXT_MAX),
   areaType: AreaType.max(QUERY_TEXT_MAX),
-  area: z.string().min(1).max(QUERY_AREA_MAX),
-  category: Category.optional(),
+  area: z
+    .string()
+    .min(1)
+    .refine(hasNoEmptyCsvTokens, { message: 'Invalid CSV list' })
+    .refine(csvTokenMax(QUERY_AREA_MAX), { message: 'CSV token too long' }),
+  category: z
+    .string()
+    .min(1)
+    .refine(hasNoEmptyCsvTokens, { message: 'Invalid CSV list' })
+    .refine(csvTokenMax(QUERY_TEXT_MAX), { message: 'CSV token too long' })
+    .optional(),
   from: z.coerce.number().int().optional(),
   to: z.coerce.number().int().optional(),
 });
@@ -26,9 +44,10 @@ export const TimeseriesQuery = z.object({
 export const TimeseriesResponse = z.object({
   indicator: z.string(),
   areaType: z.string(),
-  area: z.string(),
+  areas: z.array(z.string()),
   rows: z.array(
     z.object({
+      area: z.string(),
       year: z.number().int(),
       value: z.number(),
       unit: z.string(),
@@ -65,7 +84,18 @@ export const RankingQuery = z.object({
   indicator: Indicator.max(QUERY_TEXT_MAX),
   areaType: AreaType.max(QUERY_TEXT_MAX),
   year: z.coerce.number().int(),
-  category: Category.optional(),
+  category: z
+    .string()
+    .min(1)
+    .refine(hasNoEmptyCsvTokens, { message: 'Invalid CSV list' })
+    .refine(csvTokenMax(QUERY_TEXT_MAX), { message: 'CSV token too long' })
+    .optional(),
+  area: z
+    .string()
+    .min(1)
+    .refine(hasNoEmptyCsvTokens, { message: 'Invalid CSV list' })
+    .refine(csvTokenMax(QUERY_AREA_MAX), { message: 'CSV token too long' })
+    .optional(),
   limit: z.coerce
     .number()
     .int()
