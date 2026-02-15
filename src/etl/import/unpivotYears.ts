@@ -14,6 +14,13 @@ export function getYearColumns(columns: readonly string[], config: DatasetConfig
   return columns.filter((col) => yearPattern.test(col));
 }
 
+function buildSourceOrderCaseExpr(yearCols: readonly string[]): string {
+  const clauses = yearCols
+    .map((col, idx) => `WHEN '${col.replace(/'/g, "''")}' THEN ${String(idx)}`)
+    .join(' ');
+  return `CASE year_raw ${clauses} ELSE 0 END`;
+}
+
 export async function importUnpivotYears(args: {
   conn: DuckDBConnection;
   config: DatasetConfig;
@@ -46,9 +53,10 @@ export async function importUnpivotYears(args: {
     datasetId: config.id,
     formatType: 'unpivot_years',
     parser: format.yearParser,
-    sourceAlias: 'year',
+    sourceAlias: 'year_raw',
     rawValues: yearCols,
   });
+  const sourceOrderExpr = buildSourceOrderCaseExpr(yearCols);
   const projectedColumns = [
     indicatorColumn,
     ...(config.areaColumn ? [quoteIdentifier(config.areaColumn)] : []),
@@ -64,24 +72,43 @@ export async function importUnpivotYears(args: {
         `
         INSERT OR REPLACE INTO ${targetTable}
         SELECT
-          ? AS indicator,
-          ? AS area_type,
-          ${areaExpr} AS area_name,
-          CAST(${sqlYearExpr} AS INTEGER) AS year,
-          TRY_CAST(${parsedValueExpr} AS DOUBLE) AS value,
-          ? AS unit,
-          ? AS category,
-          ? AS source_dataset,
-          ? AS import_run_id,
-          CURRENT_TIMESTAMP AS loaded_at,
-          ? AS data_version
+          indicator,
+          area_type,
+          area_name,
+          year,
+          value,
+          unit,
+          category,
+          source_dataset,
+          import_run_id,
+          loaded_at,
+          data_version
         FROM (
-          SELECT ${projectedColumns}
-          FROM raw
-          WHERE ${indicatorColumn} = ?
+          SELECT
+            ? AS indicator,
+            ? AS area_type,
+            ${areaExpr} AS area_name,
+            CAST(${sqlYearExpr} AS INTEGER) AS year,
+            TRY_CAST(${parsedValueExpr} AS DOUBLE) AS value,
+            ? AS unit,
+            ? AS category,
+            ? AS source_dataset,
+            ? AS import_run_id,
+            CURRENT_TIMESTAMP AS loaded_at,
+            ? AS data_version,
+            ROW_NUMBER() OVER (
+              PARTITION BY ${areaExpr}, CAST(${sqlYearExpr} AS INTEGER)
+              ORDER BY ${sourceOrderExpr} DESC
+            ) AS _year_pick
+          FROM (
+            SELECT ${projectedColumns}
+            FROM raw
+            WHERE ${indicatorColumn} = ?
+          )
+          UNPIVOT(value FOR year_raw IN (${inList}))
+          WHERE TRY_CAST(${parsedValueExpr} AS DOUBLE) IS NOT NULL
         )
-        UNPIVOT(value FOR year IN (${inList}))
-        WHERE TRY_CAST(${parsedValueExpr} AS DOUBLE) IS NOT NULL;
+        WHERE _year_pick = 1;
         `,
         [
           row.indicator,
@@ -99,24 +126,43 @@ export async function importUnpivotYears(args: {
         `
         INSERT OR REPLACE INTO ${targetTable}
         SELECT
-          ? AS indicator,
-          ? AS area_type,
-          ? AS area_name,
-          CAST(${sqlYearExpr} AS INTEGER) AS year,
-          TRY_CAST(${parsedValueExpr} AS DOUBLE) AS value,
-          ? AS unit,
-          ? AS category,
-          ? AS source_dataset,
-          ? AS import_run_id,
-          CURRENT_TIMESTAMP AS loaded_at,
-          ? AS data_version
+          indicator,
+          area_type,
+          area_name,
+          year,
+          value,
+          unit,
+          category,
+          source_dataset,
+          import_run_id,
+          loaded_at,
+          data_version
         FROM (
-          SELECT ${projectedColumns}
-          FROM raw
-          WHERE ${indicatorColumn} = ?
+          SELECT
+            ? AS indicator,
+            ? AS area_type,
+            ? AS area_name,
+            CAST(${sqlYearExpr} AS INTEGER) AS year,
+            TRY_CAST(${parsedValueExpr} AS DOUBLE) AS value,
+            ? AS unit,
+            ? AS category,
+            ? AS source_dataset,
+            ? AS import_run_id,
+            CURRENT_TIMESTAMP AS loaded_at,
+            ? AS data_version,
+            ROW_NUMBER() OVER (
+              PARTITION BY CAST(${sqlYearExpr} AS INTEGER)
+              ORDER BY ${sourceOrderExpr} DESC
+            ) AS _year_pick
+          FROM (
+            SELECT ${projectedColumns}
+            FROM raw
+            WHERE ${indicatorColumn} = ?
+          )
+          UNPIVOT(value FOR year_raw IN (${inList}))
+          WHERE TRY_CAST(${parsedValueExpr} AS DOUBLE) IS NOT NULL
         )
-        UNPIVOT(value FOR year IN (${inList}))
-        WHERE TRY_CAST(${parsedValueExpr} AS DOUBLE) IS NOT NULL;
+        WHERE _year_pick = 1;
         `,
         [
           row.indicator,
