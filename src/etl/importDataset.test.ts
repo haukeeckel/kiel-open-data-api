@@ -26,6 +26,7 @@ import { DISTRICTS_UNEMPLOYED_RATE } from './datasets/districts_unemployed_rate.
 import { SUBDISTRICTS_AGE_GROUPS } from './datasets/subdistricts_age_groups.js';
 import { SUBDISTRICTS_FOREIGN_GENDER } from './datasets/subdistricts_foreign_gender.js';
 import { SUBDISTRICTS_GENDER } from './datasets/subdistricts_gender.js';
+import { SUBDISTRICTS_MIGRANT_GENDER } from './datasets/subdistricts_migrant_gender.js';
 import { SUBDISTRICTS_POPULATION } from './datasets/subdistricts_population.js';
 import * as etlLoggerModule from './etlLogger.js';
 import { importDataset } from './importDataset.js';
@@ -535,6 +536,82 @@ describe('importDataset', () => {
         `,
       );
       expect(Number(valueReader.getRowObjects()[0]?.['value'])).toBe(202);
+    });
+  });
+
+  it('imports subdistrict migrant gender categories with dedupe and trimmed area names', async () => {
+    const subdistrictCsvPath = path.join(cacheDir, SUBDISTRICTS_MIGRANT_GENDER.csvFilename);
+    const csv =
+      [
+        'Land;Stadt;Kategorie;Merkmal;Datum;Ortsteilnummer;Ortsteil;insgesamt;m\u00e4nnlich;weiblich',
+        'de-sh;Kiel;Bev\u00f6lkerung;Einwohner mit Migrationshintergrund;2022_12_31;1;Schilksee   ;914;407;507',
+        'de-sh;Kiel;Bev\u00f6lkerung;Einwohner mit Migrationshintergrund;2023_12_31;1;Schilksee   ;901;410;491',
+        'de-sh;Kiel;Bev\u00f6lkerung;Einwohner mit Migrationshintergrund;2023_12_31;1;Schilksee   ;902;411;491',
+        'de-sh;Kiel;Bev\u00f6lkerung;Einwohner mit Migrationshintergrund;2022_12_31;2;Pries/Friedrichsort;2349;1147;1202',
+        'de-sh;Kiel;Bev\u00f6lkerung;Einwohner mit Migrationshintergrund;2023_12_31;2;Pries/Friedrichsort;2434;1193;1241',
+        'de-sh;Kiel;Bev\u00f6lkerung;Nicht relevant;2023_12_31;1;Schilksee;9999;1;1',
+      ].join('\n') + '\n';
+    await fs.writeFile(subdistrictCsvPath, csv, 'utf8');
+
+    const first = await importDataset(SUBDISTRICTS_MIGRANT_GENDER, {
+      csvPath: subdistrictCsvPath,
+      dbPath,
+    });
+    const second = await importDataset(SUBDISTRICTS_MIGRANT_GENDER, {
+      csvPath: subdistrictCsvPath,
+      dbPath,
+    });
+
+    expect(first.imported).toBe(12);
+    expect(second.imported).toBe(12);
+
+    await withConn(dbPath, async (conn) => {
+      const categoriesReader = await conn.runAndReadAll(
+        `
+        SELECT category
+        FROM statistics
+        WHERE indicator = 'migrant_gender' AND area_type = 'subdistrict'
+        GROUP BY category
+        ORDER BY category ASC;
+        `,
+      );
+      const categories = categoriesReader.getRowObjects().map((row) => String(row['category']));
+      expect(categories).toEqual(['female', 'male', 'total']);
+
+      const yearsReader = await conn.runAndReadAll(
+        `
+        SELECT DISTINCT year
+        FROM statistics
+        WHERE indicator = 'migrant_gender' AND area_type = 'subdistrict'
+        ORDER BY year ASC;
+        `,
+      );
+      const years = yearsReader.getRowObjects().map((row) => Number(row['year']));
+      expect(years).toEqual([2022, 2023]);
+
+      const areasReader = await conn.runAndReadAll(
+        `
+        SELECT DISTINCT area_name
+        FROM statistics
+        WHERE indicator = 'migrant_gender' AND area_type = 'subdistrict'
+        ORDER BY area_name ASC;
+        `,
+      );
+      const areas = areasReader.getRowObjects().map((row) => String(row['area_name']));
+      expect(areas).toEqual(['Pries/Friedrichsort', 'Schilksee']);
+
+      const valueReader = await conn.runAndReadAll(
+        `
+        SELECT value
+        FROM statistics
+        WHERE indicator = 'migrant_gender'
+          AND area_type = 'subdistrict'
+          AND area_name = 'Schilksee'
+          AND year = 2023
+          AND category = 'total';
+        `,
+      );
+      expect(Number(valueReader.getRowObjects()[0]?.['value'])).toBe(902);
     });
   });
 
