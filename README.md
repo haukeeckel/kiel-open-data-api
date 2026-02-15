@@ -300,6 +300,56 @@ Example:
 curl -H "x-metrics-token: $METRICS_TOKEN" http://127.0.0.1:3000/metrics
 ```
 
+## Docker / Compose Betrieb
+
+This repository includes a minimal Docker Compose operating baseline for
+DuckDB stateful runtime:
+
+- persistent DB volume (`duckdb_data`)
+- persistent ETL cache volume (`etl_cache`)
+- backup volume (`duckdb_backups`)
+- separated jobs for migration (`migrate`) and ETL (`etl`)
+- optional cron profile (`etl-cron`), disabled by default
+
+Build image and run first migration:
+
+```bash
+docker compose build
+docker compose run --rm migrate
+```
+
+Start API:
+
+```bash
+docker compose up -d api
+curl http://127.0.0.1:3000/health
+```
+
+Manual ETL operation (stop API first to avoid DuckDB lock conflicts):
+
+```bash
+docker compose stop api
+docker compose run --rm backup
+docker compose run --rm etl
+docker compose up -d api
+```
+
+Restore from backup:
+
+```bash
+docker compose run --rm -e BACKUP_FILE=<backup-file> restore
+docker compose run --rm migrate
+```
+
+Optional cron profile:
+
+```bash
+docker compose --profile cron up -d etl-cron
+```
+
+Detailed operational flows and troubleshooting:
+`docs/runbook-docker.md`.
+
 ## Debt Tracking Workflow
 
 Debt planning files are intentionally local-only in this repository:
