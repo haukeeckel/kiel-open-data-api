@@ -38,6 +38,12 @@ jobs:
       - name: Typecheck
         run: pnpm -s typecheck
 
+      - name: Fixture guardrail
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./scripts/ci/check-inline-test-csv-fixtures.sh
+
       - name: Test (coverage gate)
         run: pnpm -s test:coverage
 
