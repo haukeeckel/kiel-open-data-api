@@ -15,6 +15,21 @@ if [ ! -f "$db_path" ]; then
   exit 1
 fi
 
+echo "backup: checkpoint source database before snapshot"
+DB_PATH="$db_path" node --input-type=module -e "
+import { DuckDBInstance } from '@duckdb/node-api';
+const dbPath = process.env.DB_PATH;
+if (!dbPath) throw new Error('backup: DB_PATH is required');
+const db = await DuckDBInstance.create(dbPath);
+const conn = await db.connect();
+try {
+  await conn.run('CHECKPOINT');
+} finally {
+  try { conn.closeSync(); } catch {}
+  try { db.closeSync(); } catch {}
+}
+"
+
 ts="$(date +%Y%m%d-%H%M%S)"
 out="/backups/${prefix}-${ts}.duckdb"
 
