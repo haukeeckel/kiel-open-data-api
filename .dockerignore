@@ -1,0 +1,16 @@
+node_modules
+dist
+coverage
+data
+.env
+.git
+.github
+.husky
+.pnpm-store
+.claude
+.codex
+.DS_Store
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
