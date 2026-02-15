@@ -24,6 +24,7 @@ import { DISTRICTS_RELIGION } from './datasets/districts_religion.js';
 import { DISTRICTS_UNEMPLOYED_COUNT } from './datasets/districts_unemployed_count.js';
 import { DISTRICTS_UNEMPLOYED_RATE } from './datasets/districts_unemployed_rate.js';
 import { SUBDISTRICTS_AGE_GROUPS } from './datasets/subdistricts_age_groups.js';
+import { SUBDISTRICTS_GENDER } from './datasets/subdistricts_gender.js';
 import { SUBDISTRICTS_POPULATION } from './datasets/subdistricts_population.js';
 import * as etlLoggerModule from './etlLogger.js';
 import { importDataset } from './importDataset.js';
@@ -384,6 +385,79 @@ describe('importDataset', () => {
         ),
       ).sort((a, b) => a - b);
       expect(years).toEqual([2022, 2023]);
+    });
+  });
+
+  it('imports subdistrict gender categories with dedupe and trimmed area names', async () => {
+    const subdistrictCsvPath = path.join(cacheDir, SUBDISTRICTS_GENDER.csvFilename);
+    const csv =
+      [
+        'Land;Stadt;Kategorie;Merkmal;Datum;Ortsteilnummer;Ortsteil;insgesamt;maennlich;weiblich',
+        'de-sh;Kiel;Bevoelkerung;Einwohner insgesamt;2022_12_31;1;Schilksee   ;4880;2262;2618',
+        'de-sh;Kiel;Bevoelkerung;Einwohner insgesamt;2023_12_31;1;Schilksee   ;4857;2249;2608',
+        'de-sh;Kiel;Bevoelkerung;Einwohner insgesamt;2023_12_31;1;Schilksee   ;4858;2250;2608',
+        'de-sh;Kiel;Bevoelkerung;Einwohner insgesamt;2022_12_31;2;Pries/Friedrichsort;9641;4720;4921',
+        'de-sh;Kiel;Bevoelkerung;Einwohner insgesamt;2023_12_31;2;Pries/Friedrichsort;9743;4776;4967',
+        'de-sh;Kiel;Bevoelkerung;Nicht relevant;2023_12_31;1;Schilksee;9999;1;1',
+      ].join('\n') + '\n';
+    await fs.writeFile(subdistrictCsvPath, csv, 'utf8');
+
+    const first = await importDataset(SUBDISTRICTS_GENDER, { csvPath: subdistrictCsvPath, dbPath });
+    const second = await importDataset(SUBDISTRICTS_GENDER, {
+      csvPath: subdistrictCsvPath,
+      dbPath,
+    });
+
+    expect(first.imported).toBe(12);
+    expect(second.imported).toBe(12);
+
+    await withConn(dbPath, async (conn) => {
+      const categoriesReader = await conn.runAndReadAll(
+        `
+        SELECT category
+        FROM statistics
+        WHERE indicator = 'gender' AND area_type = 'subdistrict'
+        GROUP BY category
+        ORDER BY category ASC;
+        `,
+      );
+      const categories = categoriesReader.getRowObjects().map((row) => String(row['category']));
+      expect(categories).toEqual(['female', 'male', 'total']);
+
+      const yearsReader = await conn.runAndReadAll(
+        `
+        SELECT DISTINCT year
+        FROM statistics
+        WHERE indicator = 'gender' AND area_type = 'subdistrict'
+        ORDER BY year ASC;
+        `,
+      );
+      const years = yearsReader.getRowObjects().map((row) => Number(row['year']));
+      expect(years).toEqual([2022, 2023]);
+
+      const areasReader = await conn.runAndReadAll(
+        `
+        SELECT DISTINCT area_name
+        FROM statistics
+        WHERE indicator = 'gender' AND area_type = 'subdistrict'
+        ORDER BY area_name ASC;
+        `,
+      );
+      const areas = areasReader.getRowObjects().map((row) => String(row['area_name']));
+      expect(areas).toEqual(['Pries/Friedrichsort', 'Schilksee']);
+
+      const valueReader = await conn.runAndReadAll(
+        `
+        SELECT value
+        FROM statistics
+        WHERE indicator = 'gender'
+          AND area_type = 'subdistrict'
+          AND area_name = 'Schilksee'
+          AND year = 2023
+          AND category = 'total';
+        `,
+      );
+      expect(Number(valueReader.getRowObjects()[0]?.['value'])).toBe(4858);
     });
   });
 
