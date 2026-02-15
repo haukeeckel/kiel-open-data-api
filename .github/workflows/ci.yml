@@ -43,3 +43,77 @@ jobs:
 
       - name: Build
         run: pnpm -s build
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Docker compose config
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose config
+
+      - name: Docker compose build
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose build
+
+      - name: Migrate blue
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose run --rm -e TARGET_COLOR=blue migrate
+
+      - name: Migrate green
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose run --rm -e TARGET_COLOR=green migrate
+
+      - name: Start gateway and apis
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose up -d api-blue api-green gateway
+
+      - name: Gateway healthcheck
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -f --retry 20 --retry-delay 2 --retry-connrefused http://127.0.0.1:3000/health
+
+      - name: Cutover smoke to green
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./scripts/ops/cutover.sh green
+          curl -f --retry 20 --retry-delay 2 --retry-connrefused http://127.0.0.1:3000/health
+
+      - name: Rollback smoke to blue
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./scripts/ops/rollback.sh blue
+          curl -f --retry 20 --retry-delay 2 --retry-connrefused http://127.0.0.1:3000/health
+
+      - name: Dump docker logs on failure
+        if: failure()
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose logs gateway --tail=200
+          docker compose logs api-blue --tail=200
+          docker compose logs api-green --tail=200
+
+      - name: Docker compose cleanup
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose down -v --remove-orphans
