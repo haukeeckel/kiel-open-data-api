@@ -312,13 +312,38 @@ This repository includes a Docker Compose blue/green operating baseline:
 - jobs: `migrate`, `etl`, `backup`, `restore`
 - traffic cutover is done via `ops/nginx/upstreams/active.conf`
 
-Build and start services:
+### Prod default (recommended)
+
+Set required CORS origin and start services:
 
 ```bash
+export CORS_ORIGIN=https://your-frontend.example
 docker compose build
 docker compose up -d gateway api-blue api-green
 curl http://127.0.0.1:3000/health
 ```
+
+Swagger UI (`/docs`) stays disabled by default in production profile.
+Enable it explicitly if needed:
+
+```bash
+export SWAGGER_UI_ENABLED=true
+docker compose up -d gateway api-blue api-green
+```
+
+### Dev-style compose start
+
+Use development env defaults with Swagger enabled:
+
+```bash
+export NODE_ENV=development
+export CORS_ORIGIN=http://localhost:3000
+export SWAGGER_UI_ENABLED=true
+docker compose up -d gateway api-blue api-green
+```
+
+Swagger UI is then available at:
+`http://127.0.0.1:3000/docs`
 
 Prepare inactive color (backup + migrate + ETL + health):
 
