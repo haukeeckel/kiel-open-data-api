@@ -17,7 +17,11 @@ describe('statistics mappers', () => {
       area: 'Altstadt',
     } as const;
 
-    expect(toTimeseriesQuery(input)).toEqual(input);
+    expect(toTimeseriesQuery(input)).toEqual({
+      indicator: 'population',
+      areaType: 'district',
+      areas: ['Altstadt'],
+    });
   });
 
   it('maps timeseries query with range', () => {
@@ -29,7 +33,29 @@ describe('statistics mappers', () => {
       to: 2023,
     } as const;
 
-    expect(toTimeseriesQuery(input)).toEqual(input);
+    expect(toTimeseriesQuery(input)).toEqual({
+      indicator: 'population',
+      areaType: 'district',
+      areas: ['Altstadt'],
+      from: 2020,
+      to: 2023,
+    });
+  });
+
+  it('maps timeseries CSV values with trim and dedup', () => {
+    const input = {
+      indicator: 'gender',
+      areaType: 'district',
+      area: 'Altstadt, Gaarden-Ost,Altstadt',
+      category: 'male, female,male',
+    } as const;
+
+    expect(toTimeseriesQuery(input)).toEqual({
+      indicator: 'gender',
+      areaType: 'district',
+      areas: ['Altstadt', 'Gaarden-Ost'],
+      categories: ['male', 'female'],
+    });
   });
 
   it('maps areas query and omits optional like', () => {
@@ -61,6 +87,28 @@ describe('statistics mappers', () => {
     } as const;
 
     expect(toRankingQuery(input)).toEqual(input);
+  });
+
+  it('maps ranking CSV values with trim and dedup', () => {
+    const input = {
+      indicator: 'gender',
+      areaType: 'district',
+      year: 2023,
+      category: 'male, female,male',
+      area: 'Altstadt, Gaarden-Ost,Altstadt',
+      limit: 10,
+      order: 'desc',
+    } as const;
+
+    expect(toRankingQuery(input)).toEqual({
+      indicator: 'gender',
+      areaType: 'district',
+      year: 2023,
+      categories: ['male', 'female'],
+      areas: ['Altstadt', 'Gaarden-Ost'],
+      limit: 10,
+      order: 'desc',
+    });
   });
 
   it('maps categories query', () => {

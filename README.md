@@ -242,8 +242,11 @@ ETL writes one run record per dataset execution into `etl_runs`:
   Health check
 
 - `GET /v1/timeseries`
-  Time series for a given indicator and area.
+  Time series for a given indicator and area(s).
+  `area` supports CSV (for example `Altstadt,Gaarden-Ost`).
+  Optional `category` supports CSV (for example `male,female`).
   If `category` is omitted, rows from all categories are returned.
+  Response uses `areas: string[]` and each row includes `area`.
 
 - `GET /v1/areas`
   List distinct areas for an indicator and area type.
@@ -254,6 +257,7 @@ ETL writes one run record per dataset execution into `etl_runs`:
 
 - `GET /v1/ranking`
   Ranking of areas by value for a given indicator/year.
+  Optional `category` supports CSV and optional `area` supports CSV.
   If `category` is omitted, ranking rows can contain mixed categories.
 
 - `GET /v1/indicators`

@@ -50,16 +50,16 @@ describe('DuckDbStatisticsRepository', () => {
       const result = await repo.getTimeseries({
         indicator: 'population',
         areaType: 'district',
-        area: 'Altstadt',
+        areas: ['Altstadt'],
       });
 
       expect(result).toEqual({
         indicator: 'population',
         areaType: 'district',
-        area: 'Altstadt',
+        areas: ['Altstadt'],
         rows: [
-          { year: 2022, value: 1213, unit: 'persons', category: 'total' },
-          { year: 2023, value: 1220, unit: 'persons', category: 'total' },
+          { area: 'Altstadt', year: 2022, value: 1213, unit: 'persons', category: 'total' },
+          { area: 'Altstadt', year: 2023, value: 1220, unit: 'persons', category: 'total' },
         ],
       });
     });
@@ -68,7 +68,7 @@ describe('DuckDbStatisticsRepository', () => {
       const result = await repo.getTimeseries({
         indicator: 'population',
         areaType: 'district',
-        area: 'NonExistent',
+        areas: ['NonExistent'],
       });
 
       expect(result.rows).toEqual([]);
@@ -78,13 +78,13 @@ describe('DuckDbStatisticsRepository', () => {
       const result = await repo.getTimeseries({
         indicator: 'population',
         areaType: 'district',
-        area: 'Altstadt',
+        areas: ['Altstadt'],
         from: 2023,
         to: 2023,
       });
 
       expect(result.rows).toEqual([
-        { year: 2023, value: 1220, unit: 'persons', category: 'total' },
+        { area: 'Altstadt', year: 2023, value: 1220, unit: 'persons', category: 'total' },
       ]);
     });
 
@@ -92,7 +92,7 @@ describe('DuckDbStatisticsRepository', () => {
       const result = await repo.getTimeseries({
         indicator: 'population',
         areaType: 'district',
-        area: 'Gaarden-Ost',
+        areas: ['Gaarden-Ost'],
         from: 2023,
       });
 
@@ -104,7 +104,7 @@ describe('DuckDbStatisticsRepository', () => {
       const result = await repo.getTimeseries({
         indicator: 'population',
         areaType: 'district',
-        area: 'Gaarden-Ost',
+        areas: ['Gaarden-Ost'],
         to: 2022,
       });
 
@@ -116,7 +116,7 @@ describe('DuckDbStatisticsRepository', () => {
       const result = await repo.getTimeseries({
         indicator: 'population',
         areaType: 'district',
-        area: 'Gaarden-Ost',
+        areas: ['Gaarden-Ost'],
       });
 
       const years = result.rows.map((r) => r.year);
@@ -127,12 +127,53 @@ describe('DuckDbStatisticsRepository', () => {
       const result = await repo.getTimeseries({
         indicator: 'households',
         areaType: 'district',
-        area: 'Altstadt',
+        areas: ['Altstadt'],
       });
 
       expect(result.rows).toEqual([
-        { year: 2023, value: 810, unit: 'households', category: 'total' },
-        { year: 2023, value: 505, unit: 'households', category: 'single_person' },
+        { area: 'Altstadt', year: 2023, value: 810, unit: 'households', category: 'total' },
+        {
+          area: 'Altstadt',
+          year: 2023,
+          value: 505,
+          unit: 'households',
+          category: 'single_person',
+        },
+      ]);
+    });
+
+    it('supports multiple areas and categories', async () => {
+      const result = await repo.getTimeseries({
+        indicator: 'households',
+        areaType: 'district',
+        areas: ['Altstadt', 'Gaarden-Ost'],
+        categories: ['single_person', 'total'],
+      });
+
+      expect(result.areas).toEqual(['Altstadt', 'Gaarden-Ost']);
+      expect(result.rows).toEqual([
+        { area: 'Altstadt', year: 2023, value: 810, unit: 'households', category: 'total' },
+        {
+          area: 'Altstadt',
+          year: 2023,
+          value: 505,
+          unit: 'households',
+          category: 'single_person',
+        },
+        {
+          area: 'Gaarden-Ost',
+          year: 2023,
+          value: 6050,
+          unit: 'households',
+          category: 'total',
+        },
+        {
+          area: 'Gaarden-Ost',
+          year: 2023,
+          value: 3220,
+          unit: 'households',
+          category: 'single_person',
+        },
       ]);
     });
   });
@@ -286,6 +327,39 @@ describe('DuckDbStatisticsRepository', () => {
         { area: 'Altstadt', value: 810, unit: 'households', category: 'total' },
         { area: 'Altstadt', value: 505, unit: 'households', category: 'single_person' },
         { area: 'Wik', value: 420, unit: 'households', category: 'single_person' },
+      ]);
+    });
+
+    it('filters ranking by multiple categories', async () => {
+      const result = await repo.getRanking({
+        indicator: 'households',
+        areaType: 'district',
+        year: 2023,
+        limit: 10,
+        order: 'desc',
+        categories: ['single_person'],
+      });
+
+      expect(result.rows).toEqual([
+        { area: 'Gaarden-Ost', value: 3220, unit: 'households', category: 'single_person' },
+        { area: 'Altstadt', value: 505, unit: 'households', category: 'single_person' },
+        { area: 'Wik', value: 420, unit: 'households', category: 'single_person' },
+      ]);
+    });
+
+    it('filters ranking by multiple areas', async () => {
+      const result = await repo.getRanking({
+        indicator: 'population',
+        areaType: 'district',
+        year: 2023,
+        limit: 10,
+        order: 'desc',
+        areas: ['Altstadt', 'Schreventeich'],
+      });
+
+      expect(result.rows).toEqual([
+        { area: 'Schreventeich', value: 9000, unit: 'persons', category: 'total' },
+        { area: 'Altstadt', value: 1220, unit: 'persons', category: 'total' },
       ]);
     });
   });

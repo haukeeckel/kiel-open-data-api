@@ -1,4 +1,5 @@
 export type TimeseriesRowFixture = {
+  area: string;
   year: number;
   value: number;
   unit: string;
@@ -45,43 +46,43 @@ export const TIMESERIES_UNFILTERED_CASES: TimeseriesUnfilteredCase[] = [
   {
     indicator: 'population',
     rows: [
-      { year: 2022, value: 1213, unit: 'persons', category: 'total' },
-      { year: 2023, value: 1220, unit: 'persons', category: 'total' },
+      { area: 'Altstadt', year: 2022, value: 1213, unit: 'persons', category: 'total' },
+      { area: 'Altstadt', year: 2023, value: 1220, unit: 'persons', category: 'total' },
     ],
   },
   {
     indicator: 'households',
     rows: [
-      { year: 2023, value: 810, unit: 'households', category: 'total' },
-      { year: 2023, value: 505, unit: 'households', category: 'single_person' },
+      { area: 'Altstadt', year: 2023, value: 810, unit: 'households', category: 'total' },
+      { area: 'Altstadt', year: 2023, value: 505, unit: 'households', category: 'single_person' },
     ],
   },
   {
     indicator: 'area_hectares',
     rows: [
-      { year: 2019, value: 35.0987, unit: 'hectares', category: 'total' },
-      { year: 2020, value: 35.0987, unit: 'hectares', category: 'total' },
+      { area: 'Altstadt', year: 2019, value: 35.0987, unit: 'hectares', category: 'total' },
+      { area: 'Altstadt', year: 2020, value: 35.0987, unit: 'hectares', category: 'total' },
     ],
   },
   {
     indicator: 'unemployed_count',
     rows: [
-      { year: 2022, value: 14, unit: 'persons', category: 'total' },
-      { year: 2023, value: 16, unit: 'persons', category: 'total' },
+      { area: 'Altstadt', year: 2022, value: 14, unit: 'persons', category: 'total' },
+      { area: 'Altstadt', year: 2023, value: 16, unit: 'persons', category: 'total' },
     ],
   },
   {
     indicator: 'unemployed_rate',
     rows: [
-      { year: 2018, value: 2.3, unit: 'percent', category: 'total' },
-      { year: 2019, value: 1.6, unit: 'percent', category: 'total' },
+      { area: 'Altstadt', year: 2018, value: 2.3, unit: 'percent', category: 'total' },
+      { area: 'Altstadt', year: 2019, value: 1.6, unit: 'percent', category: 'total' },
     ],
   },
   {
     indicator: 'foreign_count',
     rows: [
-      { year: 2022, value: 214, unit: 'persons', category: 'total' },
-      { year: 2023, value: 212, unit: 'persons', category: 'total' },
+      { area: 'Altstadt', year: 2022, value: 214, unit: 'persons', category: 'total' },
+      { area: 'Altstadt', year: 2023, value: 212, unit: 'persons', category: 'total' },
     ],
   },
 ];
@@ -90,42 +91,44 @@ export const TIMESERIES_CATEGORY_CASES: TimeseriesCategoryCase[] = [
   {
     indicator: 'households',
     category: 'single_person',
-    rows: [{ year: 2023, value: 505, unit: 'households', category: 'single_person' }],
+    rows: [
+      { area: 'Altstadt', year: 2023, value: 505, unit: 'households', category: 'single_person' },
+    ],
   },
   {
     indicator: 'gender',
     category: 'male',
-    rows: [{ year: 2023, value: 638, unit: 'persons', category: 'male' }],
+    rows: [{ area: 'Altstadt', year: 2023, value: 638, unit: 'persons', category: 'male' }],
   },
   {
     indicator: 'age_groups',
     category: 'age_0_2',
-    rows: [{ year: 2023, value: 19, unit: 'persons', category: 'age_0_2' }],
+    rows: [{ area: 'Altstadt', year: 2023, value: 19, unit: 'persons', category: 'age_0_2' }],
   },
   {
     indicator: 'religion',
     category: 'evangelical',
-    rows: [{ year: 2023, value: 344, unit: 'persons', category: 'evangelical' }],
+    rows: [{ area: 'Altstadt', year: 2023, value: 344, unit: 'persons', category: 'evangelical' }],
   },
   {
     indicator: 'foreign_nationalities_selected',
     category: 'turkey',
-    rows: [{ year: 2023, value: 8, unit: 'persons', category: 'turkey' }],
+    rows: [{ area: 'Altstadt', year: 2023, value: 8, unit: 'persons', category: 'turkey' }],
   },
   {
     indicator: 'foreign_age_groups',
     category: 'age_0_2',
-    rows: [{ year: 2023, value: 4, unit: 'persons', category: 'age_0_2' }],
+    rows: [{ area: 'Altstadt', year: 2023, value: 4, unit: 'persons', category: 'age_0_2' }],
   },
   {
     indicator: 'foreign_gender',
     category: 'male',
-    rows: [{ year: 2023, value: 127, unit: 'persons', category: 'male' }],
+    rows: [{ area: 'Altstadt', year: 2023, value: 127, unit: 'persons', category: 'male' }],
   },
   {
     indicator: 'migrant_gender',
     category: 'male',
-    rows: [{ year: 2023, value: 199, unit: 'persons', category: 'male' }],
+    rows: [{ area: 'Altstadt', year: 2023, value: 199, unit: 'persons', category: 'male' }],
   },
 ];
 

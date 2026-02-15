@@ -43,7 +43,7 @@ export const timeseriesRouteSchema = {
   schema: {
     tags: ['statistics'],
     description:
-      'Get time series for a given indicator and area (omitting category returns all categories)',
+      'Get time series for indicator/areaType with CSV filters: area=Altstadt,Gaarden-Ost and optional category=male,female. Response uses areas[] and rows[].area.',
     querystring: TimeseriesQuery,
     response: {
       200: TimeseriesResponse,
@@ -81,7 +81,7 @@ export const rankingRouteSchema = {
   schema: {
     tags: ['statistics'],
     description:
-      'Get ranking of areas by value for a given indicator/year (omitting category returns mixed categories)',
+      'Get ranking for indicator/year with optional CSV filters category=... and area=...',
     querystring: RankingQuery,
     response: {
       200: RankingResponse,

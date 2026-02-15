@@ -169,10 +169,10 @@ describe('statistics endpoints', () => {
       expect(res.json()).toEqual({
         indicator: 'population',
         areaType: 'district',
-        area: 'Altstadt',
+        areas: ['Altstadt'],
         rows: [
-          { year: 2022, value: 1213, unit: 'persons', category: 'total' },
-          { year: 2023, value: 1220, unit: 'persons', category: 'total' },
+          { area: 'Altstadt', year: 2022, value: 1213, unit: 'persons', category: 'total' },
+          { area: 'Altstadt', year: 2023, value: 1220, unit: 'persons', category: 'total' },
         ],
       });
     });
@@ -184,7 +184,7 @@ describe('statistics endpoints', () => {
       });
       expect(res.statusCode).toBe(200);
       expect(res.json()).toMatchObject({
-        rows: [{ year: 2023, value: 1220, unit: 'persons', category: 'total' }],
+        rows: [{ area: 'Altstadt', year: 2023, value: 1220, unit: 'persons', category: 'total' }],
       });
     });
 
@@ -199,7 +199,7 @@ describe('statistics endpoints', () => {
         expect(res.json()).toEqual({
           indicator,
           areaType: 'district',
-          area: 'Altstadt',
+          areas: ['Altstadt'],
           rows,
         });
       },
@@ -216,11 +216,44 @@ describe('statistics endpoints', () => {
         expect(res.json()).toEqual({
           indicator,
           areaType: 'district',
-          area: 'Altstadt',
+          areas: ['Altstadt'],
           rows,
         });
       },
     );
+
+    it('supports multiple areas and categories via CSV', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/timeseries?indicator=gender&areaType=district&area=Altstadt,Vorstadt&category=male,female',
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toMatchObject({
+        indicator: 'gender',
+        areaType: 'district',
+        areas: ['Altstadt', 'Vorstadt'],
+      });
+      expect(res.json().rows).toEqual(
+        expect.arrayContaining([
+          { area: 'Altstadt', year: 2023, value: 582, unit: 'persons', category: 'female' },
+          { area: 'Altstadt', year: 2023, value: 638, unit: 'persons', category: 'male' },
+          { area: 'Vorstadt', year: 2023, value: 819, unit: 'persons', category: 'female' },
+          { area: 'Vorstadt', year: 2023, value: 829, unit: 'persons', category: 'male' },
+        ]),
+      );
+      expect(res.json().rows).toHaveLength(4);
+    });
+
+    it('returns 400 for malformed CSV query values', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/timeseries?indicator=gender&areaType=district&area=Altstadt,,Gaarden-Ost&category=male,,female',
+      });
+      expect(res.statusCode).toBe(400);
+      expect(res.json()).toMatchObject({
+        error: { code: 'BAD_REQUEST', message: 'Invalid query parameters' },
+      });
+    });
   });
 
   // ---- GET /v1/areas ----
@@ -454,6 +487,40 @@ describe('statistics endpoints', () => {
         });
       },
     );
+
+    it('supports ranking with multiple categories and areas via CSV', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/ranking?indicator=gender&areaType=district&year=2023&area=Altstadt,Vorstadt&category=male,female&limit=10&order=desc',
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toMatchObject({
+        indicator: 'gender',
+        areaType: 'district',
+        year: 2023,
+        order: 'desc',
+        limit: 10,
+      });
+      expect(res.json().rows).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ area: 'Altstadt', category: 'male' }),
+          expect.objectContaining({ area: 'Altstadt', category: 'female' }),
+          expect.objectContaining({ area: 'Vorstadt', category: 'male' }),
+          expect.objectContaining({ area: 'Vorstadt', category: 'female' }),
+        ]),
+      );
+    });
+
+    it('returns 400 for malformed ranking CSV values', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/ranking?indicator=gender&areaType=district&year=2023&area=Altstadt,,Gaarden-Ost&category=male,,female',
+      });
+      expect(res.statusCode).toBe(400);
+      expect(res.json()).toMatchObject({
+        error: { code: 'BAD_REQUEST', message: 'Invalid query parameters' },
+      });
+    });
   });
 
   // ---- GET /v1/indicators ----

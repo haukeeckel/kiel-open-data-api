@@ -66,6 +66,23 @@ export class StatisticsQueryService {
     }
   }
 
+  private async assertKnownCategories(
+    indicator: string,
+    areaType: string,
+    categories: string[] | undefined,
+  ): Promise<void> {
+    if (categories === undefined || categories.length === 0) return;
+    const allowed = await this.repo.listCategories({ indicator, areaType });
+    const unknown = categories.find((category) => !allowed.rows.includes(category));
+    if (unknown !== undefined) {
+      this.throwUnknownDomainValue({
+        field: 'category',
+        value: unknown,
+        allowed: allowed.rows,
+      });
+    }
+  }
+
   async getTimeseries(input: TimeseriesQuery) {
     const { from, to } = input;
     if (from !== undefined && to !== undefined && from > to) {
@@ -73,7 +90,7 @@ export class StatisticsQueryService {
     }
     await this.assertKnownIndicator(input.indicator);
     await this.assertKnownAreaType(input.areaType);
-    await this.assertKnownCategory(input.indicator, input.areaType, input.category);
+    await this.assertKnownCategories(input.indicator, input.areaType, input.categories);
 
     return this.repo.getTimeseries(input);
   }
@@ -96,7 +113,7 @@ export class StatisticsQueryService {
   async getRanking(input: RankingQuery) {
     await this.assertKnownIndicator(input.indicator);
     await this.assertKnownAreaType(input.areaType);
-    await this.assertKnownCategory(input.indicator, input.areaType, input.category);
+    await this.assertKnownCategories(input.indicator, input.areaType, input.categories);
 
     return this.repo.getRanking(input);
   }

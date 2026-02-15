@@ -10,10 +10,16 @@ function createFakeRepo(): StatisticsRepository {
       return {
         indicator: input.indicator,
         areaType: input.areaType,
-        area: input.area,
+        areas: input.areas,
         rows: [
-          { year: 2023, value: 1, unit: 'persons', category: 'total' },
-          { year: 2023, value: 2, unit: 'persons', category: 'single_person' },
+          { area: 'Altstadt', year: 2023, value: 1, unit: 'persons', category: 'total' },
+          {
+            area: 'Altstadt',
+            year: 2023,
+            value: 2,
+            unit: 'persons',
+            category: 'single_person',
+          },
         ],
       };
     },
@@ -109,7 +115,7 @@ describe('StatisticsQueryService', () => {
       svc.getTimeseries({
         indicator: 'population',
         areaType: 'district',
-        area: 'Altstadt',
+        areas: ['Altstadt'],
         from: 2024,
         to: 2023,
       }),
@@ -147,19 +153,19 @@ describe('StatisticsQueryService', () => {
     const result = await svc.getTimeseries({
       indicator: 'households',
       areaType: 'district',
-      area: 'Altstadt',
-      category: 'single_person',
+      areas: ['Altstadt'],
+      categories: ['single_person'],
     });
 
     expect(getTimeseriesSpy).toHaveBeenCalledWith({
       indicator: 'households',
       areaType: 'district',
-      area: 'Altstadt',
-      category: 'single_person',
+      areas: ['Altstadt'],
+      categories: ['single_person'],
     });
     expect(result.rows).toEqual([
-      { year: 2023, value: 1, unit: 'persons', category: 'total' },
-      { year: 2023, value: 2, unit: 'persons', category: 'single_person' },
+      { area: 'Altstadt', year: 2023, value: 1, unit: 'persons', category: 'total' },
+      { area: 'Altstadt', year: 2023, value: 2, unit: 'persons', category: 'single_person' },
     ]);
   });
 
@@ -174,7 +180,7 @@ describe('StatisticsQueryService', () => {
       year: 2023,
       limit: 10,
       order: 'desc',
-      category: 'single_person',
+      categories: ['single_person'],
     });
 
     expect(getRankingSpy).toHaveBeenCalledWith({
@@ -183,7 +189,7 @@ describe('StatisticsQueryService', () => {
       year: 2023,
       limit: 10,
       order: 'desc',
-      category: 'single_person',
+      categories: ['single_person'],
     });
     expect(result.rows).toEqual([
       { area: 'Altstadt', value: 1, unit: 'persons', category: 'total' },
@@ -199,17 +205,17 @@ describe('StatisticsQueryService', () => {
     const result = await svc.getTimeseries({
       indicator: 'households',
       areaType: 'district',
-      area: 'Altstadt',
+      areas: ['Altstadt'],
     });
 
     expect(getTimeseriesSpy).toHaveBeenCalledWith({
       indicator: 'households',
       areaType: 'district',
-      area: 'Altstadt',
+      areas: ['Altstadt'],
     });
     expect(result.rows).toEqual([
-      { year: 2023, value: 1, unit: 'persons', category: 'total' },
-      { year: 2023, value: 2, unit: 'persons', category: 'single_person' },
+      { area: 'Altstadt', year: 2023, value: 1, unit: 'persons', category: 'total' },
+      { area: 'Altstadt', year: 2023, value: 2, unit: 'persons', category: 'single_person' },
     ]);
   });
 
@@ -237,6 +243,32 @@ describe('StatisticsQueryService', () => {
       { area: 'Altstadt', value: 1, unit: 'persons', category: 'total' },
       { area: 'Altstadt', value: 2, unit: 'persons', category: 'single_person' },
     ]);
+  });
+
+  it('passes multiple categories through for ranking', async () => {
+    const repo = createFakeRepo();
+    const getRankingSpy = vi.spyOn(repo, 'getRanking');
+    const svc = new StatisticsQueryService(repo);
+
+    await svc.getRanking({
+      indicator: 'households',
+      areaType: 'district',
+      year: 2023,
+      limit: 10,
+      order: 'desc',
+      categories: ['single_person', 'total'],
+      areas: ['Altstadt', 'Gaarden-Ost'],
+    });
+
+    expect(getRankingSpy).toHaveBeenCalledWith({
+      indicator: 'households',
+      areaType: 'district',
+      year: 2023,
+      limit: 10,
+      order: 'desc',
+      categories: ['single_person', 'total'],
+      areas: ['Altstadt', 'Gaarden-Ost'],
+    });
   });
 
   it('passes listIndicators through to repository', async () => {
@@ -419,8 +451,8 @@ describe('StatisticsQueryService', () => {
       svc.getTimeseries({
         indicator: 'households',
         areaType: 'district',
-        area: 'Altstadt',
-        category: 'other',
+        areas: ['Altstadt'],
+        categories: ['other'],
       }),
     ).rejects.toMatchObject({
       name: 'StatisticsValidationError',

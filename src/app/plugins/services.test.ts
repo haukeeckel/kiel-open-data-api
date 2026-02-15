@@ -34,7 +34,7 @@ describe('services plugin', () => {
       getTimeseries: async () => ({
         indicator,
         areaType,
-        area: 'Altstadt',
+        areas: ['Altstadt'],
         rows: [],
       }),
       listYears: async () => ({
