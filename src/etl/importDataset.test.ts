@@ -7,6 +7,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 
 import { createDb } from '../infra/db/duckdb.js';
 import { applyMigrations } from '../infra/db/migrations.js';
+import { postalCodePopulationCsvWithHeaderAliasFixture } from '../test/fixtures/etlImport.fixtures.js';
 import { withTestEnv } from '../test/helpers/env.js';
 
 import { DISTRICTS_AGE_GROUPS } from './datasets/districts_age_groups.js';
@@ -618,13 +619,7 @@ describe('importDataset', () => {
 
   it('imports postal code population with header alias and thousand separators', async () => {
     const postalCsvPath = path.join(cacheDir, POSTAL_CODES_POPULATION.csvFilename);
-    const csv =
-      [
-        'Land;Stadt;Kategorie;"PLZ-\nBereich";Merkmal;2000;2023',
-        'de-sh;Kiel;Bevoelkerung;24103;Jahr;10.141;12333',
-        'de-sh;Kiel;Bevoelkerung;24105;Jahr;19.466;20815',
-        'de-sh;Kiel;Bevoelkerung;24103;Nicht relevant;1;2',
-      ].join('\n') + '\n';
+    const csv = postalCodePopulationCsvWithHeaderAliasFixture();
     await fs.writeFile(postalCsvPath, csv, 'utf8');
 
     const first = await importDataset(POSTAL_CODES_POPULATION, {
