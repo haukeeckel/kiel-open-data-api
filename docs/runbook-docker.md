@@ -25,6 +25,12 @@ This runbook defines zero-downtime cutover for Docker Compose v2.
 
 ## 1. Build and bootstrap
 
+Set required CORS origin for production-profile compose services:
+
+```bash
+export CORS_ORIGIN=https://your-frontend.example
+```
+
 ```bash
 docker compose build
 docker compose up -d api-blue api-green gateway
