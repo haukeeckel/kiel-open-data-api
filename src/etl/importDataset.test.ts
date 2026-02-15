@@ -23,6 +23,7 @@ import { DISTRICTS_POPULATION } from './datasets/districts_population.js';
 import { DISTRICTS_RELIGION } from './datasets/districts_religion.js';
 import { DISTRICTS_UNEMPLOYED_COUNT } from './datasets/districts_unemployed_count.js';
 import { DISTRICTS_UNEMPLOYED_RATE } from './datasets/districts_unemployed_rate.js';
+import { POSTAL_CODES_POPULATION } from './datasets/postal_codes_population.js';
 import { SUBDISTRICTS_AGE_GROUPS } from './datasets/subdistricts_age_groups.js';
 import { SUBDISTRICTS_FOREIGN_GENDER } from './datasets/subdistricts_foreign_gender.js';
 import { SUBDISTRICTS_GENDER } from './datasets/subdistricts_gender.js';
@@ -612,6 +613,72 @@ describe('importDataset', () => {
         `,
       );
       expect(Number(valueReader.getRowObjects()[0]?.['value'])).toBe(902);
+    });
+  });
+
+  it('imports postal code population with header alias and thousand separators', async () => {
+    const postalCsvPath = path.join(cacheDir, POSTAL_CODES_POPULATION.csvFilename);
+    const csv =
+      [
+        'Land;Stadt;Kategorie;"PLZ-\nBereich";Merkmal;2000;2023',
+        'de-sh;Kiel;Bevoelkerung;24103;Jahr;10.141;12333',
+        'de-sh;Kiel;Bevoelkerung;24105;Jahr;19.466;20815',
+        'de-sh;Kiel;Bevoelkerung;24103;Nicht relevant;1;2',
+      ].join('\n') + '\n';
+    await fs.writeFile(postalCsvPath, csv, 'utf8');
+
+    const first = await importDataset(POSTAL_CODES_POPULATION, {
+      csvPath: postalCsvPath,
+      dbPath,
+    });
+    const second = await importDataset(POSTAL_CODES_POPULATION, {
+      csvPath: postalCsvPath,
+      dbPath,
+    });
+
+    expect(first.imported).toBe(4);
+    expect(second.imported).toBe(4);
+
+    await withConn(dbPath, async (conn) => {
+      const rowsReader = await conn.runAndReadAll(
+        `
+        SELECT area_type, area_name, year, category, value
+        FROM statistics
+        WHERE indicator = 'population' AND area_type = 'postal_code'
+        ORDER BY area_name ASC, year ASC;
+        `,
+      );
+      const rows = rowsReader.getRowObjects();
+      expect(rows).toEqual([
+        {
+          area_type: 'postal_code',
+          area_name: '24103',
+          year: 2000,
+          category: 'total',
+          value: 10141,
+        },
+        {
+          area_type: 'postal_code',
+          area_name: '24103',
+          year: 2023,
+          category: 'total',
+          value: 12333,
+        },
+        {
+          area_type: 'postal_code',
+          area_name: '24105',
+          year: 2000,
+          category: 'total',
+          value: 19466,
+        },
+        {
+          area_type: 'postal_code',
+          area_name: '24105',
+          year: 2023,
+          category: 'total',
+          value: 20815,
+        },
+      ]);
     });
   });
 
