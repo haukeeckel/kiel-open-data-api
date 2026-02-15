@@ -127,6 +127,13 @@ cp .env.example .env
 - `DB_POOL_ACQUIRE_TIMEOUT_MS`
   Max wait time in ms to acquire a pooled connection (default: `2000`)
 
+- `STATS_VALIDATION_CACHE_ENABLED`
+  Enable in-memory TTL cache for domain validation lookups (default: `true`)
+
+- `STATS_VALIDATION_CACHE_TTL_MS`
+  TTL in ms for validation cache entries (default: `30000`).
+  Invalidation is TTL-only (no live ETL publish hook in API process).
+
 - `METRICS_ENABLED`
   Enable `/metrics` endpoint (default: `false` in production, `true` otherwise)
 
