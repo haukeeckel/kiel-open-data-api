@@ -12,6 +12,7 @@ import { DISTRICTS_POPULATION } from './districts_population.js';
 import { DISTRICTS_RELIGION } from './districts_religion.js';
 import { DISTRICTS_UNEMPLOYED_COUNT } from './districts_unemployed_count.js';
 import { DISTRICTS_UNEMPLOYED_RATE } from './districts_unemployed_rate.js';
+import { SUBDISTRICTS_POPULATION } from './subdistricts_population.js';
 
 import type { DatasetConfig } from './types.js';
 
@@ -30,6 +31,7 @@ export const DATASET_MANIFEST: readonly DatasetConfig[] = [
   DISTRICTS_UNEMPLOYED_COUNT,
   DISTRICTS_UNEMPLOYED_RATE,
   DISTRICTS_RELIGION,
+  SUBDISTRICTS_POPULATION,
 ];
 
 export function validateDatasetManifest(datasets: readonly DatasetConfig[]): void {

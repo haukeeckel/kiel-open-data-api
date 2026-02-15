@@ -23,6 +23,7 @@ import { DISTRICTS_POPULATION } from './datasets/districts_population.js';
 import { DISTRICTS_RELIGION } from './datasets/districts_religion.js';
 import { DISTRICTS_UNEMPLOYED_COUNT } from './datasets/districts_unemployed_count.js';
 import { DISTRICTS_UNEMPLOYED_RATE } from './datasets/districts_unemployed_rate.js';
+import { SUBDISTRICTS_POPULATION } from './datasets/subdistricts_population.js';
 import * as etlLoggerModule from './etlLogger.js';
 import { importDataset } from './importDataset.js';
 
@@ -219,6 +220,73 @@ describe('importDataset', () => {
 
     await withConn(dbPath, async (conn) => {
       expect(await queryCount(conn, 'population')).toBe(4);
+    });
+  });
+
+  it('imports subdistrict population and keeps last duplicate year column', async () => {
+    const subdistrictCsvPath = path.join(cacheDir, SUBDISTRICTS_POPULATION.csvFilename);
+    const csv =
+      [
+        'Land;Stadt;Kategorie;Merkmal;Ortsteilnummer;Ortsteil;2022;2022;2023',
+        'de-sh;Kiel;Bevoelkerung;Einwohner insgesamt;1;Schilksee   ;4880;4857;4900',
+        'de-sh;Kiel;Bevoelkerung;Einwohner insgesamt;2;Pries/Friedrichsort;9641;9743;9800',
+        'de-sh;Kiel;Bevoelkerung;Nicht relevant;1;Schilksee;1;2;3',
+      ].join('\n') + '\n';
+    await fs.writeFile(subdistrictCsvPath, csv, 'utf8');
+
+    const first = await importDataset(SUBDISTRICTS_POPULATION, {
+      csvPath: subdistrictCsvPath,
+      dbPath,
+    });
+    const second = await importDataset(SUBDISTRICTS_POPULATION, {
+      csvPath: subdistrictCsvPath,
+      dbPath,
+    });
+
+    expect(first.imported).toBe(4);
+    expect(second.imported).toBe(4);
+
+    await withConn(dbPath, async (conn) => {
+      const rowsReader = await conn.runAndReadAll(
+        `
+        SELECT area_type, area_name, year, value, category
+        FROM statistics
+        WHERE indicator = 'population' AND area_type = 'subdistrict'
+        ORDER BY area_name ASC, year ASC;
+        `,
+      );
+      const rows = rowsReader.getRowObjects();
+      expect(rows).toHaveLength(4);
+      expect(rows).toEqual([
+        {
+          area_type: 'subdistrict',
+          area_name: 'Pries/Friedrichsort',
+          year: 2022,
+          value: 9743,
+          category: 'total',
+        },
+        {
+          area_type: 'subdistrict',
+          area_name: 'Pries/Friedrichsort',
+          year: 2023,
+          value: 9800,
+          category: 'total',
+        },
+        {
+          area_type: 'subdistrict',
+          area_name: 'Schilksee',
+          year: 2022,
+          value: 4857,
+          category: 'total',
+        },
+        {
+          area_type: 'subdistrict',
+          area_name: 'Schilksee',
+          year: 2023,
+          value: 4900,
+          category: 'total',
+        },
+      ]);
     });
   });
 
