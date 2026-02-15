@@ -38,8 +38,8 @@ jobs:
       - name: Typecheck
         run: pnpm -s typecheck
 
-      - name: Test
-        run: pnpm -s test
+      - name: Test (coverage gate)
+        run: pnpm -s test:coverage
 
       - name: Build
         run: pnpm -s build
@@ -47,6 +47,8 @@ jobs:
   docker:
     runs-on: ubuntu-latest
     needs: build
+    env:
+      CORS_ORIGIN: http://127.0.0.1:3000
 
     steps:
       - name: Checkout
