@@ -125,6 +125,12 @@ export function createDuckDbConnectionManager(
     return undefined;
   };
 
+  const removeWaiter = (target: (typeof waitQueue)[number]): void => {
+    const index = waitQueue.indexOf(target);
+    if (index === -1) return;
+    waitQueue.splice(index, 1);
+  };
+
   const tryLease = (current: State): DuckDBConnection | null => {
     const free = current.connections.find((entry) => !entry.leased);
     if (!free) return null;
@@ -162,6 +168,7 @@ export function createDuckDbConnectionManager(
         reject,
         timer: setTimeout(() => {
           waiter.isSettled = true;
+          removeWaiter(waiter);
           reject(new PoolAcquireTimeoutError(acquireTimeoutMs));
         }, acquireTimeoutMs),
         isSettled: false,
