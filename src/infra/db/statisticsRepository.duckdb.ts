@@ -40,6 +40,18 @@ function requireString(row: Record<string, unknown>, key: string): string {
   return value;
 }
 
+function appendInClause(
+  sql: string,
+  values: Array<string | number>,
+  column: string,
+  items: string[],
+): string {
+  if (items.length === 0) return sql;
+  const placeholders = items.map(() => '?').join(', ');
+  values.push(...items);
+  return `${sql} AND ${column} IN (${placeholders})`;
+}
+
 type RepositoryLogger = Pick<Logger, 'warn'>;
 
 type CreateRepositoryOptions = {
@@ -187,16 +199,17 @@ export function createDuckDbStatisticsRepository(
         withRepositoryError(
           'statistics.getTimeseries',
           async () => {
-            const params: Array<string | number> = [input.indicator, input.areaType, input.area];
+            const params: Array<string | number> = [input.indicator, input.areaType];
             let sql = `
-          SELECT year, value, unit, category
+          SELECT area_name, year, value, unit, category
           FROM statistics
-          WHERE indicator = ? AND area_type = ? AND area_name = ?
+          WHERE indicator = ? AND area_type = ?
         `;
 
-            if (input.category !== undefined) {
-              sql += ` AND category = ?`;
-              params.push(input.category);
+            sql = appendInClause(sql, params, 'area_name', input.areas);
+
+            if (input.categories !== undefined) {
+              sql = appendInClause(sql, params, 'category', input.categories);
             }
 
             if (input.from !== undefined) {
@@ -208,7 +221,7 @@ export function createDuckDbStatisticsRepository(
               params.push(input.to);
             }
 
-            sql += ` ORDER BY year ASC`;
+            sql += ` ORDER BY area_name ASC, year ASC`;
 
             const reader = await runQueryWithTimeout({
               conn,
@@ -221,16 +234,20 @@ export function createDuckDbStatisticsRepository(
               logger,
             });
             const rows = reader.getRowObjects().map((r) => ({
+              area: requireString(r, 'area_name'),
               year: requireNumber(r, 'year'),
               value: requireNumber(r, 'value'),
               unit: requireString(r, 'unit'),
               category: requireString(r, 'category'),
             }));
+            const areas = Array.from(new Set(rows.map((r) => r.area))).sort((a, b) =>
+              a.localeCompare(b),
+            );
 
             return {
               indicator: input.indicator,
               areaType: input.areaType,
-              area: input.area,
+              areas,
               rows,
             };
           },
@@ -324,9 +341,11 @@ export function createDuckDbStatisticsRepository(
           FROM statistics
           WHERE indicator = ? AND area_type = ? AND year = ?
           `;
-            if (input.category !== undefined) {
-              sql += ` AND category = ?`;
-              values.push(input.category);
+            if (input.categories !== undefined) {
+              sql = appendInClause(sql, values, 'category', input.categories);
+            }
+            if (input.areas !== undefined) {
+              sql = appendInClause(sql, values, 'area_name', input.areas);
             }
             sql += `
           ORDER BY value ${input.order === 'asc' ? 'ASC' : 'DESC'}
