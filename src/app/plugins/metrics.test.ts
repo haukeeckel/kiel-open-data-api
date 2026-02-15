@@ -46,7 +46,9 @@ describe('metrics plugin', () => {
 
     const res = await app.inject({ method: 'GET', url: '/metrics' });
     expect(res.statusCode).toBe(200);
-    expect(res.body).toMatch(/http_requests_total\{method="GET",route="<unknown>",status="404"\}/);
+    expect(res.body).toMatch(
+      /http_requests_total\{method="GET",route="<not_found>",status="404"\}/,
+    );
   });
 
   it('does not expose metrics endpoint when disabled', async () => {
