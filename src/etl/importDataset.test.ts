@@ -23,6 +23,7 @@ import { DISTRICTS_POPULATION } from './datasets/districts_population.js';
 import { DISTRICTS_RELIGION } from './datasets/districts_religion.js';
 import { DISTRICTS_UNEMPLOYED_COUNT } from './datasets/districts_unemployed_count.js';
 import { DISTRICTS_UNEMPLOYED_RATE } from './datasets/districts_unemployed_rate.js';
+import { SUBDISTRICTS_AGE_GROUPS } from './datasets/subdistricts_age_groups.js';
 import { SUBDISTRICTS_POPULATION } from './datasets/subdistricts_population.js';
 import * as etlLoggerModule from './etlLogger.js';
 import { importDataset } from './importDataset.js';
@@ -287,6 +288,102 @@ describe('importDataset', () => {
           category: 'total',
         },
       ]);
+    });
+  });
+
+  it('imports subdistrict age groups with total, parsed years, and trimmed area names', async () => {
+    const subdistrictCsvPath = path.join(cacheDir, SUBDISTRICTS_AGE_GROUPS.csvFilename);
+    const csv =
+      [
+        'Land;Stadt;Kategorie;Merkmal;Datum;Ortsteilnummer;Ortsteil;0-<5;5-<10;10-<15;15-<20;20-<25;25-<30;30-<35;35-<40;40-<45;45-<50;50-<55;55-<60;60-<65;65-<70;70-<75;75-<80;80-<85;85 und Aelter',
+        'de-sh;Kiel;Bevoelkerung;Einwohner nach Altersgruppen;2022_12_31;1;Schilksee   ;140;145;140;150;120;110;160;180;220;200;240;370;400;390;450;455;500;350',
+        'de-sh;Kiel;Bevoelkerung;Einwohner nach Altersgruppen;2023_12_31;1;Schilksee   ;144;148;143;157;121;119;167;188;223;208;251;381;412;395;461;463;519;357',
+        'de-sh;Kiel;Bevoelkerung;Einwohner nach Altersgruppen;2022_12_31;2;Pries/Friedrichsort;420;460;480;440;480;530;600;600;590;560;660;850;720;570;470;390;400;360',
+        'de-sh;Kiel;Bevoelkerung;Einwohner nach Altersgruppen;2023_12_31;2;Pries/Friedrichsort;423;470;494;452;487;537;612;607;599;574;676;863;733;577;478;393;405;363',
+        'de-sh;Kiel;Bevoelkerung;Nicht relevant;2023_12_31;1;Schilksee;1;1;1;1;1;1;1;1;1;1;1;1;1;1;1;1;1;1',
+      ].join('\n') + '\n';
+    await fs.writeFile(subdistrictCsvPath, csv, 'utf8');
+
+    const first = await importDataset(SUBDISTRICTS_AGE_GROUPS, {
+      csvPath: subdistrictCsvPath,
+      dbPath,
+    });
+    const second = await importDataset(SUBDISTRICTS_AGE_GROUPS, {
+      csvPath: subdistrictCsvPath,
+      dbPath,
+    });
+
+    expect(first.imported).toBe(76);
+    expect(second.imported).toBe(76);
+
+    await withConn(dbPath, async (conn) => {
+      const categoriesReader = await conn.runAndReadAll(
+        `
+        SELECT category
+        FROM statistics
+        WHERE indicator = 'age_groups' AND area_type = 'subdistrict'
+        GROUP BY category
+        ORDER BY category ASC;
+        `,
+      );
+      const categories = categoriesReader.getRowObjects().map((row) => String(row['category']));
+      expect(categories).toEqual([
+        'age_0_4',
+        'age_10_14',
+        'age_15_19',
+        'age_20_24',
+        'age_25_29',
+        'age_30_34',
+        'age_35_39',
+        'age_40_44',
+        'age_45_49',
+        'age_50_54',
+        'age_55_59',
+        'age_5_9',
+        'age_60_64',
+        'age_65_69',
+        'age_70_74',
+        'age_75_79',
+        'age_80_84',
+        'age_85_plus',
+        'total',
+      ]);
+
+      const rowsReader = await conn.runAndReadAll(
+        `
+        SELECT area_name, year, category, value
+        FROM statistics
+        WHERE indicator = 'age_groups' AND area_type = 'subdistrict'
+        ORDER BY area_name ASC, year ASC, category ASC;
+        `,
+      );
+      const rows = rowsReader.getRowObjects();
+      expect(rows).toHaveLength(76);
+
+      const schilkseeTotal2023 = rows.find(
+        (row) =>
+          String(row['area_name']) === 'Schilksee' &&
+          Number(row['year']) === 2023 &&
+          String(row['category']) === 'total',
+      );
+      expect(Number(schilkseeTotal2023?.['value'])).toBe(4857);
+
+      const schilkseeChild2023 = rows.find(
+        (row) =>
+          String(row['area_name']) === 'Schilksee' &&
+          Number(row['year']) === 2023 &&
+          String(row['category']) === 'age_0_4',
+      );
+      expect(Number(schilkseeChild2023?.['value'])).toBe(144);
+
+      const years = Array.from(
+        new Set(
+          rows
+            .filter((row) => String(row['area_name']) === 'Pries/Friedrichsort')
+            .map((row) => Number(row['year'])),
+        ),
+      ).sort((a, b) => a - b);
+      expect(years).toEqual([2022, 2023]);
     });
   });
 
