@@ -88,21 +88,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          curl -f --retry 20 --retry-delay 2 --retry-connrefused http://127.0.0.1:3000/health
+          curl -f --retry 20 --retry-delay 2 --retry-all-errors --retry-connrefused http://127.0.0.1:3000/health
 
       - name: Cutover smoke to green
         shell: bash
         run: |
           set -euo pipefail
           ./scripts/ops/cutover.sh green
-          curl -f --retry 20 --retry-delay 2 --retry-connrefused http://127.0.0.1:3000/health
+          curl -f --retry 20 --retry-delay 2 --retry-all-errors --retry-connrefused http://127.0.0.1:3000/health
 
       - name: Rollback smoke to blue
         shell: bash
         run: |
           set -euo pipefail
           ./scripts/ops/rollback.sh blue
-          curl -f --retry 20 --retry-delay 2 --retry-connrefused http://127.0.0.1:3000/health
+          curl -f --retry 20 --retry-delay 2 --retry-all-errors --retry-connrefused http://127.0.0.1:3000/health
 
       - name: Dump docker logs on failure
         if: failure()
