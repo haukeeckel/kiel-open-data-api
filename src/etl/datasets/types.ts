@@ -69,6 +69,16 @@ export type DatasetConfig = {
   url: string;
   csvFilename: string;
   csvDelimiter?: string | undefined;
+  csvReadOptions?:
+    | {
+        fallbackEncodings?: readonly string[] | undefined;
+        encoding?: string | undefined;
+        strictMode?: boolean | undefined;
+        quote?: string | undefined;
+        escape?: string | undefined;
+        nullPadding?: boolean | undefined;
+      }
+    | undefined;
   columnAliases?: Record<string, readonly string[]> | undefined;
   areaType: string;
   areaColumn?: string | undefined;

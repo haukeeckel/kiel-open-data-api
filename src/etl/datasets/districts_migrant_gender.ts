@@ -4,6 +4,9 @@ export const DISTRICTS_MIGRANT_GENDER: DatasetConfig = {
   id: 'districts_migrant_gender',
   csvFilename: 'kiel_bevoelkerung_stadtteile_einwohner_mit_migrationshintergrund_geschlecht.csv',
   url: 'https://www.kiel.de/opendata/kiel_bevoelkerung_stadtteile_einwohner_mit_migrationshintergrund_geschlecht.csv',
+  csvReadOptions: {
+    fallbackEncodings: ['latin-1'],
+  },
   areaType: 'district',
   areaColumn: 'Stadtteil',
   areaExpression: 'TRIM("Stadtteil")',
@@ -25,7 +28,7 @@ export const DISTRICTS_MIGRANT_GENDER: DatasetConfig = {
         category: { slug: 'total', label: 'Einwohner mit Migrationshintergrund insgesamt' },
       },
       {
-        valueColumns: ['männlich', 'm�nnlich', 'maennlich'],
+        valueColumns: ['männlich', 'mÃ¤nnlich', 'm�nnlich', 'maennlich'],
         category: { slug: 'male', label: 'Maennlich' },
       },
       {
