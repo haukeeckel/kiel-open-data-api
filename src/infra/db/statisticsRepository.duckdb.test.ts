@@ -579,6 +579,7 @@ describe('DuckDbStatisticsRepository', () => {
         indicators: ['households', 'population'],
         years: [2022, 2023],
         limits: {
+          bulk: { maxItems: 25 },
           pagination: { min: 1, max: 500, default: 50 },
           ranking: { min: 1, max: 100, default: 50 },
         },
