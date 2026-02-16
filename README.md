@@ -260,6 +260,8 @@ ETL writes one run record per dataset execution into `etl_runs`:
   Optional `categories` supports CSV (for example `male,female`).
   If `categories` is omitted, rows from all categories are returned.
   Response uses `areas: string[]` and each row includes `area`.
+  Pagination: `limit` (default `50`, max `500`) and `offset` (default `0`).
+  Response includes `pagination: { total, limit, offset, hasMore }`.
 
 - `GET /v1/areas`
   List distinct areas for an indicator and area type.
@@ -277,6 +279,8 @@ ETL writes one run record per dataset execution into `etl_runs`:
   List distinct indicators.
   Optional reverse-lookup filters: `areaType`, `area`, `year`.
   `area` can be used with or without `areaType`.
+  Pagination: `limit` (default `50`, max `500`) and `offset` (default `0`).
+  Response includes `pagination: { total, limit, offset, hasMore }`.
 
 - `GET /v1/indicators/:indicator`
   Grouped indicator metadata by area type, including available years, categories, and areas.
@@ -286,6 +290,8 @@ ETL writes one run record per dataset execution into `etl_runs`:
   List distinct years.
   Optional discovery filters: `indicator`, `areaType`, `category`, `area`.
   Empty matches return `200` with `rows: []`.
+  Pagination: `limit` (default `50`, max `500`) and `offset` (default `0`).
+  Response includes `pagination: { total, limit, offset, hasMore }`.
 
 - `GET /v1/years/:year`
   Grouped year metadata by area type, including available indicators, categories, and areas.
