@@ -22,8 +22,8 @@ function parseCsvParam(value: string | undefined): string[] | undefined {
 }
 
 export function toTimeseriesQuery(query: z.infer<typeof TimeseriesSchema>): TimeseriesQuery {
-  const areas = parseCsvParam(query.area) ?? [];
-  const categories = parseCsvParam(query.category);
+  const areas = parseCsvParam(query.areas) ?? [];
+  const categories = parseCsvParam(query.categories);
   return {
     indicator: query.indicator,
     areaType: query.areaType,
@@ -51,8 +51,8 @@ export function toCategoriesQuery(query: z.infer<typeof CategoriesSchema>): Cate
 }
 
 export function toRankingQuery(query: z.infer<typeof RankingSchema>): RankingQuery {
-  const categories = parseCsvParam(query.category);
-  const areas = parseCsvParam(query.area);
+  const categories = parseCsvParam(query.categories);
+  const areas = parseCsvParam(query.areas);
   return {
     indicator: query.indicator,
     areaType: query.areaType,
