@@ -14,6 +14,8 @@ import {
   AreaTypesResponse,
   AreasQuery,
   AreasResponse,
+  BulkRequestBody,
+  BulkResponse,
   CapabilitiesResponse,
   CategoriesQuery,
   CategoriesResponse,
@@ -201,6 +203,19 @@ export const capabilitiesRouteSchema = {
     response: {
       200: CapabilitiesResponse,
       304: NotModifiedResponse,
+      ...ERROR_RESPONSES,
+    },
+  },
+};
+
+export const bulkRouteSchema = {
+  schema: {
+    tags: ['statistics'],
+    description:
+      'Bulk read endpoint for consumer workflows. Executes each item in order and returns results in the same order.',
+    body: BulkRequestBody,
+    response: {
+      200: BulkResponse,
       ...ERROR_RESPONSES,
     },
   },

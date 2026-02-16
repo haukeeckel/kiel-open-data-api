@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   toAreasQuery,
+  toBulkRequest,
   toCategoriesQuery,
   toIndicatorsQuery,
   toRankingQuery,
@@ -17,7 +18,7 @@ describe('statistics mappers', () => {
       areas: 'Altstadt',
       limit: 50,
       offset: 0,
-    } as const;
+    };
 
     expect(toTimeseriesQuery(input)).toEqual({
       indicator: 'population',
@@ -37,7 +38,7 @@ describe('statistics mappers', () => {
       to: 2023,
       limit: 50,
       offset: 0,
-    } as const;
+    };
 
     expect(toTimeseriesQuery(input)).toEqual({
       indicator: 'population',
@@ -58,7 +59,7 @@ describe('statistics mappers', () => {
       categories: 'male, female,male',
       limit: 50,
       offset: 0,
-    } as const;
+    };
 
     expect(toTimeseriesQuery(input)).toEqual({
       indicator: 'gender',
@@ -160,5 +161,63 @@ describe('statistics mappers', () => {
     } as const;
 
     expect(toIndicatorsQuery(input)).toEqual(input);
+  });
+
+  it('maps bulk request items in order', () => {
+    const input: Parameters<typeof toBulkRequest>[0] = {
+      items: [
+        {
+          kind: 'timeseries',
+          query: {
+            indicator: 'gender',
+            areaType: 'district',
+            areas: ['Altstadt', ' Vorstadt ', 'Altstadt'],
+            categories: ['male', ' female ', 'male'],
+            limit: 50,
+            offset: 0,
+          },
+        },
+        {
+          kind: 'ranking',
+          query: {
+            indicator: 'population',
+            areaType: 'district',
+            year: 2023,
+            areas: ['Altstadt', ' Vorstadt ', 'Altstadt'],
+            limit: 10,
+            order: 'desc',
+          },
+        },
+        { kind: 'capabilities' },
+      ],
+    };
+
+    expect(toBulkRequest(input)).toEqual({
+      items: [
+        {
+          kind: 'timeseries',
+          query: {
+            indicator: 'gender',
+            areaType: 'district',
+            areas: ['Altstadt', 'Vorstadt'],
+            categories: ['male', 'female'],
+            limit: 50,
+            offset: 0,
+          },
+        },
+        {
+          kind: 'ranking',
+          query: {
+            indicator: 'population',
+            areaType: 'district',
+            year: 2023,
+            areas: ['Altstadt', 'Vorstadt'],
+            limit: 10,
+            order: 'desc',
+          },
+        },
+        { kind: 'capabilities' },
+      ],
+    });
   });
 });
