@@ -14,6 +14,7 @@ import {
   AreaTypesResponse,
   AreasQuery,
   AreasResponse,
+  CapabilitiesResponse,
   CategoriesQuery,
   CategoriesResponse,
   IndicatorMetaResponse,
@@ -185,6 +186,20 @@ export const areaTypesRouteSchema = {
     headers: CONDITIONAL_GET_HEADERS,
     response: {
       200: AreaTypesResponse,
+      304: NotModifiedResponse,
+      ...ERROR_RESPONSES,
+    },
+  },
+};
+
+export const capabilitiesRouteSchema = {
+  schema: {
+    tags: ['statistics'],
+    description:
+      'Discovery endpoint for initial client configuration. Returns areaTypes, indicators, years and current API limits.',
+    headers: CONDITIONAL_GET_HEADERS,
+    response: {
+      200: CapabilitiesResponse,
       304: NotModifiedResponse,
       ...ERROR_RESPONSES,
     },
