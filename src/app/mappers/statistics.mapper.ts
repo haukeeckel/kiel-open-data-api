@@ -1,5 +1,6 @@
 import type {
   AreasQuery,
+  BulkRequest,
   CategoriesQuery,
   IndicatorsQuery,
   RankingQuery,
@@ -8,6 +9,7 @@ import type {
 } from '../../domains/statistics/model/types.js';
 import type {
   AreasQuery as AreasSchema,
+  BulkRequestBody as BulkRequestBodySchema,
   CategoriesQuery as CategoriesSchema,
   IndicatorsQuery as IndicatorsSchema,
   RankingQuery as RankingSchema,
@@ -84,5 +86,52 @@ export function toIndicatorsQuery(query: z.infer<typeof IndicatorsSchema>): Indi
     ...(query.year !== undefined ? { year: query.year } : {}),
     limit: query.limit,
     offset: query.offset,
+  };
+}
+
+export function toBulkRequest(body: z.infer<typeof BulkRequestBodySchema>): BulkRequest {
+  return {
+    items: body.items.map((item) => {
+      if (item.kind === 'timeseries') {
+        return {
+          kind: 'timeseries',
+          query: {
+            indicator: item.query.indicator,
+            areaType: item.query.areaType,
+            areas: Array.from(new Set(item.query.areas.map((part) => part.trim()))),
+            ...(item.query.categories !== undefined
+              ? {
+                  categories: Array.from(new Set(item.query.categories.map((part) => part.trim()))),
+                }
+              : {}),
+            ...(item.query.from !== undefined ? { from: item.query.from } : {}),
+            ...(item.query.to !== undefined ? { to: item.query.to } : {}),
+            limit: item.query.limit,
+            offset: item.query.offset,
+          },
+        } as const;
+      }
+      if (item.kind === 'ranking') {
+        return {
+          kind: 'ranking',
+          query: {
+            indicator: item.query.indicator,
+            areaType: item.query.areaType,
+            year: item.query.year,
+            ...(item.query.categories !== undefined
+              ? {
+                  categories: Array.from(new Set(item.query.categories.map((part) => part.trim()))),
+                }
+              : {}),
+            ...(item.query.areas !== undefined
+              ? { areas: Array.from(new Set(item.query.areas.map((part) => part.trim()))) }
+              : {}),
+            limit: item.query.limit,
+            order: item.query.order,
+          },
+        } as const;
+      }
+      return { kind: 'capabilities' } as const;
+    }),
   };
 }

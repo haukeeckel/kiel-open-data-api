@@ -2,6 +2,7 @@ import { type ZodTypeProvider } from 'fastify-type-provider-zod';
 
 import {
   toAreasQuery,
+  toBulkRequest,
   toCategoriesQuery,
   toIndicatorsQuery,
   toRankingQuery,
@@ -12,6 +13,7 @@ import {
 import {
   areaTypesRouteSchema,
   areasRouteSchema,
+  bulkRouteSchema,
   capabilitiesRouteSchema,
   categoriesRouteSchema,
   indicatorMetaRouteSchema,
@@ -33,6 +35,10 @@ export default async function statisticsRoutes(app: FastifyInstance) {
 
   r.get('/capabilities', capabilitiesRouteSchema, async () => {
     return app.services.statisticsQuery.getCapabilities();
+  });
+
+  r.post('/bulk', bulkRouteSchema, async (req) => {
+    return app.services.statisticsQuery.executeBulk(toBulkRequest(req.body));
   });
 
   r.get('/indicators', indicatorsRouteSchema, async (req) => {

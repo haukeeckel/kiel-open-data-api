@@ -5,6 +5,7 @@ export type Order = (typeof ORDERS)[number];
 export const RANKING_LIMIT_MIN = 1;
 export const RANKING_LIMIT_MAX = 100;
 export const RANKING_LIMIT_DEFAULT = 50;
+export const BULK_ITEMS_MAX = 25;
 export const PAGINATION_LIMIT_MIN = 1;
 export const PAGINATION_LIMIT_MAX = 500;
 export const PAGINATION_LIMIT_DEFAULT = 50;
@@ -154,6 +155,9 @@ export type CapabilitiesResult = {
   indicators: string[];
   years: number[];
   limits: {
+    bulk: {
+      maxItems: number;
+    };
     pagination: {
       min: number;
       max: number;
@@ -165,4 +169,69 @@ export type CapabilitiesResult = {
       default: number;
     };
   };
+};
+
+export type BulkTimeseriesQueryInput = {
+  indicator: string;
+  areaType: string;
+  areas: string[];
+  categories?: string[];
+  from?: number;
+  to?: number;
+  limit: number;
+  offset: number;
+};
+
+export type BulkRankingQueryInput = {
+  indicator: string;
+  areaType: string;
+  year: number;
+  categories?: string[];
+  areas?: string[];
+  limit: number;
+  order: Order;
+};
+
+export type BulkTimeseriesItem = {
+  kind: 'timeseries';
+  query: BulkTimeseriesQueryInput;
+};
+
+export type BulkRankingItem = {
+  kind: 'ranking';
+  query: BulkRankingQueryInput;
+};
+
+export type BulkCapabilitiesItem = {
+  kind: 'capabilities';
+};
+
+export type BulkItem = BulkTimeseriesItem | BulkRankingItem | BulkCapabilitiesItem;
+
+export type BulkRequest = {
+  items: BulkItem[];
+};
+
+export type BulkTimeseriesResultItem = {
+  kind: 'timeseries';
+  data: TimeseriesResult;
+};
+
+export type BulkRankingResultItem = {
+  kind: 'ranking';
+  data: RankingResult;
+};
+
+export type BulkCapabilitiesResultItem = {
+  kind: 'capabilities';
+  data: CapabilitiesResult;
+};
+
+export type BulkResultItem =
+  | BulkTimeseriesResultItem
+  | BulkRankingResultItem
+  | BulkCapabilitiesResultItem;
+
+export type BulkResult = {
+  results: BulkResultItem[];
 };

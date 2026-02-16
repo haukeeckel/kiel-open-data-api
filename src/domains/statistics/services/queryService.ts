@@ -3,6 +3,8 @@ import { StatisticsValidationError } from '../errors/statisticsValidationError.j
 
 import type {
   AreasQuery,
+  BulkResult,
+  BulkRequest,
   CategoriesQuery,
   IndicatorsQuery,
   RankingQuery,
@@ -229,5 +231,24 @@ export class StatisticsQueryService {
 
   async getCapabilities() {
     return this.repo.getCapabilities();
+  }
+
+  async executeBulk(input: BulkRequest): Promise<BulkResult> {
+    const results: BulkResult['results'] = [];
+    for (const item of input.items) {
+      if (item.kind === 'timeseries') {
+        const data = await this.getTimeseries(item.query);
+        results.push({ kind: 'timeseries', data } as const);
+        continue;
+      }
+      if (item.kind === 'ranking') {
+        const data = await this.getRanking(item.query);
+        results.push({ kind: 'ranking', data } as const);
+        continue;
+      }
+      const data = await this.getCapabilities();
+      results.push({ kind: 'capabilities', data } as const);
+    }
+    return { results };
   }
 }

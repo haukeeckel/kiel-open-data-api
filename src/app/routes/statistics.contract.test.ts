@@ -93,9 +93,79 @@ describe('statistics contract', () => {
       indicators: expect.any(Array),
       years: expect.any(Array),
       limits: {
+        bulk: { maxItems: 25 },
         pagination: { min: 1, max: 500, default: 50 },
         ranking: { min: 1, max: 100, default: 50 },
       },
+    });
+  });
+
+  it('keeps /v1/bulk mixed contract stable', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/v1/bulk',
+      payload: {
+        items: [
+          {
+            kind: 'timeseries',
+            query: {
+              indicator: 'gender',
+              areaType: 'district',
+              areas: ['Altstadt', 'Vorstadt'],
+              categories: ['male', 'female'],
+              limit: 50,
+              offset: 0,
+            },
+          },
+          {
+            kind: 'ranking',
+            query: {
+              indicator: 'gender',
+              areaType: 'district',
+              year: 2023,
+              categories: ['male', 'female'],
+              areas: ['Altstadt', 'Vorstadt'],
+              limit: 10,
+              order: 'desc',
+            },
+          },
+          { kind: 'capabilities' },
+        ],
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({
+      results: [
+        {
+          kind: 'timeseries',
+          data: {
+            indicator: 'gender',
+            areaType: 'district',
+            pagination: { total: 4, limit: 50, offset: 0, hasMore: false },
+          },
+        },
+        {
+          kind: 'ranking',
+          data: {
+            indicator: 'gender',
+            areaType: 'district',
+            year: 2023,
+            order: 'desc',
+            limit: 10,
+          },
+        },
+        {
+          kind: 'capabilities',
+          data: {
+            limits: {
+              bulk: { maxItems: 25 },
+              pagination: { min: 1, max: 500, default: 50 },
+              ranking: { min: 1, max: 100, default: 50 },
+            },
+          },
+        },
+      ],
     });
   });
 });

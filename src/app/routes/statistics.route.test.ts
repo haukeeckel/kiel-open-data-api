@@ -977,6 +977,7 @@ describe('statistics endpoints', () => {
         ],
         years: [2018, 2019, 2020, 2022, 2023],
         limits: {
+          bulk: { maxItems: 25 },
           pagination: { min: 1, max: 500, default: 50 },
           ranking: { min: 1, max: 100, default: 50 },
         },
@@ -996,6 +997,120 @@ describe('statistics endpoints', () => {
       });
       expect(second.statusCode).toBe(304);
       expect(second.body).toBe('');
+    });
+  });
+
+  // ---- POST /v1/bulk ----
+
+  describe('POST /v1/bulk', () => {
+    it('returns mixed bulk results in the same order', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/v1/bulk',
+        payload: {
+          items: [
+            {
+              kind: 'timeseries',
+              query: {
+                indicator: 'population',
+                areaType: 'district',
+                areas: ['Altstadt'],
+                limit: 50,
+                offset: 0,
+              },
+            },
+            {
+              kind: 'ranking',
+              query: {
+                indicator: 'population',
+                areaType: 'district',
+                year: 2023,
+                limit: 2,
+                order: 'desc',
+              },
+            },
+            { kind: 'capabilities' },
+          ],
+        },
+      });
+
+      expect(res.statusCode).toBe(200);
+      const body = res.json() as { results: Array<{ kind: string; data: unknown }> };
+      expect(body.results).toHaveLength(3);
+      expect(body.results[0]?.kind).toBe('timeseries');
+      expect(body.results[1]?.kind).toBe('ranking');
+      expect(body.results[2]?.kind).toBe('capabilities');
+      expect(body.results[0]?.data).toMatchObject({
+        indicator: 'population',
+        areaType: 'district',
+      });
+      expect(body.results[1]?.data).toMatchObject({
+        indicator: 'population',
+        year: 2023,
+      });
+      expect(body.results[2]?.data).toMatchObject({
+        limits: { bulk: { maxItems: 25 } },
+      });
+    });
+
+    it('returns 400 for empty items array', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/v1/bulk',
+        payload: { items: [] },
+      });
+      expect(res.statusCode).toBe(400);
+      expect(res.json()).toMatchObject({
+        error: {
+          code: 'BAD_REQUEST',
+          reason: 'INVALID_QUERY_PARAMS',
+        },
+      });
+    });
+
+    it('returns 400 when items exceed max limit', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/v1/bulk',
+        payload: {
+          items: Array.from({ length: 26 }, () => ({ kind: 'capabilities' })),
+        },
+      });
+      expect(res.statusCode).toBe(400);
+      expect(res.json()).toMatchObject({
+        error: {
+          code: 'BAD_REQUEST',
+          reason: 'INVALID_QUERY_PARAMS',
+        },
+      });
+    });
+
+    it('returns 400 when one bulk item is invalid', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/v1/bulk',
+        payload: {
+          items: [
+            {
+              kind: 'timeseries',
+              query: {
+                indicator: 'unknown',
+                areaType: 'district',
+                areas: ['Altstadt'],
+                limit: 50,
+                offset: 0,
+              },
+            },
+          ],
+        },
+      });
+      expect(res.statusCode).toBe(400);
+      expect(res.json()).toMatchObject({
+        error: {
+          code: 'BAD_REQUEST',
+          reason: 'UNKNOWN_INDICATOR',
+        },
+      });
     });
   });
 });

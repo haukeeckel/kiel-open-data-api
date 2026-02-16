@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import {
+  BULK_ITEMS_MAX,
   ORDERS,
   PAGINATION_LIMIT_DEFAULT,
   PAGINATION_LIMIT_MAX,
@@ -27,6 +28,7 @@ const CATEGORY_DESCRIPTION = 'Category value filter.';
 const YEAR_DESCRIPTION = 'Calendar year.';
 const PAGINATION_LIMIT_DESCRIPTION = 'Page size (max number of rows per response page).';
 const PAGINATION_OFFSET_DESCRIPTION = 'Page offset (number of rows skipped before page starts).';
+const BULK_ITEMS_DESCRIPTION = 'Maximum number of operations per bulk request.';
 
 const IndicatorQueryParam = Indicator.max(QUERY_TEXT_MAX)
   .describe(INDICATOR_DESCRIPTION)
@@ -77,6 +79,26 @@ const PaginationMeta = z.object({
   offset: z.number().int().nonnegative(),
   hasMore: z.boolean(),
 });
+
+const TimeseriesArrayAreasParam = z
+  .array(z.string().min(1).max(QUERY_AREA_MAX))
+  .min(1)
+  .meta({ examples: [['Altstadt', 'Vorstadt']] });
+
+const TimeseriesArrayCategoriesParam = z
+  .array(z.string().min(1).max(QUERY_TEXT_MAX))
+  .min(1)
+  .meta({ examples: [['male', 'female']] });
+
+const RankingArrayAreasParam = z
+  .array(z.string().min(1).max(QUERY_AREA_MAX))
+  .min(1)
+  .meta({ examples: [['Altstadt', 'Vorstadt']] });
+
+const RankingArrayCategoriesParam = z
+  .array(z.string().min(1).max(QUERY_TEXT_MAX))
+  .min(1)
+  .meta({ examples: [['male', 'female']] });
 
 function hasNoEmptyCsvTokens(value: string): boolean {
   const parts = value.split(',').map((part) => part.trim());
@@ -396,6 +418,9 @@ export const CapabilitiesResponse = z
     indicators: z.array(z.string()),
     years: z.array(z.number().int()),
     limits: z.object({
+      bulk: z.object({
+        maxItems: z.number().int().positive(),
+      }),
       pagination: z.object({
         min: z.number().int().positive(),
         max: z.number().int().positive(),
@@ -415,6 +440,9 @@ export const CapabilitiesResponse = z
         indicators: ['population', 'gender', 'households'],
         years: [2018, 2019, 2020, 2022, 2023],
         limits: {
+          bulk: {
+            maxItems: BULK_ITEMS_MAX,
+          },
           pagination: {
             min: PAGINATION_LIMIT_MIN,
             max: PAGINATION_LIMIT_MAX,
@@ -426,6 +454,151 @@ export const CapabilitiesResponse = z
             default: RANKING_LIMIT_DEFAULT,
           },
         },
+      },
+    ],
+  });
+
+export const BulkTimeseriesQueryInput = z.object({
+  indicator: IndicatorQueryParam,
+  areaType: AreaTypeQueryParam,
+  areas: TimeseriesArrayAreasParam,
+  categories: TimeseriesArrayCategoriesParam.optional(),
+  from: z.coerce.number().int().optional(),
+  to: z.coerce.number().int().optional(),
+  limit: PaginationLimitQueryParam,
+  offset: PaginationOffsetQueryParam,
+});
+
+export const BulkRankingQueryInput = z.object({
+  indicator: IndicatorQueryParam,
+  areaType: AreaTypeQueryParam,
+  year: z.coerce.number().int(),
+  categories: RankingArrayCategoriesParam.optional(),
+  areas: RankingArrayAreasParam.optional(),
+  limit: z.coerce
+    .number()
+    .int()
+    .min(RANKING_LIMIT_MIN)
+    .max(RANKING_LIMIT_MAX)
+    .default(RANKING_LIMIT_DEFAULT),
+  order: z.enum(ORDERS).default('desc'),
+});
+
+const BulkTimeseriesItemInput = z.object({
+  kind: z.literal('timeseries'),
+  query: BulkTimeseriesQueryInput,
+});
+
+const BulkRankingItemInput = z.object({
+  kind: z.literal('ranking'),
+  query: BulkRankingQueryInput,
+});
+
+const BulkCapabilitiesItemInput = z.object({
+  kind: z.literal('capabilities'),
+});
+
+export const BulkRequestBody = z.object({
+  items: z
+    .array(
+      z.discriminatedUnion('kind', [
+        BulkTimeseriesItemInput,
+        BulkRankingItemInput,
+        BulkCapabilitiesItemInput,
+      ]),
+    )
+    .min(1)
+    .max(BULK_ITEMS_MAX)
+    .describe(BULK_ITEMS_DESCRIPTION),
+});
+
+const BulkTimeseriesResultItem = z.object({
+  kind: z.literal('timeseries'),
+  data: TimeseriesResponse,
+});
+
+const BulkRankingResultItem = z.object({
+  kind: z.literal('ranking'),
+  data: RankingResponse,
+});
+
+const BulkCapabilitiesResultItem = z.object({
+  kind: z.literal('capabilities'),
+  data: CapabilitiesResponse,
+});
+
+export const BulkResponse = z
+  .object({
+    results: z.array(
+      z.discriminatedUnion('kind', [
+        BulkTimeseriesResultItem,
+        BulkRankingResultItem,
+        BulkCapabilitiesResultItem,
+      ]),
+    ),
+  })
+  .meta({
+    examples: [
+      {
+        results: [
+          {
+            kind: 'timeseries',
+            data: {
+              indicator: 'gender',
+              areaType: 'district',
+              areas: ['Altstadt', 'Vorstadt'],
+              rows: [
+                {
+                  area: 'Altstadt',
+                  year: 2023,
+                  value: 610,
+                  unit: 'persons',
+                  category: 'male',
+                },
+              ],
+              pagination: { total: 4, limit: 50, offset: 0, hasMore: false },
+            },
+          },
+          {
+            kind: 'ranking',
+            data: {
+              indicator: 'population',
+              areaType: 'district',
+              year: 2023,
+              order: 'desc',
+              limit: 10,
+              rows: [
+                {
+                  area: 'Schreventeich',
+                  value: 1432,
+                  unit: 'persons',
+                  category: 'total',
+                },
+              ],
+            },
+          },
+          {
+            kind: 'capabilities',
+            data: {
+              areaTypes: ['district'],
+              indicators: ['population', 'gender', 'households'],
+              years: [2018, 2019, 2020, 2022, 2023],
+              limits: {
+                bulk: { maxItems: BULK_ITEMS_MAX },
+                pagination: {
+                  min: PAGINATION_LIMIT_MIN,
+                  max: PAGINATION_LIMIT_MAX,
+                  default: PAGINATION_LIMIT_DEFAULT,
+                },
+                ranking: {
+                  min: RANKING_LIMIT_MIN,
+                  max: RANKING_LIMIT_MAX,
+                  default: RANKING_LIMIT_DEFAULT,
+                },
+              },
+            },
+          },
+        ],
       },
     ],
   });

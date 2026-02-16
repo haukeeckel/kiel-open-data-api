@@ -1,185 +1,161 @@
 # API Consumer Roadmap
 
-Ziel: Die API aus Consumer-Sicht einfacher integrierbar, stabiler und performanter machen.
-Liefermodell: kleine, unabhängige PRs mit klaren Contracts und geringem Rollback-Risiko.
+Ziel: Die API aus Consumer-Sicht einfacher integrierbar, stabiler und planbarer weiterentwickeln.
+Fokus: offene Aufgaben, gebuendelt in kleine PRs mit klarem Contract und geringem Risiko.
 
-## Erfolgsmetriken
+## Leitprinzipien
 
-- Time-to-first-successful-request für neue Consumer
-- Anteil erfolgreicher Retries nach `429`
-- Anteil `304 Not Modified` bei wiederholten GET-Requests
-- Anzahl Rückfragen/Tickets zu Query-Parametern und Fehlerformaten
+- Consumer-first: API-Entscheidungen an Integrationsaufwand und Betriebssicherheit ausrichten.
+- Additiv vor Breaking: neue Felder/Parameter bevorzugt additiv einfuehren.
+- Contract als Gate: OpenAPI + Contract-/Golden-Tests sind verpflichtend.
+- Kleine PRs: klare Scopes, eindeutige Verantwortlichkeit, schneller Review.
 
-### OpenAPI-Beispiele vervollständigen
+## Priorisierte PR-Bundles
 
-- Ziel: Integrationsstart vereinfachen.
+### 1) Query-Encoding modernisieren (CSV + Array-Style parallel)
+
+- Branch-Name: `feat/api-query-array-style-support`
+- PR-Titel: `feat(api): support repeated query params alongside csv filters`
 - Scope:
-  - Success- und Error-Beispiele (`400`, `404`, `429`) für Kernendpunkte.
-  - Doku zu CSV-Filtern und Edge Cases ergänzen.
-  - OpenAPI-Tests auf `examples`.
-- Out of Scope:
-  - Laufzeitverhalten der Endpunkte.
-- DoD:
-  - `/docs` zeigt pro Kernendpoint mind. ein Success- und ein Error-Beispiel.
-  - Tests schlagen fehl, wenn Beispiele fehlen.
+  - `areas/categories` zusaetzlich als `?areas=a&areas=b` unterstuetzen.
+  - CSV (`areas=a,b`) weiterhin kompatibel halten.
+  - Normalisierung und Prioritaetsregel dokumentieren.
+  - OpenAPI mit beiden Varianten und Beispielen aktualisieren.
+- Public API:
+  - Query-Contract additiv erweitert, keine Entfernung in diesem PR.
 
-### Query-Parameter-Bereinigung auf Plural-Format (`areas`, `categories`)
+### 2) Error-Contract v2 maschinenlesbar machen
 
-- Ziel: konsistentere Consumer-Parameter.
+- Branch-Name: `feat/api-error-contract-v2`
+- PR-Titel: `feat(api): standardize machine-readable error details for 4xx`
 - Scope:
-  - Legacy-Parameter `area`/`category` entfernen.
-  - Endpunkte mit CSV-Listen auf `areas`/`categories` vereinheitlichen.
-  - Route- und Contract-Tests auf plural-only aktualisieren.
-- Out of Scope:
-  - Weitere Query-Umbenennungen außerhalb von `timeseries`/`ranking`.
-- DoD:
-  - Nur `areas`/`categories` sind für CSV-Filter gültig.
-  - Legacy-Parameter liefern 400 (Invalid query parameters).
+  - Konsistente Error-Details fuer 4xx: `reason`, `field`, `expected`, `actual` (wo sinnvoll).
+  - Stabile Doku-Referenz pro `reason` (z. B. `docsUrl`).
+  - OpenAPI-Examples fuer alle relevanten 4xx erweitern.
+- Public API:
+  - Error-Body additiv erweitert und vereinheitlicht.
 
-Migration:
+### 3) Rate-Limit-Transparenz erweitern
 
-- `/v1/timeseries?...&area=Altstadt,Vorstadt` -> `/v1/timeseries?...&areas=Altstadt,Vorstadt`
-- `/v1/ranking?...&category=male,female` -> `/v1/ranking?...&categories=male,female`
-
-### Maschinenlesbare Error-Reason-Codes
-
-- Ziel: Fehlerbehandlung für Consumer automatisierbar machen.
+- Branch-Name: `feat/api-rate-limit-headers`
+- PR-Titel: `feat(api): add standard rate limit headers for clients`
 - Scope:
-  - Stabile `reason`-Codes im Error-Body bei 400-Validierungsfehlern.
-  - Optional vorbereitete `suggestions` bei Domain-Validation.
-- Out of Scope:
-  - Vollständige i18n-Fehlermeldungen.
-- DoD:
-  - Alle validierungsbezogenen 400-Antworten enthalten `reason`.
-  - Dokumentation + Tests vorhanden.
+  - Neben `Retry-After` auch `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset` liefern.
+  - Header-/Body-Konsistenz testen.
+  - OpenAPI um Header-Dokumentation ergaenzen.
+- Public API:
+  - Response-Header additiv erweitert.
 
-### HTTP-Caching (ETag / If-None-Match / 304 / Cache-Control)
+### 4) Pagination ergonomischer machen
 
-- Ziel: Performance und Netzlast verbessern.
+- Branch-Name: `feat/api-pagination-next-pointer`
+- PR-Titel: `feat(api): add next page pointer to paginated responses`
 - Scope:
-  - `ETag` für alle `GET /v1/*` Endpunkte.
-  - `If-None-Match` verarbeiten und `304` liefern.
-  - `Cache-Control: public, max-age=60`.
-- Out of Scope:
-  - CDN-/Reverse-Proxy-Strategien.
-- DoD:
-  - Wiederholte identische Requests führen zu `304`.
-  - Header-Verhalten durch Tests abgesichert.
+  - `nextOffset` (oder `next`) in `pagination` aufnehmen.
+  - Optionales Cursor-Feld als spaetere Erweiterung dokumentieren.
+  - Eindeutige Regeln fuer Seitenende (`null` oder nicht gesetzt).
+- Public API:
+  - Pagination-Meta additiv erweitert.
 
-### Data-Freshness sichtbar machen
+### 5) Discovery + Bulk fuer Consumer-Workflows
 
-- Ziel: Datenstand ohne Zusatz-Requests erkennbar machen.
+- Branch-Name: `feat/api-bulk-query-endpoints`
+- PR-Titel: `feat(api): add bulk query endpoints for common client workflows`
 - Scope:
-  - `Data-Version` und `Last-Updated-At` als Response-Header für `GET /v1/*`.
-  - Swagger/Contract-Doku aktualisieren.
-- Out of Scope:
-  - Neue dedizierte Freshness-Endpunkte.
-- DoD:
-  - Consumer kann Datenstand eindeutig erkennen.
-  - Tests und OpenAPI aktualisiert.
+  - Neuer Bulk-Read-Endpoint `POST /v1/bulk`.
+  - Unterstuetzte Item-Typen: `timeseries`, `ranking`, `capabilities`.
+  - An `/v1/capabilities` andocken (empfohlene Nutzungspfade).
+  - Payload-Grenzen und Validierung: `items` min `1`, max `25`, fail-fast auf `400`.
+- Public API:
+  - Neuer Endpoint mit `results[]` in derselben Reihenfolge wie `items[]`.
 
-### Rate-Limit UX verbessern (`Retry-After`)
+### 6) Contract-Klarheit + SDK/Onboarding
 
-- Ziel: sauberes Retry-Verhalten für Consumer.
+- Branch-Name: `docs/api-contract-clarity-sdk-onboarding`
+- PR-Titel: `docs(api): document missing-data contract and sdk-friendly usage flows`
 - Scope:
-  - `Retry-After` Header bei `429`.
-  - Body und Header semantisch konsistent.
-- Out of Scope:
-  - Komplett neue Rate-Limit-Strategie.
-- DoD:
-  - `429` enthält verwertbare Retry-Informationen in Header und Body.
-  - Tests decken Werte und Format ab.
+  - Missing-Data-Regeln klar festlegen (`null` vs `0` vs fehlende row).
+  - OpenAPI-SDK-Freundlichkeit: `operationId`, Namenskonventionen, Edge-Case-Beispiele.
+  - Getting-Started mit 3 Flows dokumentieren:
+    - Capabilities -> Filterwahl -> Timeseries
+    - Capabilities -> Ranking
+    - Revalidation via ETag/304
+- Public API:
+  - Primaer Doku/Contract-Deklaration, optional `operationId`-Metadaten.
 
-### Pagination (additiv, rückwärtskompatibel)
+### 7) Versioning- und Deprecation-Policy nach aussen festziehen
 
-- Ziel: große Antworten kontrollierbar machen.
+- Branch-Name: `docs/api-versioning-deprecation-policy`
+- PR-Titel: `docs(api): define versioning and sunset header policy`
 - Scope:
-  - `limit`/`offset` für große Collections.
-  - Response-Metadaten: `total`, `limit`, `offset`, `hasMore`.
-  - Startendpunkte: `/v1/timeseries`, `/v1/indicators`, `/v1/years`.
-- Out of Scope:
-  - Cursor-Pagination.
-- DoD:
-  - Große Responses seitenweise abrufbar.
-  - Default-Verhalten nutzt `limit=50` und `offset=0`.
-  - Last-/Regressionstests vorhanden.
+  - Explizite Policy fuer Versionierung unter `/v1`.
+  - Regeln fuer `Deprecation`/`Sunset`-Header.
+  - Migrationsfenster und Kommunikationsregeln festhalten.
+- Public API:
+  - Zunaechst Policy/Doku; technische Header-Einfuehrung ggf. in separatem `feat`.
 
-### Capabilities-Endpoint
+## Testfaelle und Szenarien (Qualitaets-Gates)
 
-- Ziel: Discovery für Clients mit einem Request.
-- Scope:
-  - Endpoint `/v1/capabilities`.
-  - Felder: `areaTypes`, `indicators`, `years`, `limits.pagination`, `limits.ranking`.
-- Out of Scope:
-  - Vollständige Self-Describing-Schema-Engine.
-- DoD:
-  - Frontend kann initiale Discovery mit einem Call machen.
-  - OpenAPI und Tests vollständig.
+1. Query-Parsing-Contract
 
-### Deprecation + Contract-Tests in CI
+- CSV und Array-Style liefern identische Resultate.
+- Konfliktfaelle verhalten sich deterministisch.
 
-- Ziel: kontrollierte Weiterentwicklung ohne unbeabsichtigte Breaking Changes.
-- Scope:
-  - Entfernte Parameter über Contract-Tests absichern.
-  - Migration auf den neuen Query-Contract dokumentieren.
-  - Golden-Tests für Payload-/Error-/Header-Contracts.
-  - CI-Gate für Contract-Regressionen.
-- Out of Scope:
-  - Wieder-Einführung von Legacy-Query-Parametern.
-- DoD:
-  - Breaking Contract-Änderungen schlagen in CI fehl.
-  - Migration dokumentiert.
+2. Error-Contract
 
-## PR-Bündelung nach Git Convention
+- Jeder relevante 4xx-Fall enthaelt die erwarteten maschinenlesbaren Felder.
+- `reason` bleibt stabil (Snapshot/Golden).
 
-Umsetzung in kleinen, risikoarmen Paketen mit klarer Reihenfolge:
+3. Rate-Limit
 
-1. OpenAPI-Beispiele vervollständigen
-   - Enthaltene Tasks:
-     - OpenAPI-Beispiele vervollständigen
-   - Branch-Name: `docs/api-openapi-examples`
-   - PR-Titel: `docs(api): complete OpenAPI examples for core endpoints`
+- 429 enthaelt `Retry-After` plus `RateLimit-*`.
+- Headerwerte sind konsistent und parsebar.
 
-2. Error-Contract für Consumer-Retries und Validation
-   - Enthaltene Tasks:
-     - Maschinenlesbare Error-Reason-Codes
-     - Rate-Limit UX verbessern (`Retry-After`)
-   - Branch-Name: `feat/api-error-reasons-retry-after`
-   - PR-Titel: `feat(api): add reason codes and retry-after for 4xx responses`
+4. Pagination
 
-3. Query-Parameter-Bereinigung und Contract-Absicherung
-   - Enthaltene Tasks:
-     - Query-Parameter-Bereinigung auf Plural-Format (`areas`, `categories`)
-     - Deprecation + Contract-Tests in CI
-   - Branch-Name: `feat/api-query-contract-plural-only`
-   - PR-Titel: `feat(api): remove legacy query params and enforce plural contract`
+- `nextOffset` ist korrekt bei `hasMore=true`.
+- Kein `nextOffset` am Ende.
 
-4. Caching und Freshness-Metadaten gemeinsam ausrollen
-   - Enthaltene Tasks:
-     - HTTP-Caching (ETag / If-None-Match / 304 / Cache-Control)
-     - Data-Freshness sichtbar machen
-   - Branch-Name: `feat/api-conditional-get-caching-freshness`
-   - PR-Titel: `feat(api): implement conditional get caching and freshness metadata`
+5. Bulk
 
-5. Pagination isoliert als eigenes Risiko-Paket
-   - Enthaltene Tasks:
-     - Pagination (additiv, rückwärtskompatibel)
-   - Branch-Name: `feat/api-offset-pagination`
-   - PR-Titel: `feat(api): add additive offset pagination for collections`
+- Mehrfachabfragen reduzieren Roundtrips bei identischem Datenresultat.
+- Limits/Validierung begrenzen uebergrosse Requests.
 
-6. Discovery als separater Endpoint
-   - Enthaltene Tasks:
-     - Capabilities-Endpoint
-   - Branch-Name: `feat/api-capabilities-endpoint`
-   - PR-Titel: `feat(api): add capabilities discovery endpoint`
+6. OpenAPI/SDK
 
-## Risiken und Gegenmaßnahmen
+- `operationId` ist vorhanden und eindeutig.
+- Beispiele decken Happy Path und Edge Cases ab.
 
-- Risiko: Pagination verursacht unbeabsichtigte Antwortänderungen.
-- Gegenmaßnahme: additive Felder, Default-Verhalten unverändert, Golden-Tests.
+## Risiken und Tradeoffs
 
-- Risiko: Caching liefert stale Daten bei ETL-Cutover.
-- Gegenmaßnahme: ETag an `dataVersion` koppeln und bei Datenwechsel invalidieren.
+- Risiko: mehrere Query-Formate erhoehen Komplexitaet.
+  - Gegenmassnahme: klare Prioritaetsregel, Mapping-Tests, OpenAPI-Beispiele.
 
-- Risiko: Mehrere Parametervarianten erhöhen Komplexität.
-- Gegenmaßnahme: klare Deprecation-Timeline, Contract-Tests, Sunset-Kommunikation.
+- Risiko: umfangreicherer Error-Contract fuehrt zu inkonsistenten Sonderfaellen.
+  - Gegenmassnahme: zentrale Error-Schemas und gemeinsame Helper fuer 4xx.
+
+- Risiko: zusaetzliche Rate-Limit-Header werden missinterpretiert.
+  - Gegenmassnahme: exakte Semantik in Doku + Contract-Tests.
+
+- Risiko: Bulk-Endpoints werden zu gross/teuer.
+  - Gegenmassnahme: harte Request-Limits, klare Validierung, Lasttests.
+
+## Globale Definition of Done
+
+- OpenAPI fuer aenderte Endpoints aktualisiert.
+- Contract-/Golden-Tests fuer neue/veraenderte Contracts vorhanden.
+- README/Roadmap fuer Consumer-relevante Aenderungen aktualisiert.
+- Checks gruen:
+  - `pnpm lint`
+  - `pnpm typecheck`
+  - `pnpm test`
+
+## Reihenfolge der Umsetzung
+
+1. Query-Encoding modernisieren
+2. Error-Contract v2
+3. Rate-Limit-Header
+4. Pagination-Next-Pointer
+5. Discovery + Bulk
+6. Contract-Klarheit + SDK/Onboarding
+7. Versioning- und Deprecation-Policy

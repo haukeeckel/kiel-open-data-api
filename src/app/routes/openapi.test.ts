@@ -12,12 +12,23 @@ type OpenApiDoc = {
         parameters?: unknown[];
         responses?: Record<string, unknown>;
       };
+      post?: {
+        parameters?: unknown[];
+        responses?: Record<string, unknown>;
+        requestBody?: unknown;
+      };
     }
   >;
 };
 
-function getResponseObject(doc: OpenApiDoc, path: string, statusCode: string) {
-  return doc.paths[path]?.get?.responses?.[statusCode] as
+function getResponseObject(
+  doc: OpenApiDoc,
+  path: string,
+  statusCode: string,
+  method: 'get' | 'post' = 'get',
+) {
+  const operation = doc.paths[path]?.[method];
+  return operation?.responses?.[statusCode] as
     | {
         description?: string;
         headers?: Record<string, unknown>;
@@ -32,21 +43,34 @@ function getResponseObject(doc: OpenApiDoc, path: string, statusCode: string) {
     | undefined;
 }
 
-function getResponseEntry(doc: OpenApiDoc, path: string, statusCode: string) {
-  const response = getResponseObject(doc, path, statusCode);
+function getResponseEntry(
+  doc: OpenApiDoc,
+  path: string,
+  statusCode: string,
+  method: 'get' | 'post' = 'get',
+) {
+  const response = getResponseObject(doc, path, statusCode, method);
   return response?.content?.['application/json'];
 }
 
-function expectSchemaExamplesPresent(doc: OpenApiDoc, path: string, statusCode: string) {
-  const entry = getResponseEntry(doc, path, statusCode);
+function expectSchemaExamplesPresent(
+  doc: OpenApiDoc,
+  path: string,
+  statusCode: string,
+  method: 'get' | 'post' = 'get',
+) {
+  const entry = getResponseEntry(doc, path, statusCode, method);
   const schemaExamples = entry?.schema?.examples ?? [];
   const hasSchemaExample = entry?.schema?.example !== undefined;
   const hasMediaExample = entry?.example !== undefined;
   const mediaExamples = Object.keys(entry?.examples ?? {});
-  expect(entry, `missing response schema for ${path} ${statusCode}`).toBeDefined();
+  expect(
+    entry,
+    `missing response schema for ${method.toUpperCase()} ${path} ${statusCode}`,
+  ).toBeDefined();
   expect(
     schemaExamples.length > 0 || hasSchemaExample || hasMediaExample || mediaExamples.length > 0,
-    `missing examples for ${path} ${statusCode}`,
+    `missing examples for ${method.toUpperCase()} ${path} ${statusCode}`,
   ).toBe(true);
 }
 
@@ -108,8 +132,13 @@ function querySchemaExamples(parameter: {
   return examples;
 }
 
-function getResponseSchemaObject(doc: OpenApiDoc, path: string, statusCode: string) {
-  const entry = getResponseEntry(doc, path, statusCode);
+function getResponseSchemaObject(
+  doc: OpenApiDoc,
+  path: string,
+  statusCode: string,
+  method: 'get' | 'post' = 'get',
+) {
+  const entry = getResponseEntry(doc, path, statusCode, method);
   return entry?.schema as
     | {
         properties?: {
@@ -121,8 +150,13 @@ function getResponseSchemaObject(doc: OpenApiDoc, path: string, statusCode: stri
     | undefined;
 }
 
-function getResponseSchemaProperties(doc: OpenApiDoc, path: string, statusCode: string) {
-  const entry = getResponseEntry(doc, path, statusCode);
+function getResponseSchemaProperties(
+  doc: OpenApiDoc,
+  path: string,
+  statusCode: string,
+  method: 'get' | 'post' = 'get',
+) {
+  const entry = getResponseEntry(doc, path, statusCode, method);
   const schema = entry?.schema as { properties?: Record<string, unknown> } | undefined;
   return schema?.properties ?? {};
 }
@@ -174,6 +208,7 @@ describe('openapi', () => {
     expect(body.paths).toHaveProperty('/v1/years/{year}');
     expect(body.paths).toHaveProperty('/v1/area-types');
     expect(body.paths).toHaveProperty('/v1/capabilities');
+    expect(body.paths).toHaveProperty('/v1/bulk');
     expect(body.paths).not.toHaveProperty('/metrics');
 
     expect(body.paths['/v1/timeseries']?.get?.responses).toHaveProperty('429');
@@ -213,6 +248,8 @@ describe('openapi', () => {
     expectSchemaExamplesPresent(body, '/v1/area-types', '400');
     expectSchemaExamplesPresent(body, '/v1/capabilities', '200');
     expectSchemaExamplesPresent(body, '/v1/capabilities', '400');
+    expectSchemaExamplesPresent(body, '/v1/bulk', '200', 'post');
+    expectSchemaExamplesPresent(body, '/v1/bulk', '400', 'post');
 
     // CSV docs: plural params on timeseries and ranking provide description and/or examples
     const timeseriesArea = getQueryParameter(body, '/v1/timeseries', 'area');
@@ -315,5 +352,33 @@ describe('openapi', () => {
       expect(props).toHaveProperty('offset');
       expect(props).toHaveProperty('hasMore');
     }
+
+    // bulk docs: POST /v1/bulk exists with bounded items and mixed result union
+    const bulkPost = body.paths['/v1/bulk']?.post as
+      | {
+          requestBody?: {
+            content?: {
+              'application/json'?: {
+                schema?: {
+                  properties?: {
+                    items?: { minItems?: number; maxItems?: number };
+                  };
+                };
+              };
+            };
+          };
+          responses?: Record<string, unknown>;
+        }
+      | undefined;
+    expect(bulkPost).toBeDefined();
+    expect(bulkPost?.responses).toHaveProperty('200');
+    expect(bulkPost?.responses).toHaveProperty('400');
+    const bulkItemsSchema =
+      bulkPost?.requestBody?.content?.['application/json']?.schema?.properties?.items;
+    expect(bulkItemsSchema?.minItems).toBe(1);
+    expect(bulkItemsSchema?.maxItems).toBe(25);
+
+    const bulk200Props = getResponseSchemaProperties(body, '/v1/bulk', '200', 'post');
+    expect(bulk200Props).toHaveProperty('results');
   });
 });

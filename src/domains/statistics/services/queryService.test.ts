@@ -130,6 +130,7 @@ function createFakeRepo(): StatisticsRepository {
         indicators: ['households', 'population'],
         years: [2022, 2023],
         limits: {
+          bulk: { maxItems: 25 },
           pagination: { min: 1, max: 500, default: 50 },
           ranking: { min: 1, max: 100, default: 50 },
         },
@@ -359,10 +360,66 @@ describe('StatisticsQueryService', () => {
       indicators: ['households', 'population'],
       years: [2022, 2023],
       limits: {
+        bulk: { maxItems: 25 },
         pagination: { min: 1, max: 500, default: 50 },
         ranking: { min: 1, max: 100, default: 50 },
       },
     });
+  });
+
+  it('executes bulk items in request order and returns aligned results', async () => {
+    const svc = new StatisticsQueryService(createFakeRepo());
+    const result = await svc.executeBulk({
+      items: [
+        {
+          kind: 'timeseries',
+          query: {
+            indicator: 'population',
+            areaType: 'district',
+            areas: ['Altstadt'],
+            limit: 50,
+            offset: 0,
+          },
+        },
+        {
+          kind: 'ranking',
+          query: {
+            indicator: 'population',
+            areaType: 'district',
+            year: 2023,
+            limit: 10,
+            order: 'desc',
+          },
+        },
+        { kind: 'capabilities' },
+      ],
+    });
+
+    expect(result.results).toHaveLength(3);
+    expect(result.results[0]?.kind).toBe('timeseries');
+    expect(result.results[1]?.kind).toBe('ranking');
+    expect(result.results[2]?.kind).toBe('capabilities');
+  });
+
+  it('fails fast when a bulk item is invalid', async () => {
+    const svc = new StatisticsQueryService(createFakeRepo());
+    await expect(
+      svc.executeBulk({
+        items: [
+          {
+            kind: 'timeseries',
+            query: {
+              indicator: 'unknown',
+              areaType: 'district',
+              areas: ['Altstadt'],
+              limit: 50,
+              offset: 0,
+            },
+          },
+          { kind: 'capabilities' },
+        ],
+      }),
+    ).rejects.toThrow(/unknown indicator/i);
   });
 
   it('reuses validation lookups within TTL when cache is enabled', async () => {
