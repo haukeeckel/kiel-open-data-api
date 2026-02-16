@@ -38,16 +38,19 @@ const ApiErrorDetails = z
 function makeApiErrorSchema(args: {
   code: (typeof API_ERROR_CODES)[number];
   details?: z.ZodTypeAny;
+  examples?: unknown[];
 }) {
-  const { code, details } = args;
-  return z.object({
-    error: z.object({
-      code: z.literal(code),
-      message: z.string(),
-      ...(details !== undefined ? { details: details.optional() } : {}),
-    }),
-    requestId: z.string(),
-  });
+  const { code, details, examples } = args;
+  return z
+    .object({
+      error: z.object({
+        code: z.literal(code),
+        message: z.string(),
+        ...(details !== undefined ? { details: details.optional() } : {}),
+      }),
+      requestId: z.string(),
+    })
+    .meta(examples !== undefined ? { examples } : {});
 }
 
 export const ApiError = z.object({
@@ -62,14 +65,90 @@ export const ApiError = z.object({
 export const ApiBadRequestError = makeApiErrorSchema({
   code: 'BAD_REQUEST',
   details: z.union([z.array(ValidationDetailItem), DomainValidationDetails, FallbackDetails]),
+  examples: [
+    {
+      error: {
+        code: 'BAD_REQUEST',
+        message: 'Invalid query parameters',
+        details: [
+          {
+            instancePath: '/from',
+            message: 'Invalid input: expected number, received NaN',
+          },
+        ],
+      },
+      requestId: 'req-bad-request-example',
+    },
+  ],
 });
-export const ApiUnauthorizedError = makeApiErrorSchema({ code: 'UNAUTHORIZED' });
-export const ApiForbiddenError = makeApiErrorSchema({ code: 'FORBIDDEN' });
-export const ApiNotFoundError = makeApiErrorSchema({ code: 'NOT_FOUND' });
-export const ApiConflictError = makeApiErrorSchema({ code: 'CONFLICT' });
-export const ApiUnprocessableEntityError = makeApiErrorSchema({ code: 'UNPROCESSABLE_ENTITY' });
+export const ApiUnauthorizedError = makeApiErrorSchema({
+  code: 'UNAUTHORIZED',
+  examples: [
+    {
+      error: { code: 'UNAUTHORIZED', message: 'Unauthorized' },
+      requestId: 'req-unauthorized-example',
+    },
+  ],
+});
+export const ApiForbiddenError = makeApiErrorSchema({
+  code: 'FORBIDDEN',
+  examples: [
+    {
+      error: { code: 'FORBIDDEN', message: 'Forbidden' },
+      requestId: 'req-forbidden-example',
+    },
+  ],
+});
+export const ApiNotFoundError = makeApiErrorSchema({
+  code: 'NOT_FOUND',
+  examples: [
+    {
+      error: { code: 'NOT_FOUND', message: 'Indicator not found: unknown' },
+      requestId: 'req-not-found-example',
+    },
+  ],
+});
+export const ApiConflictError = makeApiErrorSchema({
+  code: 'CONFLICT',
+  examples: [
+    {
+      error: { code: 'CONFLICT', message: 'Conflict' },
+      requestId: 'req-conflict-example',
+    },
+  ],
+});
+export const ApiUnprocessableEntityError = makeApiErrorSchema({
+  code: 'UNPROCESSABLE_ENTITY',
+  examples: [
+    {
+      error: { code: 'UNPROCESSABLE_ENTITY', message: 'Unprocessable Entity' },
+      requestId: 'req-unprocessable-example',
+    },
+  ],
+});
 export const ApiTooManyRequestsError = makeApiErrorSchema({
   code: 'TOO_MANY_REQUESTS',
   details: RateLimitDetails,
+  examples: [
+    {
+      error: {
+        code: 'TOO_MANY_REQUESTS',
+        message: 'Too Many Requests',
+        details: {
+          kind: 'rate_limit',
+          retryAfterMs: 1000,
+        },
+      },
+      requestId: 'req-rate-limit-example',
+    },
+  ],
 });
-export const ApiInternalError = makeApiErrorSchema({ code: 'INTERNAL' });
+export const ApiInternalError = makeApiErrorSchema({
+  code: 'INTERNAL',
+  examples: [
+    {
+      error: { code: 'INTERNAL', message: 'Internal Server Error' },
+      requestId: 'req-internal-example',
+    },
+  ],
+});

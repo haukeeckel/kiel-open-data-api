@@ -43,7 +43,7 @@ export const timeseriesRouteSchema = {
   schema: {
     tags: ['statistics'],
     description:
-      'Get time series for indicator/areaType with CSV filters: area=Altstadt,Gaarden-Ost and optional category=male,female. Response uses areas[] and rows[].area.',
+      'Get yearly time-series values for an indicator and area type. Supports CSV filters for area and optional category.',
     querystring: TimeseriesQuery,
     response: {
       200: TimeseriesResponse,
@@ -56,7 +56,7 @@ export const areasRouteSchema = {
   schema: {
     tags: ['statistics'],
     description:
-      'List distinct areas for an indicator and area type (omitting category returns areas across all categories)',
+      'List distinct areas for indicator and area type. Omitting category returns areas across all categories.',
     querystring: AreasQuery,
     response: {
       200: AreasResponse,
@@ -68,7 +68,7 @@ export const areasRouteSchema = {
 export const categoriesRouteSchema = {
   schema: {
     tags: ['statistics'],
-    description: 'List distinct categories for an indicator and area type',
+    description: 'List distinct categories for indicator and area type.',
     querystring: CategoriesQuery,
     response: {
       200: CategoriesResponse,
@@ -81,7 +81,7 @@ export const rankingRouteSchema = {
   schema: {
     tags: ['statistics'],
     description:
-      'Get ranking for indicator/year with optional CSV filters category=... and area=...',
+      'Get ranking values for indicator and year. Supports optional CSV filters for category and area.',
     querystring: RankingQuery,
     response: {
       200: RankingResponse,
@@ -93,7 +93,7 @@ export const rankingRouteSchema = {
 export const indicatorsRouteSchema = {
   schema: {
     tags: ['statistics'],
-    description: 'List all available indicators',
+    description: 'List available indicators with optional discovery filters.',
     querystring: IndicatorsQuery,
     response: {
       200: IndicatorsResponse,
@@ -105,7 +105,7 @@ export const indicatorsRouteSchema = {
 export const indicatorMetaRouteSchema = {
   schema: {
     tags: ['statistics'],
-    description: 'Get grouped metadata for one indicator',
+    description: 'Get grouped metadata for a single indicator.',
     params: IndicatorPathParams,
     response: {
       200: IndicatorMetaResponse,
@@ -117,7 +117,7 @@ export const indicatorMetaRouteSchema = {
 export const yearsRouteSchema = {
   schema: {
     tags: ['statistics'],
-    description: 'List available years with optional discovery filters',
+    description: 'List available years with optional discovery filters.',
     querystring: YearsQuery,
     response: {
       200: YearsResponse,
@@ -129,7 +129,7 @@ export const yearsRouteSchema = {
 export const yearMetaRouteSchema = {
   schema: {
     tags: ['statistics'],
-    description: 'Get grouped metadata for one year',
+    description: 'Get grouped metadata for a single year.',
     params: YearPathParams,
     response: {
       200: YearMetaResponse,
@@ -141,7 +141,7 @@ export const yearMetaRouteSchema = {
 export const areaTypesRouteSchema = {
   schema: {
     tags: ['statistics'],
-    description: 'List all available area types',
+    description: 'List all available area types.',
     response: {
       200: AreaTypesResponse,
       ...ERROR_RESPONSES,
