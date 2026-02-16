@@ -92,6 +92,19 @@ function querySchemaExamples(parameter: {
   return examples;
 }
 
+function getResponseSchemaObject(doc: OpenApiDoc, path: string, statusCode: string) {
+  const entry = getResponseEntry(doc, path, statusCode);
+  return entry?.schema as
+    | {
+        properties?: {
+          error?: {
+            properties?: Record<string, unknown>;
+          };
+        };
+      }
+    | undefined;
+}
+
 describe('openapi', () => {
   let app: Awaited<ReturnType<typeof buildServer>>;
   let dbPath: string;
@@ -198,5 +211,18 @@ describe('openapi', () => {
     expect(indicatorExamples).toEqual(expect.arrayContaining(['population', 'gender']));
     expect(areaTypeExamples).toEqual(expect.arrayContaining(['district']));
     expect(categoryExamples).toEqual(expect.arrayContaining(['total']));
+
+    // error contract schema fields: reason on 400, retryAfterSec on 429
+    const categories400Schema = getResponseSchemaObject(body, '/v1/categories', '400');
+    const ranking429Schema = getResponseSchemaObject(body, '/v1/ranking', '429');
+
+    const categories400ErrorProps = categories400Schema?.properties?.error?.properties ?? {};
+    expect(categories400ErrorProps).toHaveProperty('reason');
+
+    const ranking429ErrorProps = ranking429Schema?.properties?.error?.properties ?? {};
+    const ranking429Details = ranking429ErrorProps['details'] as
+      | { properties?: Record<string, unknown> }
+      | undefined;
+    expect(ranking429Details?.properties ?? {}).toHaveProperty('retryAfterSec');
   });
 });
