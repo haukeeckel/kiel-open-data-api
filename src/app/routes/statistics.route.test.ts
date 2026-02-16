@@ -950,4 +950,52 @@ describe('statistics endpoints', () => {
       expect(res.json()).toEqual({ rows: ['district'] });
     });
   });
+
+  // ---- GET /v1/capabilities ----
+
+  describe('GET /v1/capabilities', () => {
+    it('returns discovery payload with limits', async () => {
+      const res = await app.inject({ method: 'GET', url: '/v1/capabilities' });
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        areaTypes: ['district'],
+        indicators: [
+          'age_groups',
+          'area_hectares',
+          'foreign_age_groups',
+          'foreign_count',
+          'foreign_gender',
+          'foreign_nationalities_selected',
+          'gender',
+          'households',
+          'marital_status',
+          'migrant_gender',
+          'population',
+          'religion',
+          'unemployed_count',
+          'unemployed_rate',
+        ],
+        years: [2018, 2019, 2020, 2022, 2023],
+        limits: {
+          pagination: { min: 1, max: 500, default: 50 },
+          ranking: { min: 1, max: 100, default: 50 },
+        },
+      });
+    });
+
+    it('supports conditional GET for capabilities', async () => {
+      const first = await app.inject({ method: 'GET', url: '/v1/capabilities' });
+      expect(first.statusCode).toBe(200);
+      const etag = first.headers['etag'];
+      expect(etag).toBeDefined();
+
+      const second = await app.inject({
+        method: 'GET',
+        url: '/v1/capabilities',
+        headers: { 'if-none-match': String(etag) },
+      });
+      expect(second.statusCode).toBe(304);
+      expect(second.body).toBe('');
+    });
+  });
 });

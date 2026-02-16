@@ -389,3 +389,43 @@ export const YearMetaResponse = z
 export const AreaTypesResponse = z.object({ rows: z.array(z.string()) }).meta({
   examples: [{ rows: ['district'] }],
 });
+
+export const CapabilitiesResponse = z
+  .object({
+    areaTypes: z.array(z.string()),
+    indicators: z.array(z.string()),
+    years: z.array(z.number().int()),
+    limits: z.object({
+      pagination: z.object({
+        min: z.number().int().positive(),
+        max: z.number().int().positive(),
+        default: z.number().int().positive(),
+      }),
+      ranking: z.object({
+        min: z.number().int().positive(),
+        max: z.number().int().positive(),
+        default: z.number().int().positive(),
+      }),
+    }),
+  })
+  .meta({
+    examples: [
+      {
+        areaTypes: ['district'],
+        indicators: ['population', 'gender', 'households'],
+        years: [2018, 2019, 2020, 2022, 2023],
+        limits: {
+          pagination: {
+            min: PAGINATION_LIMIT_MIN,
+            max: PAGINATION_LIMIT_MAX,
+            default: PAGINATION_LIMIT_DEFAULT,
+          },
+          ranking: {
+            min: RANKING_LIMIT_MIN,
+            max: RANKING_LIMIT_MAX,
+            default: RANKING_LIMIT_DEFAULT,
+          },
+        },
+      },
+    ],
+  });

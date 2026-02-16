@@ -109,7 +109,7 @@ Migration:
 - Ziel: Discovery für Clients mit einem Request.
 - Scope:
   - Endpoint `/v1/capabilities`.
-  - Felder: `areaTypes`, `indicators`, `years`, technische Limits.
+  - Felder: `areaTypes`, `indicators`, `years`, `limits.pagination`, `limits.ranking`.
 - Out of Scope:
   - Vollständige Self-Describing-Schema-Engine.
 - DoD:

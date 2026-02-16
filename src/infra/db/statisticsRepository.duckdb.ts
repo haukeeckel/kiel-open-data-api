@@ -1,5 +1,13 @@
 import crypto from 'node:crypto';
 
+import {
+  PAGINATION_LIMIT_DEFAULT,
+  PAGINATION_LIMIT_MAX,
+  PAGINATION_LIMIT_MIN,
+  RANKING_LIMIT_DEFAULT,
+  RANKING_LIMIT_MAX,
+  RANKING_LIMIT_MIN,
+} from '../../domains/statistics/model/types.js';
 import { recordDbQuery } from '../../observability/metrics.js';
 
 import { RepositoryInfraError, RepositoryQueryTimeoutError } from './errors.js';
@@ -694,6 +702,65 @@ export function createDuckDbStatisticsRepository(
             });
             const rows = reader.getRowObjects().map((r) => requireString(r, 'area_type'));
             return { rows };
+          },
+          logger,
+        ),
+      );
+    },
+
+    async getCapabilities() {
+      return manager.withConnection((conn) =>
+        withRepositoryError(
+          'statistics.getCapabilities',
+          async () => {
+            const areaTypesReader = await runQueryWithTimeout({
+              conn,
+              operation: 'statistics.getCapabilities',
+              sql: `SELECT DISTINCT area_type FROM statistics ORDER BY area_type ASC`,
+              queryTimeoutMs,
+              slowQueryThresholdMs,
+              planSampleEnabled,
+              logger,
+            });
+            const indicatorReader = await runQueryWithTimeout({
+              conn,
+              operation: 'statistics.getCapabilities',
+              sql: `SELECT DISTINCT indicator FROM statistics ORDER BY indicator ASC`,
+              queryTimeoutMs,
+              slowQueryThresholdMs,
+              planSampleEnabled,
+              logger,
+            });
+            const yearsReader = await runQueryWithTimeout({
+              conn,
+              operation: 'statistics.getCapabilities',
+              sql: `SELECT DISTINCT year FROM statistics ORDER BY year ASC`,
+              queryTimeoutMs,
+              slowQueryThresholdMs,
+              planSampleEnabled,
+              logger,
+            });
+            return {
+              areaTypes: areaTypesReader
+                .getRowObjects()
+                .map((row) => requireString(row, 'area_type')),
+              indicators: indicatorReader
+                .getRowObjects()
+                .map((row) => requireString(row, 'indicator')),
+              years: yearsReader.getRowObjects().map((row) => requireInteger(row, 'year')),
+              limits: {
+                pagination: {
+                  min: PAGINATION_LIMIT_MIN,
+                  max: PAGINATION_LIMIT_MAX,
+                  default: PAGINATION_LIMIT_DEFAULT,
+                },
+                ranking: {
+                  min: RANKING_LIMIT_MIN,
+                  max: RANKING_LIMIT_MAX,
+                  default: RANKING_LIMIT_DEFAULT,
+                },
+              },
+            };
           },
           logger,
         ),

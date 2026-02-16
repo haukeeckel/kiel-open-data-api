@@ -58,6 +58,15 @@ describe('services plugin', () => {
         pagination: { total: 1, limit: 50, offset: 0, hasMore: false },
       }),
       listAreaTypes: async () => ({ rows: [areaType] }),
+      getCapabilities: async () => ({
+        areaTypes: [areaType],
+        indicators: [indicator],
+        years: [2023],
+        limits: {
+          pagination: { min: 1, max: 500, default: 50 },
+          ranking: { min: 1, max: 100, default: 50 },
+        },
+      }),
       getFreshnessMeta: async () => ({ dataVersion: 'test-version', lastUpdatedAt: null }),
     };
 
@@ -118,6 +127,15 @@ describe('services plugin', () => {
         pagination: { total: 1, limit: 50, offset: 0, hasMore: false },
       })),
       listAreaTypes: vi.fn(async () => ({ rows: [areaType] })),
+      getCapabilities: vi.fn(async () => ({
+        areaTypes: [areaType],
+        indicators: [indicator],
+        years: [2023],
+        limits: {
+          pagination: { min: 1, max: 500, default: 50 },
+          ranking: { min: 1, max: 100, default: 50 },
+        },
+      })),
       getFreshnessMeta: vi.fn(async () => ({ dataVersion: 'test-version', lastUpdatedAt: null })),
     };
 

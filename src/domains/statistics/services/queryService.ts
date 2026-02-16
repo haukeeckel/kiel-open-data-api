@@ -226,4 +226,8 @@ export class StatisticsQueryService {
   async listAreaTypes() {
     return this.repo.listAreaTypes();
   }
+
+  async getCapabilities() {
+    return this.repo.getCapabilities();
+  }
 }

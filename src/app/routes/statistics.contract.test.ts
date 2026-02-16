@@ -80,4 +80,22 @@ describe('statistics contract', () => {
       requestId: expect.any(String),
     });
   });
+
+  it('keeps /v1/capabilities contract stable', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/v1/capabilities',
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({
+      areaTypes: expect.any(Array),
+      indicators: expect.any(Array),
+      years: expect.any(Array),
+      limits: {
+        pagination: { min: 1, max: 500, default: 50 },
+        ranking: { min: 1, max: 100, default: 50 },
+      },
+    });
+  });
 });

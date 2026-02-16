@@ -12,6 +12,7 @@ import {
 import {
   areaTypesRouteSchema,
   areasRouteSchema,
+  capabilitiesRouteSchema,
   categoriesRouteSchema,
   indicatorMetaRouteSchema,
   indicatorsRouteSchema,
@@ -28,6 +29,10 @@ export default async function statisticsRoutes(app: FastifyInstance) {
 
   r.get('/area-types', areaTypesRouteSchema, async () => {
     return app.services.statisticsQuery.listAreaTypes();
+  });
+
+  r.get('/capabilities', capabilitiesRouteSchema, async () => {
+    return app.services.statisticsQuery.getCapabilities();
   });
 
   r.get('/indicators', indicatorsRouteSchema, async (req) => {

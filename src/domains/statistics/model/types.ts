@@ -148,3 +148,21 @@ export type IndicatorMetaResult = {
 export type AreaTypesResult = {
   rows: string[];
 };
+
+export type CapabilitiesResult = {
+  areaTypes: string[];
+  indicators: string[];
+  years: number[];
+  limits: {
+    pagination: {
+      min: number;
+      max: number;
+      default: number;
+    };
+    ranking: {
+      min: number;
+      max: number;
+      default: number;
+    };
+  };
+};
