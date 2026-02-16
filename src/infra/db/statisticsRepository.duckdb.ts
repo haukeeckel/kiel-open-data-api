@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 
 import {
+  BULK_ITEMS_MAX,
   PAGINATION_LIMIT_DEFAULT,
   PAGINATION_LIMIT_MAX,
   PAGINATION_LIMIT_MIN,
@@ -749,6 +750,9 @@ export function createDuckDbStatisticsRepository(
                 .map((row) => requireString(row, 'indicator')),
               years: yearsReader.getRowObjects().map((row) => requireInteger(row, 'year')),
               limits: {
+                bulk: {
+                  maxItems: BULK_ITEMS_MAX,
+                },
                 pagination: {
                   min: PAGINATION_LIMIT_MIN,
                   max: PAGINATION_LIMIT_MAX,
