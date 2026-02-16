@@ -16,9 +16,11 @@ type OpenApiDoc = {
   >;
 };
 
-function getResponseEntry(doc: OpenApiDoc, path: string, statusCode: string) {
-  const response = doc.paths[path]?.get?.responses?.[statusCode] as
+function getResponseObject(doc: OpenApiDoc, path: string, statusCode: string) {
+  return doc.paths[path]?.get?.responses?.[statusCode] as
     | {
+        description?: string;
+        headers?: Record<string, unknown>;
         content?: {
           'application/json'?: {
             schema?: { example?: unknown; examples?: unknown[] };
@@ -28,6 +30,10 @@ function getResponseEntry(doc: OpenApiDoc, path: string, statusCode: string) {
         };
       }
     | undefined;
+}
+
+function getResponseEntry(doc: OpenApiDoc, path: string, statusCode: string) {
+  const response = getResponseObject(doc, path, statusCode);
   return response?.content?.['application/json'];
 }
 
@@ -44,7 +50,7 @@ function expectSchemaExamplesPresent(doc: OpenApiDoc, path: string, statusCode: 
   ).toBe(true);
 }
 
-function getQueryParameter(doc: OpenApiDoc, path: string, name: string) {
+function getParameter(doc: OpenApiDoc, path: string, input: 'query' | 'header', name: string) {
   const parameters = doc.paths[path]?.get?.parameters as
     | Array<{
         in?: string;
@@ -61,7 +67,11 @@ function getQueryParameter(doc: OpenApiDoc, path: string, name: string) {
         };
       }>
     | undefined;
-  return parameters?.find((parameter) => parameter.in === 'query' && parameter.name === name);
+  return parameters?.find((parameter) => parameter.in === input && parameter.name === name);
+}
+
+function getQueryParameter(doc: OpenApiDoc, path: string, name: string) {
+  return getParameter(doc, path, 'query', name);
 }
 
 function hasCsvDocs(parameter: {
@@ -160,7 +170,16 @@ describe('openapi', () => {
     expect(body.paths).not.toHaveProperty('/metrics');
 
     expect(body.paths['/v1/timeseries']?.get?.responses).toHaveProperty('429');
+    expect(body.paths['/v1/timeseries']?.get?.responses).toHaveProperty('304');
+    expect(body.paths['/v1/areas']?.get?.responses).toHaveProperty('304');
+    expect(body.paths['/v1/categories']?.get?.responses).toHaveProperty('304');
     expect(body.paths['/v1/ranking']?.get?.responses).toHaveProperty('429');
+    expect(body.paths['/v1/ranking']?.get?.responses).toHaveProperty('304');
+    expect(body.paths['/v1/indicators']?.get?.responses).toHaveProperty('304');
+    expect(body.paths['/v1/indicators/{indicator}']?.get?.responses).toHaveProperty('304');
+    expect(body.paths['/v1/years']?.get?.responses).toHaveProperty('304');
+    expect(body.paths['/v1/years/{year}']?.get?.responses).toHaveProperty('304');
+    expect(body.paths['/v1/area-types']?.get?.responses).toHaveProperty('304');
     expect(body.paths['/v1/categories']?.get?.responses).toHaveProperty('400');
 
     // examples: every core endpoint has at least one success and one error example
@@ -240,5 +259,12 @@ describe('openapi', () => {
       | { properties?: Record<string, unknown> }
       | undefined;
     expect(ranking429Details?.properties ?? {}).toHaveProperty('retryAfterSec');
+
+    // conditional request input + header docs for freshness/cache semantics
+    const ifNoneMatch = getParameter(body, '/v1/timeseries', 'header', 'if-none-match');
+    expect(ifNoneMatch).toBeDefined();
+    const notModified = getResponseObject(body, '/v1/timeseries', '304');
+    expect(notModified).toBeDefined();
+    expect(notModified?.description ?? '').toMatch(/not modified|etag|cache-control/i);
   });
 });

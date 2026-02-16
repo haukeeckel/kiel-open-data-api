@@ -104,6 +104,9 @@ function createFakeRepo(): StatisticsRepository {
     async listAreaTypes() {
       return { rows: ['district'] };
     },
+    async getFreshnessMeta() {
+      return { dataVersion: 'test-version', lastUpdatedAt: null };
+    },
   };
 }
 
