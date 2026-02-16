@@ -297,6 +297,15 @@ ETL writes one run record per dataset execution into `etl_runs`:
   Grouped year metadata by area type, including available indicators, categories, and areas.
   Returns `404` if the year does not exist.
 
+- `GET /v1/capabilities`
+  Discovery endpoint for initial client setup.
+  Returns:
+  - `areaTypes`
+  - `indicators`
+  - `years`
+  - `limits.pagination` (`min/max/default`)
+  - `limits.ranking` (`min/max/default`)
+
 ### HTTP Caching and Freshness Headers (`/v1/*`)
 
 All `GET /v1/*` endpoints support conditional requests:
