@@ -571,6 +571,21 @@ describe('DuckDbStatisticsRepository', () => {
     });
   });
 
+  describe('getCapabilities', () => {
+    it('returns discovery payload and api limits', async () => {
+      const result = await repo.getCapabilities();
+      expect(result).toEqual({
+        areaTypes: ['district'],
+        indicators: ['households', 'population'],
+        years: [2022, 2023],
+        limits: {
+          pagination: { min: 1, max: 500, default: 50 },
+          ranking: { min: 1, max: 100, default: 50 },
+        },
+      });
+    });
+  });
+
   describe('error handling', () => {
     it('interrupts and throws RepositoryQueryTimeoutError on timeout', async () => {
       const interrupt = vi.fn();

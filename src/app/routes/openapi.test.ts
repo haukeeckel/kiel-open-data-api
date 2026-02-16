@@ -173,6 +173,7 @@ describe('openapi', () => {
     expect(body.paths).toHaveProperty('/v1/years');
     expect(body.paths).toHaveProperty('/v1/years/{year}');
     expect(body.paths).toHaveProperty('/v1/area-types');
+    expect(body.paths).toHaveProperty('/v1/capabilities');
     expect(body.paths).not.toHaveProperty('/metrics');
 
     expect(body.paths['/v1/timeseries']?.get?.responses).toHaveProperty('429');
@@ -186,6 +187,7 @@ describe('openapi', () => {
     expect(body.paths['/v1/years']?.get?.responses).toHaveProperty('304');
     expect(body.paths['/v1/years/{year}']?.get?.responses).toHaveProperty('304');
     expect(body.paths['/v1/area-types']?.get?.responses).toHaveProperty('304');
+    expect(body.paths['/v1/capabilities']?.get?.responses).toHaveProperty('304');
     expect(body.paths['/v1/categories']?.get?.responses).toHaveProperty('400');
 
     // examples: every core endpoint has at least one success and one error example
@@ -209,6 +211,8 @@ describe('openapi', () => {
     expectSchemaExamplesPresent(body, '/v1/years/{year}', '404');
     expectSchemaExamplesPresent(body, '/v1/area-types', '200');
     expectSchemaExamplesPresent(body, '/v1/area-types', '400');
+    expectSchemaExamplesPresent(body, '/v1/capabilities', '200');
+    expectSchemaExamplesPresent(body, '/v1/capabilities', '400');
 
     // CSV docs: plural params on timeseries and ranking provide description and/or examples
     const timeseriesArea = getQueryParameter(body, '/v1/timeseries', 'area');

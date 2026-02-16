@@ -124,6 +124,17 @@ function createFakeRepo(): StatisticsRepository {
     async listAreaTypes() {
       return { rows: ['district'] };
     },
+    async getCapabilities() {
+      return {
+        areaTypes: ['district'],
+        indicators: ['households', 'population'],
+        years: [2022, 2023],
+        limits: {
+          pagination: { min: 1, max: 500, default: 50 },
+          ranking: { min: 1, max: 100, default: 50 },
+        },
+      };
+    },
     async getFreshnessMeta() {
       return { dataVersion: 'test-version', lastUpdatedAt: null };
     },
@@ -338,6 +349,20 @@ describe('StatisticsQueryService', () => {
 
     const result = await svc.listAreaTypes();
     expect(result.rows).toEqual(['district']);
+  });
+
+  it('passes getCapabilities through to repository', async () => {
+    const svc = new StatisticsQueryService(createFakeRepo());
+    const result = await svc.getCapabilities();
+    expect(result).toEqual({
+      areaTypes: ['district'],
+      indicators: ['households', 'population'],
+      years: [2022, 2023],
+      limits: {
+        pagination: { min: 1, max: 500, default: 50 },
+        ranking: { min: 1, max: 100, default: 50 },
+      },
+    });
   });
 
   it('reuses validation lookups within TTL when cache is enabled', async () => {
