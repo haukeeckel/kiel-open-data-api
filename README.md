@@ -303,8 +303,53 @@ ETL writes one run record per dataset execution into `etl_runs`:
   - `areaTypes`
   - `indicators`
   - `years`
+  - `limits.bulk` (`maxItems`)
   - `limits.pagination` (`min/max/default`)
   - `limits.ranking` (`min/max/default`)
+
+- `POST /v1/bulk`
+  Bulk read endpoint for mixed consumer workflows.
+  Supported `items[].kind`:
+  - `timeseries`
+  - `ranking`
+  - `capabilities`
+    Contract:
+  - `items` length: min `1`, max `25`
+  - Results are returned in the same order as request items.
+  - Fail-fast: first invalid item returns `400` for the full request.
+
+Example:
+
+```bash
+curl -s -X POST "http://127.0.0.1:3000/v1/bulk" \
+  -H "content-type: application/json" \
+  -d '{
+    "items": [
+      {
+        "kind": "timeseries",
+        "query": {
+          "indicator": "gender",
+          "areaType": "district",
+          "areas": ["Altstadt", "Vorstadt"],
+          "categories": ["male", "female"],
+          "limit": 50,
+          "offset": 0
+        }
+      },
+      {
+        "kind": "ranking",
+        "query": {
+          "indicator": "population",
+          "areaType": "district",
+          "year": 2023,
+          "limit": 10,
+          "order": "desc"
+        }
+      },
+      { "kind": "capabilities" }
+    ]
+  }'
+```
 
 ### HTTP Caching and Freshness Headers (`/v1/*`)
 
