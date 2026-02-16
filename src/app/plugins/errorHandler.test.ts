@@ -21,7 +21,34 @@ describe('errorHandler plugin', () => {
       error: {
         code: 'BAD_REQUEST',
         message: 'bad',
+        reason: 'INVALID_QUERY_PARAMS',
         details: { foo: 'bar' },
+      },
+      requestId: expect.any(String),
+    });
+  });
+
+  it('maps unknown domain values to specific reason with suggestions', async () => {
+    const app = Fastify();
+    await app.register(errorHandlerPlugin);
+
+    app.get('/domain-unknown', async () => {
+      throw new StatisticsValidationError('Unknown indicator: unknown', {
+        kind: 'domain_validation',
+        field: 'indicator',
+        value: 'unknown',
+        allowed: ['population', 'gender', 'households'],
+      });
+    });
+
+    const res = await app.inject({ method: 'GET', url: '/domain-unknown' });
+    expect(res.statusCode).toBe(400);
+    expect(res.json()).toMatchObject({
+      error: {
+        code: 'BAD_REQUEST',
+        message: 'Unknown indicator: unknown',
+        reason: 'UNKNOWN_INDICATOR',
+        suggestions: ['population', 'gender', 'households'],
       },
       requestId: expect.any(String),
     });
@@ -63,6 +90,7 @@ describe('errorHandler plugin', () => {
       error: {
         code: 'BAD_REQUEST',
         message: 'Invalid query parameters',
+        reason: 'INVALID_QUERY_PARAMS',
       },
       requestId: expect.any(String),
     });
@@ -102,6 +130,7 @@ describe('errorHandler plugin', () => {
 
     const res = await app.inject({ method: 'GET', url: '/rate-limit' });
     expect(res.statusCode).toBe(429);
+    expect(res.headers['retry-after']).toBe('1');
     expect(res.json()).toMatchObject({
       error: {
         code: 'TOO_MANY_REQUESTS',
@@ -109,6 +138,7 @@ describe('errorHandler plugin', () => {
         details: {
           kind: 'rate_limit',
           retryAfterMs: 1000,
+          retryAfterSec: 1,
         },
       },
       requestId: expect.any(String),

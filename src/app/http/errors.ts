@@ -17,6 +17,16 @@ export const API_ERROR_CODES = [
 
 export type ApiErrorCode = (typeof API_ERROR_CODES)[number];
 
+export const API_ERROR_REASONS = [
+  'INVALID_QUERY_PARAMS',
+  'UNKNOWN_INDICATOR',
+  'UNKNOWN_AREA_TYPE',
+  'UNKNOWN_CATEGORY',
+  'INVALID_RANGE',
+] as const;
+
+export type ApiErrorReason = (typeof API_ERROR_REASONS)[number];
+
 export type DomainValidationDetails = {
   kind: 'domain_validation';
   field: 'indicator' | 'areaType' | 'category';
@@ -27,6 +37,7 @@ export type DomainValidationDetails = {
 export type RateLimitDetails = {
   kind: 'rate_limit';
   retryAfterMs?: number;
+  retryAfterSec?: number;
 };
 
 export type ApiKnownDetails = DomainValidationDetails | RateLimitDetails | ErrorDetails;
@@ -36,6 +47,8 @@ export type ApiErrorInput = {
   code: ApiErrorCode;
   message: string;
   details?: ApiKnownDetails;
+  reason?: ApiErrorReason;
+  suggestions?: string[];
 };
 
 export type ApiErrorBody = {
@@ -43,6 +56,8 @@ export type ApiErrorBody = {
     code: ApiErrorCode;
     message: string;
     details?: ApiKnownDetails;
+    reason?: ApiErrorReason;
+    suggestions?: string[];
   };
   requestId: string;
 };
@@ -57,6 +72,8 @@ export function sendError(req: FastifyRequest, reply: FastifyReply, input: ApiEr
       code: input.code,
       message: input.message,
       ...(input.details !== undefined ? { details: input.details } : {}),
+      ...(input.reason !== undefined ? { reason: input.reason } : {}),
+      ...(input.suggestions !== undefined ? { suggestions: input.suggestions } : {}),
     },
     requestId: requestId(req),
   };
@@ -69,12 +86,18 @@ export function sendBadRequest(
   reply: FastifyReply,
   message: string,
   details?: ApiKnownDetails,
+  meta?: {
+    reason?: ApiErrorReason;
+    suggestions?: string[];
+  },
 ) {
   return sendError(req, reply, {
     statusCode: 400,
     code: 'BAD_REQUEST',
     message,
     ...(details !== undefined ? { details } : {}),
+    ...(meta?.reason !== undefined ? { reason: meta.reason } : {}),
+    ...(meta?.suggestions !== undefined ? { suggestions: meta.suggestions } : {}),
   });
 }
 
