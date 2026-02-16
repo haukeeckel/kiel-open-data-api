@@ -57,24 +57,37 @@ function csvTokenMax(max: number) {
   return (value: string) => value.split(',').every((part) => part.trim().length <= max);
 }
 
-export const TimeseriesQuery = z.object({
-  indicator: IndicatorQueryParam,
-  areaType: AreaTypeQueryParam,
-  area: z
+function csvAreaParam(args: { description: string; examples: string[] }) {
+  const schema = z
     .string()
     .min(1)
     .refine(hasNoEmptyCsvTokens, { message: 'Invalid CSV list' })
     .refine(csvTokenMax(QUERY_AREA_MAX), { message: 'CSV token too long' })
-    .describe(CSV_AREA_DESCRIPTION)
-    .meta({ examples: ['Altstadt,Gaarden-Ost'] }),
-  category: z
+    .describe(args.description);
+  return schema.meta({ examples: args.examples });
+}
+
+function csvCategoryParam(args: { description: string; examples: string[] }) {
+  const schema = z
     .string()
     .min(1)
     .refine(hasNoEmptyCsvTokens, { message: 'Invalid CSV list' })
     .refine(csvTokenMax(QUERY_TEXT_MAX), { message: 'CSV token too long' })
-    .optional()
-    .describe(CSV_CATEGORY_DESCRIPTION)
-    .meta({ examples: ['total', 'male,female'] }),
+    .describe(args.description);
+  return schema.meta({ examples: args.examples });
+}
+
+export const TimeseriesQuery = z.object({
+  indicator: IndicatorQueryParam,
+  areaType: AreaTypeQueryParam,
+  areas: csvAreaParam({
+    description: CSV_AREA_DESCRIPTION,
+    examples: ['Altstadt,Gaarden-Ost', 'Altstadt,Vorstadt'],
+  }),
+  categories: csvCategoryParam({
+    description: CSV_CATEGORY_DESCRIPTION,
+    examples: ['total', 'male,female'],
+  }).optional(),
   from: z.coerce
     .number()
     .int()
@@ -176,22 +189,14 @@ export const RankingQuery = z.object({
     .int()
     .describe(YEAR_DESCRIPTION)
     .meta({ example: 2023, examples: [2023, 2022] }),
-  category: z
-    .string()
-    .min(1)
-    .refine(hasNoEmptyCsvTokens, { message: 'Invalid CSV list' })
-    .refine(csvTokenMax(QUERY_TEXT_MAX), { message: 'CSV token too long' })
-    .optional()
-    .describe(CSV_CATEGORY_DESCRIPTION)
-    .meta({ examples: ['total', 'male,female'] }),
-  area: z
-    .string()
-    .min(1)
-    .refine(hasNoEmptyCsvTokens, { message: 'Invalid CSV list' })
-    .refine(csvTokenMax(QUERY_AREA_MAX), { message: 'CSV token too long' })
-    .optional()
-    .describe(CSV_AREA_DESCRIPTION)
-    .meta({ examples: ['Altstadt,Vorstadt'] }),
+  categories: csvCategoryParam({
+    description: CSV_CATEGORY_DESCRIPTION,
+    examples: ['total', 'male,female'],
+  }).optional(),
+  areas: csvAreaParam({
+    description: CSV_AREA_DESCRIPTION,
+    examples: ['Altstadt,Vorstadt'],
+  }).optional(),
   limit: z.coerce
     .number()
     .int()

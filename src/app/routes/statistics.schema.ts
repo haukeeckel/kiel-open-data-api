@@ -43,7 +43,7 @@ export const timeseriesRouteSchema = {
   schema: {
     tags: ['statistics'],
     description:
-      'Get yearly time-series values for an indicator and area type. Supports CSV filters for area and optional category.',
+      'Get yearly time-series values for an indicator and area type. Supports CSV filters for areas and optional categories.',
     querystring: TimeseriesQuery,
     response: {
       200: TimeseriesResponse,
@@ -81,7 +81,7 @@ export const rankingRouteSchema = {
   schema: {
     tags: ['statistics'],
     description:
-      'Get ranking values for indicator and year. Supports optional CSV filters for category and area.',
+      'Get ranking values for indicator and year. Supports optional CSV filters for categories and areas.',
     querystring: RankingQuery,
     response: {
       200: RankingResponse,

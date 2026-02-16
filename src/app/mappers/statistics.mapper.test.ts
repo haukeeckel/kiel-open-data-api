@@ -14,7 +14,7 @@ describe('statistics mappers', () => {
     const input = {
       indicator: 'population',
       areaType: 'district',
-      area: 'Altstadt',
+      areas: 'Altstadt',
     } as const;
 
     expect(toTimeseriesQuery(input)).toEqual({
@@ -28,7 +28,7 @@ describe('statistics mappers', () => {
     const input = {
       indicator: 'population',
       areaType: 'district',
-      area: 'Altstadt',
+      areas: 'Altstadt',
       from: 2020,
       to: 2023,
     } as const;
@@ -46,8 +46,8 @@ describe('statistics mappers', () => {
     const input = {
       indicator: 'gender',
       areaType: 'district',
-      area: 'Altstadt, Gaarden-Ost,Altstadt',
-      category: 'male, female,male',
+      areas: 'Altstadt, Gaarden-Ost,Altstadt',
+      categories: 'male, female,male',
     } as const;
 
     expect(toTimeseriesQuery(input)).toEqual({
@@ -94,8 +94,8 @@ describe('statistics mappers', () => {
       indicator: 'gender',
       areaType: 'district',
       year: 2023,
-      category: 'male, female,male',
-      area: 'Altstadt, Gaarden-Ost,Altstadt',
+      categories: 'male, female,male',
+      areas: 'Altstadt, Gaarden-Ost,Altstadt',
       limit: 10,
       order: 'desc',
     } as const;
@@ -110,7 +110,6 @@ describe('statistics mappers', () => {
       order: 'desc',
     });
   });
-
   it('maps categories query', () => {
     const input = {
       indicator: 'households',
