@@ -57,9 +57,9 @@ Migration:
 
 - Ziel: Performance und Netzlast verbessern.
 - Scope:
-  - `ETag` für GET-Endpunkte.
+  - `ETag` für alle `GET /v1/*` Endpunkte.
   - `If-None-Match` verarbeiten und `304` liefern.
-  - Endpoint-spezifische `Cache-Control`-Header.
+  - `Cache-Control: public, max-age=60`.
 - Out of Scope:
   - CDN-/Reverse-Proxy-Strategien.
 - DoD:
@@ -70,7 +70,7 @@ Migration:
 
 - Ziel: Datenstand ohne Zusatz-Requests erkennbar machen.
 - Scope:
-  - `dataVersion` und `lastUpdatedAt` als Header oder Response-Metadaten.
+  - `Data-Version` und `Last-Updated-At` als Response-Header für `GET /v1/*`.
   - Swagger/Contract-Doku aktualisieren.
 - Out of Scope:
   - Neue dedizierte Freshness-Endpunkte.

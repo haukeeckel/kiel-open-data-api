@@ -256,9 +256,9 @@ ETL writes one run record per dataset execution into `etl_runs`:
 
 - `GET /v1/timeseries`
   Time series for a given indicator and area(s).
-  `area` supports CSV (for example `Altstadt,Gaarden-Ost`).
-  Optional `category` supports CSV (for example `male,female`).
-  If `category` is omitted, rows from all categories are returned.
+  `areas` supports CSV (for example `Altstadt,Gaarden-Ost`).
+  Optional `categories` supports CSV (for example `male,female`).
+  If `categories` is omitted, rows from all categories are returned.
   Response uses `areas: string[]` and each row includes `area`.
 
 - `GET /v1/areas`
@@ -270,8 +270,8 @@ ETL writes one run record per dataset execution into `etl_runs`:
 
 - `GET /v1/ranking`
   Ranking of areas by value for a given indicator/year.
-  Optional `category` supports CSV and optional `area` supports CSV.
-  If `category` is omitted, ranking rows can contain mixed categories.
+  Optional `categories` supports CSV and optional `areas` supports CSV.
+  If `categories` is omitted, ranking rows can contain mixed categories.
 
 - `GET /v1/indicators`
   List distinct indicators.
@@ -290,6 +290,33 @@ ETL writes one run record per dataset execution into `etl_runs`:
 - `GET /v1/years/:year`
   Grouped year metadata by area type, including available indicators, categories, and areas.
   Returns `404` if the year does not exist.
+
+### HTTP Caching and Freshness Headers (`/v1/*`)
+
+All `GET /v1/*` endpoints support conditional requests:
+
+- Response headers:
+  - `ETag`
+  - `Cache-Control: public, max-age=60`
+  - `Data-Version`
+  - `Last-Updated-At` (if available)
+- Request header:
+  - `If-None-Match`
+
+When `If-None-Match` matches the current `ETag`, the API returns `304 Not Modified`
+with an empty body.
+
+Example:
+
+```bash
+# first request
+curl -i "http://127.0.0.1:3000/v1/areas?indicator=population&areaType=district"
+
+# conditional revalidation
+curl -i \
+  -H 'If-None-Match: "<etag-from-first-response>"' \
+  "http://127.0.0.1:3000/v1/areas?indicator=population&areaType=district"
+```
 
 ## Metrics Exposure
 
