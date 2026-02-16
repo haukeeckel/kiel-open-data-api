@@ -123,7 +123,7 @@ describe('statistics endpoints', () => {
     it('returns 400 for invalid query parameters (zod)', async () => {
       const res = await app.inject({
         method: 'GET',
-        url: '/v1/timeseries?indicator=population&areaType=district&area=Altstadt&from=abc',
+        url: '/v1/timeseries?indicator=population&areaType=district&areas=Altstadt&from=abc',
       });
       expect(res.statusCode).toBe(400);
       expect(res.json()).toMatchObject({
@@ -135,7 +135,7 @@ describe('statistics endpoints', () => {
     it('returns 400 for overlong area parameter', async () => {
       const res = await app.inject({
         method: 'GET',
-        url: `/v1/timeseries?indicator=population&areaType=district&area=${LONG_AREA}`,
+        url: `/v1/timeseries?indicator=population&areaType=district&areas=${LONG_AREA}`,
       });
       expect(res.statusCode).toBe(400);
       expect(res.json()).toMatchObject({
@@ -147,7 +147,7 @@ describe('statistics endpoints', () => {
     it('returns 400 when from is greater than to', async () => {
       const res = await app.inject({
         method: 'GET',
-        url: '/v1/timeseries?indicator=population&areaType=district&area=Altstadt&from=2024&to=2023',
+        url: '/v1/timeseries?indicator=population&areaType=district&areas=Altstadt&from=2024&to=2023',
       });
       expect(res.statusCode).toBe(400);
       expect(res.json()).toMatchObject({
@@ -163,7 +163,7 @@ describe('statistics endpoints', () => {
     it('returns time series for a district', async () => {
       const res = await app.inject({
         method: 'GET',
-        url: '/v1/timeseries?indicator=population&areaType=district&area=Altstadt',
+        url: '/v1/timeseries?indicator=population&areaType=district&areas=Altstadt',
       });
       expect(res.statusCode).toBe(200);
       expect(res.json()).toEqual({
@@ -180,7 +180,7 @@ describe('statistics endpoints', () => {
     it('supports from/to filters', async () => {
       const res = await app.inject({
         method: 'GET',
-        url: '/v1/timeseries?indicator=population&areaType=district&area=Altstadt&from=2023&to=2023',
+        url: '/v1/timeseries?indicator=population&areaType=district&areas=Altstadt&from=2023&to=2023',
       });
       expect(res.statusCode).toBe(200);
       expect(res.json()).toMatchObject({
@@ -193,7 +193,7 @@ describe('statistics endpoints', () => {
       async ({ indicator, rows }) => {
         const res = await app.inject({
           method: 'GET',
-          url: `/v1/timeseries?indicator=${indicator}&areaType=district&area=Altstadt`,
+          url: `/v1/timeseries?indicator=${indicator}&areaType=district&areas=Altstadt`,
         });
         expect(res.statusCode).toBe(200);
         expect(res.json()).toEqual({
@@ -210,7 +210,7 @@ describe('statistics endpoints', () => {
       async ({ indicator, category, rows }) => {
         const res = await app.inject({
           method: 'GET',
-          url: `/v1/timeseries?indicator=${indicator}&areaType=district&area=Altstadt&category=${category}`,
+          url: `/v1/timeseries?indicator=${indicator}&areaType=district&areas=Altstadt&categories=${category}`,
         });
         expect(res.statusCode).toBe(200);
         expect(res.json()).toEqual({
@@ -225,7 +225,7 @@ describe('statistics endpoints', () => {
     it('supports multiple areas and categories via CSV', async () => {
       const res = await app.inject({
         method: 'GET',
-        url: '/v1/timeseries?indicator=gender&areaType=district&area=Altstadt,Vorstadt&category=male,female',
+        url: '/v1/timeseries?indicator=gender&areaType=district&areas=Altstadt,Vorstadt&categories=male,female',
       });
       expect(res.statusCode).toBe(200);
       expect(res.json()).toMatchObject({
@@ -247,7 +247,7 @@ describe('statistics endpoints', () => {
     it('returns 400 for malformed CSV query values', async () => {
       const res = await app.inject({
         method: 'GET',
-        url: '/v1/timeseries?indicator=gender&areaType=district&area=Altstadt,,Gaarden-Ost&category=male,,female',
+        url: '/v1/timeseries?indicator=gender&areaType=district&areas=Altstadt,,Gaarden-Ost&categories=male,,female',
       });
       expect(res.statusCode).toBe(400);
       expect(res.json()).toMatchObject({
@@ -412,7 +412,7 @@ describe('statistics endpoints', () => {
     it('returns 400 for overlong category parameter', async () => {
       const res = await app.inject({
         method: 'GET',
-        url: `/v1/ranking?indicator=population&areaType=district&year=2023&category=${LONG_TEXT}`,
+        url: `/v1/ranking?indicator=population&areaType=district&year=2023&categories=${LONG_TEXT}`,
       });
       expect(res.statusCode).toBe(400);
       expect(res.json()).toMatchObject({
@@ -434,7 +434,7 @@ describe('statistics endpoints', () => {
     it('returns 400 for unknown category', async () => {
       const res = await app.inject({
         method: 'GET',
-        url: '/v1/ranking?indicator=population&areaType=district&year=2023&category=other',
+        url: '/v1/ranking?indicator=population&areaType=district&year=2023&categories=other',
       });
       expect(res.statusCode).toBe(400);
       expect(res.json()).toMatchObject({
@@ -474,7 +474,7 @@ describe('statistics endpoints', () => {
       async ({ indicator, year, category, rows }) => {
         const res = await app.inject({
           method: 'GET',
-          url: `/v1/ranking?indicator=${indicator}&areaType=district&year=${year}&category=${category}&limit=2&order=desc`,
+          url: `/v1/ranking?indicator=${indicator}&areaType=district&year=${year}&categories=${category}&limit=2&order=desc`,
         });
         expect(res.statusCode).toBe(200);
         expect(res.json()).toEqual({
@@ -491,7 +491,7 @@ describe('statistics endpoints', () => {
     it('supports ranking with multiple categories and areas via CSV', async () => {
       const res = await app.inject({
         method: 'GET',
-        url: '/v1/ranking?indicator=gender&areaType=district&year=2023&area=Altstadt,Vorstadt&category=male,female&limit=10&order=desc',
+        url: '/v1/ranking?indicator=gender&areaType=district&year=2023&areas=Altstadt,Vorstadt&categories=male,female&limit=10&order=desc',
       });
       expect(res.statusCode).toBe(200);
       expect(res.json()).toMatchObject({
@@ -514,7 +514,7 @@ describe('statistics endpoints', () => {
     it('returns 400 for malformed ranking CSV values', async () => {
       const res = await app.inject({
         method: 'GET',
-        url: '/v1/ranking?indicator=gender&areaType=district&year=2023&area=Altstadt,,Gaarden-Ost&category=male,,female',
+        url: '/v1/ranking?indicator=gender&areaType=district&year=2023&areas=Altstadt,,Gaarden-Ost&categories=male,,female',
       });
       expect(res.statusCode).toBe(400);
       expect(res.json()).toMatchObject({

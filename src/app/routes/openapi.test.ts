@@ -51,8 +51,14 @@ function getQueryParameter(doc: OpenApiDoc, path: string, name: string) {
         name?: string;
         example?: unknown;
         examples?: Record<string, { value?: unknown }>;
+        deprecated?: boolean;
         description?: string;
-        schema?: { description?: string; example?: unknown; examples?: unknown[] };
+        schema?: {
+          description?: string;
+          example?: unknown;
+          examples?: unknown[];
+          deprecated?: boolean;
+        };
       }>
     | undefined;
   return parameters?.find((parameter) => parameter.in === 'query' && parameter.name === name);
@@ -166,21 +172,31 @@ describe('openapi', () => {
     expectSchemaExamplesPresent(body, '/v1/area-types', '200');
     expectSchemaExamplesPresent(body, '/v1/area-types', '400');
 
-    // CSV docs: area/category on timeseries and ranking provide description and/or examples
+    // CSV docs: plural params on timeseries and ranking provide description and/or examples
     const timeseriesArea = getQueryParameter(body, '/v1/timeseries', 'area');
     const timeseriesCategory = getQueryParameter(body, '/v1/timeseries', 'category');
     const rankingArea = getQueryParameter(body, '/v1/ranking', 'area');
     const rankingCategory = getQueryParameter(body, '/v1/ranking', 'category');
 
-    expect(timeseriesArea).toBeDefined();
-    expect(timeseriesCategory).toBeDefined();
-    expect(rankingArea).toBeDefined();
-    expect(rankingCategory).toBeDefined();
+    const timeseriesAreas = getQueryParameter(body, '/v1/timeseries', 'areas');
+    const timeseriesCategories = getQueryParameter(body, '/v1/timeseries', 'categories');
+    const rankingAreas = getQueryParameter(body, '/v1/ranking', 'areas');
+    const rankingCategories = getQueryParameter(body, '/v1/ranking', 'categories');
 
-    expect(hasCsvDocs(timeseriesArea!)).toBe(true);
-    expect(hasCsvDocs(timeseriesCategory!)).toBe(true);
-    expect(hasCsvDocs(rankingArea!)).toBe(true);
-    expect(hasCsvDocs(rankingCategory!)).toBe(true);
+    expect(timeseriesArea).toBeUndefined();
+    expect(timeseriesCategory).toBeUndefined();
+    expect(rankingArea).toBeUndefined();
+    expect(rankingCategory).toBeUndefined();
+
+    expect(timeseriesAreas).toBeDefined();
+    expect(timeseriesCategories).toBeDefined();
+    expect(rankingAreas).toBeDefined();
+    expect(rankingCategories).toBeDefined();
+
+    expect(hasCsvDocs(timeseriesAreas!)).toBe(true);
+    expect(hasCsvDocs(timeseriesCategories!)).toBe(true);
+    expect(hasCsvDocs(rankingAreas!)).toBe(true);
+    expect(hasCsvDocs(rankingCategories!)).toBe(true);
 
     // /v1/areas query examples: population/district/total and gender variant
     const areasIndicator = getQueryParameter(body, '/v1/areas', 'indicator');
