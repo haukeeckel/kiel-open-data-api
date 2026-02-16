@@ -38,8 +38,8 @@ export default async function healthRoutes(app: FastifyInstance) {
     const dbUp = await req.server.dbManager.healthcheck();
     if (!dbUp) {
       req.log.warn('health-check: db unreachable');
-      return reply.code(503).send({ ok: false, ts, db: 'down' as const });
+      return reply.code(503).send({ ok: false as const, ts, db: 'down' as const });
     }
-    return { ok: true, ts, db: 'up' as const };
+    return { ok: true as const, ts, db: 'up' as const };
   });
 }
