@@ -208,35 +208,46 @@ export function createDuckDbStatisticsRepository(
         withRepositoryError(
           'statistics.getTimeseries',
           async () => {
-            const params: Array<string | number> = [input.indicator, input.areaType];
-            let sql = `
-          SELECT area_name, year, value, unit, category
-          FROM statistics
-          WHERE indicator = ? AND area_type = ?
-        `;
-
-            sql = appendInClause(sql, params, 'area_name', input.areas);
-
+            const filterValues: Array<string | number> = [input.indicator, input.areaType];
+            let filterSql = `FROM statistics WHERE indicator = ? AND area_type = ?`;
+            filterSql = appendInClause(filterSql, filterValues, 'area_name', input.areas);
             if (input.categories !== undefined) {
-              sql = appendInClause(sql, params, 'category', input.categories);
+              filterSql = appendInClause(filterSql, filterValues, 'category', input.categories);
             }
-
             if (input.from !== undefined) {
-              sql += ` AND year >= ?`;
-              params.push(input.from);
+              filterSql += ` AND year >= ?`;
+              filterValues.push(input.from);
             }
             if (input.to !== undefined) {
-              sql += ` AND year <= ?`;
-              params.push(input.to);
+              filterSql += ` AND year <= ?`;
+              filterValues.push(input.to);
             }
 
-            sql += ` ORDER BY area_name ASC, year ASC`;
+            const countReader = await runQueryWithTimeout({
+              conn,
+              operation: 'statistics.getTimeseries',
+              sql: `SELECT COUNT(*) AS total ${filterSql}`,
+              values: filterValues,
+              queryTimeoutMs,
+              slowQueryThresholdMs,
+              planSampleEnabled,
+              logger,
+            });
+            const total = requireInteger(countReader.getRowObjects()[0] ?? {}, 'total');
+
+            const sql = `
+          SELECT area_name, year, value, unit, category
+          ${filterSql}
+          ORDER BY area_name ASC, year ASC
+          LIMIT ? OFFSET ?
+        `;
+            const values = [...filterValues, input.limit, input.offset];
 
             const reader = await runQueryWithTimeout({
               conn,
               operation: 'statistics.getTimeseries',
               sql,
-              values: params,
+              values,
               queryTimeoutMs,
               slowQueryThresholdMs,
               planSampleEnabled,
@@ -258,6 +269,12 @@ export function createDuckDbStatisticsRepository(
               areaType: input.areaType,
               areas,
               rows,
+              pagination: {
+                total,
+                limit: input.limit,
+                offset: input.offset,
+                hasMore: input.offset + rows.length < total,
+              },
             };
           },
           logger,
@@ -397,11 +414,10 @@ export function createDuckDbStatisticsRepository(
         withRepositoryError(
           'statistics.listYears',
           async () => {
+            const offset = input?.offset ?? 0;
+            const limit = input?.limit;
             const values: Array<string | number> = [];
-            let sql = `
-          SELECT DISTINCT year
-          FROM statistics
-          `;
+            let filterSql = `FROM statistics`;
             const conditions: string[] = [];
             if (input?.indicator !== undefined) {
               conditions.push('indicator = ?');
@@ -420,21 +436,48 @@ export function createDuckDbStatisticsRepository(
               values.push(input.area);
             }
             if (conditions.length > 0) {
-              sql += ` WHERE ${conditions.join(' AND ')}`;
+              filterSql += ` WHERE ${conditions.join(' AND ')}`;
             }
-            sql += ` ORDER BY year ASC`;
-            const reader = await runQueryWithTimeout({
+
+            const countReader = await runQueryWithTimeout({
               conn,
               operation: 'statistics.listYears',
-              sql,
+              sql: `SELECT COUNT(DISTINCT year) AS total ${filterSql}`,
               ...(values.length > 0 ? { values } : {}),
               queryTimeoutMs,
               slowQueryThresholdMs,
               planSampleEnabled,
               logger,
             });
+            const total = requireInteger(countReader.getRowObjects()[0] ?? {}, 'total');
+
+            const sql = `
+          SELECT DISTINCT year
+          ${filterSql}
+          ORDER BY year ASC
+          ${limit !== undefined ? `LIMIT ? OFFSET ?` : ''}
+        `;
+            const queryValues = limit !== undefined ? [...values, limit, offset] : values;
+            const reader = await runQueryWithTimeout({
+              conn,
+              operation: 'statistics.listYears',
+              sql,
+              ...(queryValues.length > 0 ? { values: queryValues } : {}),
+              queryTimeoutMs,
+              slowQueryThresholdMs,
+              planSampleEnabled,
+              logger,
+            });
             const rows = reader.getRowObjects().map((r) => requireInteger(r, 'year'));
-            return { rows };
+            return {
+              rows,
+              pagination: {
+                total,
+                limit: limit ?? total,
+                offset,
+                hasMore: limit !== undefined ? offset + rows.length < total : false,
+              },
+            };
           },
           logger,
         ),
@@ -568,8 +611,10 @@ export function createDuckDbStatisticsRepository(
         withRepositoryError(
           'statistics.listIndicators',
           async () => {
+            const offset = query?.offset ?? 0;
+            const limit = query?.limit;
             const values: Array<string | number> = [];
-            let sql = `SELECT DISTINCT indicator FROM statistics`;
+            let filterSql = `FROM statistics`;
             const conditions: string[] = [];
             if (query?.areaType !== undefined) {
               conditions.push('area_type = ?');
@@ -584,21 +629,48 @@ export function createDuckDbStatisticsRepository(
               values.push(query.year);
             }
             if (conditions.length > 0) {
-              sql += ` WHERE ${conditions.join(' AND ')}`;
+              filterSql += ` WHERE ${conditions.join(' AND ')}`;
             }
-            sql += ` ORDER BY indicator ASC`;
-            const reader = await runQueryWithTimeout({
+
+            const countReader = await runQueryWithTimeout({
               conn,
               operation: 'statistics.listIndicators',
-              sql,
+              sql: `SELECT COUNT(DISTINCT indicator) AS total ${filterSql}`,
               ...(values.length > 0 ? { values } : {}),
               queryTimeoutMs,
               slowQueryThresholdMs,
               planSampleEnabled,
               logger,
             });
+            const total = requireInteger(countReader.getRowObjects()[0] ?? {}, 'total');
+
+            const sql = `
+          SELECT DISTINCT indicator
+          ${filterSql}
+          ORDER BY indicator ASC
+          ${limit !== undefined ? `LIMIT ? OFFSET ?` : ''}
+        `;
+            const queryValues = limit !== undefined ? [...values, limit, offset] : values;
+            const reader = await runQueryWithTimeout({
+              conn,
+              operation: 'statistics.listIndicators',
+              sql,
+              ...(queryValues.length > 0 ? { values: queryValues } : {}),
+              queryTimeoutMs,
+              slowQueryThresholdMs,
+              planSampleEnabled,
+              logger,
+            });
             const rows = reader.getRowObjects().map((r) => requireString(r, 'indicator'));
-            return { rows };
+            return {
+              rows,
+              pagination: {
+                total,
+                limit: limit ?? total,
+                offset,
+                hasMore: limit !== undefined ? offset + rows.length < total : false,
+              },
+            };
           },
           logger,
         ),
