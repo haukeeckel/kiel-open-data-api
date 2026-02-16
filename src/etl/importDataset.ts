@@ -22,6 +22,7 @@ import { quoteIdentifier } from './sql.js';
 
 import type { DatasetConfig } from './datasets/types.js';
 import type { ImportRunContext } from './import/types.js';
+import type { DuckDBValue } from '@duckdb/node-api';
 
 export type ImportDatasetOptions = {
   csvPath?: string | undefined;
@@ -37,6 +38,11 @@ export type ImportDatasetResult = {
 async function resolveDataVersion(csvPath: string): Promise<string> {
   const stat = await fs.stat(csvPath);
   return `size:${stat.size};mtimeMs:${Math.trunc(stat.mtimeMs)}`;
+}
+
+function isUnicodeDecodeError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /Invalid unicode|not utf-8 encoded/i.test(msg);
 }
 
 export async function importDataset(
@@ -57,6 +63,7 @@ export async function importDataset(
   const csvPath = opts?.csvPath ?? path.join(getCacheDir(), config.csvFilename);
   const dbPath = opts?.dbPath ?? getDuckDbPath(env);
   const csvDelimiter = config.csvDelimiter ?? ';';
+  const csvReadOptions = config.csvReadOptions;
 
   if (csvDelimiter.length !== 1) {
     throw new Error(
@@ -108,16 +115,70 @@ export async function importDataset(
     }
 
     await runStep('load_csv_temp_table', async () => {
-      await conn.run(
-        `
-        CREATE OR REPLACE TEMP TABLE raw AS
-        SELECT
-          *,
-          row_number() OVER () AS _ingest_order
-        FROM read_csv_auto(?, header=true, delim=?);
-      `,
-        [csvPath, csvDelimiter],
-      );
+      const encodings: Array<string | undefined> = [
+        csvReadOptions?.encoding,
+        ...(csvReadOptions?.fallbackEncodings ?? []),
+      ].filter((value, index, all) => all.indexOf(value) === index);
+      if (encodings.length === 0) {
+        encodings.push(undefined);
+      }
+
+      const buildReadCsv = (encoding: string | undefined) => {
+        const optionClauses = ['header=true', 'delim=?'];
+        const params: DuckDBValue[] = [csvPath, csvDelimiter];
+        if (csvReadOptions?.quote !== undefined) {
+          optionClauses.push('quote=?');
+          params.push(csvReadOptions.quote);
+        }
+        if (encoding !== undefined) {
+          optionClauses.push('encoding=?');
+          params.push(encoding);
+        }
+        if (csvReadOptions?.escape !== undefined) {
+          optionClauses.push('escape=?');
+          params.push(csvReadOptions.escape);
+        }
+        if (csvReadOptions?.strictMode !== undefined) {
+          optionClauses.push('strict_mode=?');
+          params.push(csvReadOptions.strictMode);
+        }
+        if (csvReadOptions?.nullPadding !== undefined) {
+          optionClauses.push('null_padding=?');
+          params.push(csvReadOptions.nullPadding);
+        }
+        return { optionClauses, params };
+      };
+
+      let lastError: unknown;
+      for (let i = 0; i < encodings.length; i += 1) {
+        const encoding = encodings[i];
+        try {
+          const { optionClauses, params } = buildReadCsv(encoding);
+          await conn.run(
+            `
+            CREATE OR REPLACE TEMP TABLE raw AS
+            SELECT
+              *,
+              row_number() OVER () AS _ingest_order
+            FROM read_csv_auto(?, ${optionClauses.join(', ')});
+          `,
+            params,
+          );
+          return;
+        } catch (err) {
+          lastError = err;
+          const hasFallback = i < encodings.length - 1;
+          if (!hasFallback || !isUnicodeDecodeError(err)) {
+            throw err;
+          }
+          log.warn(
+            { ...ctx, encodingTried: encoding, nextEncoding: encodings[i + 1] },
+            'etl.import: retry csv read with fallback encoding',
+          );
+        }
+      }
+
+      throw lastError instanceof Error ? lastError : new Error(String(lastError));
     });
 
     const cols = await runStep('normalize_headers', async () =>
