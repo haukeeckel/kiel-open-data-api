@@ -258,6 +258,7 @@ describe('statistics endpoints', () => {
           { area: 'Altstadt', year: 2022, value: 1213, unit: 'persons', category: 'total' },
           { area: 'Altstadt', year: 2023, value: 1220, unit: 'persons', category: 'total' },
         ],
+        pagination: { total: 2, limit: 50, offset: 0, hasMore: false },
       });
     });
 
@@ -285,6 +286,7 @@ describe('statistics endpoints', () => {
           areaType: 'district',
           areas: ['Altstadt'],
           rows,
+          pagination: { total: rows.length, limit: 50, offset: 0, hasMore: false },
         });
       },
     );
@@ -302,6 +304,7 @@ describe('statistics endpoints', () => {
           areaType: 'district',
           areas: ['Altstadt'],
           rows,
+          pagination: { total: rows.length, limit: 50, offset: 0, hasMore: false },
         });
       },
     );
@@ -326,6 +329,34 @@ describe('statistics endpoints', () => {
         ]),
       );
       expect(res.json().rows).toHaveLength(4);
+    });
+
+    it('applies limit and offset pagination for timeseries', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/timeseries?indicator=population&areaType=district&areas=Altstadt&limit=1&offset=1',
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json().rows).toEqual([
+        { area: 'Altstadt', year: 2023, value: 1220, unit: 'persons', category: 'total' },
+      ]);
+      expect(res.json().pagination).toEqual({ total: 2, limit: 1, offset: 1, hasMore: false });
+      expect(res.json().areas).toEqual(['Altstadt']);
+    });
+
+    it('returns 400 for invalid pagination params on timeseries', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/timeseries?indicator=population&areaType=district&areas=Altstadt&limit=0',
+      });
+      expect(res.statusCode).toBe(400);
+      expect(res.json()).toMatchObject({
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'Invalid query parameters',
+          reason: 'INVALID_QUERY_PARAMS',
+        },
+      });
     });
 
     it('returns 400 for malformed CSV query values', async () => {
@@ -668,6 +699,7 @@ describe('statistics endpoints', () => {
           'unemployed_count',
           'unemployed_rate',
         ],
+        pagination: { total: 14, limit: 50, offset: 0, hasMore: false },
       });
     });
 
@@ -691,13 +723,44 @@ describe('statistics endpoints', () => {
     it('filters indicators by year', async () => {
       const res = await app.inject({ method: 'GET', url: '/v1/indicators?year=2018' });
       expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({ rows: ['unemployed_rate'] });
+      expect(res.json()).toEqual({
+        rows: ['unemployed_rate'],
+        pagination: { total: 1, limit: 50, offset: 0, hasMore: false },
+      });
     });
 
     it('filters indicators by area without areaType', async () => {
       const res = await app.inject({ method: 'GET', url: '/v1/indicators?area=Wik' });
       expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({ rows: ['households'] });
+      expect(res.json()).toEqual({
+        rows: ['households'],
+        pagination: { total: 1, limit: 50, offset: 0, hasMore: false },
+      });
+    });
+
+    it('applies limit and offset pagination for indicators', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/indicators?limit=2&offset=1',
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json().rows).toHaveLength(2);
+      expect(res.json().pagination).toEqual({ total: 14, limit: 2, offset: 1, hasMore: true });
+    });
+
+    it('returns 400 for invalid pagination params on indicators', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/indicators?limit=501',
+      });
+      expect(res.statusCode).toBe(400);
+      expect(res.json()).toMatchObject({
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'Invalid query parameters',
+          reason: 'INVALID_QUERY_PARAMS',
+        },
+      });
     });
   });
 
@@ -736,7 +799,10 @@ describe('statistics endpoints', () => {
     it('returns years without filters', async () => {
       const res = await app.inject({ method: 'GET', url: '/v1/years' });
       expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({ rows: [2018, 2019, 2020, 2022, 2023] });
+      expect(res.json()).toEqual({
+        rows: [2018, 2019, 2020, 2022, 2023],
+        pagination: { total: 5, limit: 50, offset: 0, hasMore: false },
+      });
     });
 
     it('filters years by indicator and areaType', async () => {
@@ -745,7 +811,10 @@ describe('statistics endpoints', () => {
         url: '/v1/years?indicator=gender&areaType=district',
       });
       expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({ rows: [2022, 2023] });
+      expect(res.json()).toEqual({
+        rows: [2022, 2023],
+        pagination: { total: 2, limit: 50, offset: 0, hasMore: false },
+      });
     });
 
     it('filters years by category', async () => {
@@ -754,7 +823,10 @@ describe('statistics endpoints', () => {
         url: '/v1/years?indicator=gender&areaType=district&category=single_person',
       });
       expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({ rows: [] });
+      expect(res.json()).toEqual({
+        rows: [],
+        pagination: { total: 0, limit: 50, offset: 0, hasMore: false },
+      });
     });
 
     it('filters years by area', async () => {
@@ -763,7 +835,10 @@ describe('statistics endpoints', () => {
         url: '/v1/years?area=Wik',
       });
       expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({ rows: [2023] });
+      expect(res.json()).toEqual({
+        rows: [2023],
+        pagination: { total: 1, limit: 50, offset: 0, hasMore: false },
+      });
     });
 
     it('returns empty rows for unknown indicator context', async () => {
@@ -772,7 +847,37 @@ describe('statistics endpoints', () => {
         url: '/v1/years?indicator=unknown',
       });
       expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({ rows: [] });
+      expect(res.json()).toEqual({
+        rows: [],
+        pagination: { total: 0, limit: 50, offset: 0, hasMore: false },
+      });
+    });
+
+    it('applies limit and offset pagination for years', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/years?limit=2&offset=1',
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        rows: [2019, 2020],
+        pagination: { total: 5, limit: 2, offset: 1, hasMore: true },
+      });
+    });
+
+    it('returns 400 for invalid pagination params on years', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v1/years?offset=-1',
+      });
+      expect(res.statusCode).toBe(400);
+      expect(res.json()).toMatchObject({
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'Invalid query parameters',
+          reason: 'INVALID_QUERY_PARAMS',
+        },
+      });
     });
 
     it('returns 400 for unknown areaType filter', async () => {

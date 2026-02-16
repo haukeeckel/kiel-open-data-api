@@ -37,11 +37,11 @@ describe('services plugin', () => {
         areaType,
         areas: ['Altstadt'],
         rows: [],
+        pagination: { total: 0, limit: 50, offset: 0, hasMore: false },
       }),
       listYears: async () => ({
-        indicator,
-        areaType,
         rows: [2023],
+        pagination: { total: 1, limit: 50, offset: 0, hasMore: false },
       }),
       getIndicatorMeta: async () => ({
         indicator,
@@ -53,7 +53,10 @@ describe('services plugin', () => {
           { areaType, indicators: [indicator], categories: ['total'], areas: ['Altstadt'] },
         ],
       }),
-      listIndicators: async () => ({ rows: [indicator] }),
+      listIndicators: async () => ({
+        rows: [indicator],
+        pagination: { total: 1, limit: 50, offset: 0, hasMore: false },
+      }),
       listAreaTypes: async () => ({ rows: [areaType] }),
       getFreshnessMeta: async () => ({ dataVersion: 'test-version', lastUpdatedAt: null }),
     };
@@ -89,8 +92,17 @@ describe('services plugin', () => {
       })),
       listAreas: vi.fn(async () => ({ indicator, areaType, rows: [] })),
       listCategories: vi.fn(async () => ({ indicator, areaType, rows: ['total'] })),
-      getTimeseries: vi.fn(async () => ({ indicator, areaType, areas: ['Altstadt'], rows: [] })),
-      listYears: vi.fn(async () => ({ rows: [2023] })),
+      getTimeseries: vi.fn(async () => ({
+        indicator,
+        areaType,
+        areas: ['Altstadt'],
+        rows: [],
+        pagination: { total: 0, limit: 50, offset: 0, hasMore: false },
+      })),
+      listYears: vi.fn(async () => ({
+        rows: [2023],
+        pagination: { total: 1, limit: 50, offset: 0, hasMore: false },
+      })),
       getIndicatorMeta: vi.fn(async () => ({
         indicator,
         areaTypes: [{ areaType, years: [2023], categories: ['total'], areas: ['Altstadt'] }],
@@ -101,7 +113,10 @@ describe('services plugin', () => {
           { areaType, indicators: [indicator], categories: ['total'], areas: ['Altstadt'] },
         ],
       })),
-      listIndicators: vi.fn(async () => ({ rows: [indicator] })),
+      listIndicators: vi.fn(async () => ({
+        rows: [indicator],
+        pagination: { total: 1, limit: 50, offset: 0, hasMore: false },
+      })),
       listAreaTypes: vi.fn(async () => ({ rows: [areaType] })),
       getFreshnessMeta: vi.fn(async () => ({ dataVersion: 'test-version', lastUpdatedAt: null })),
     };

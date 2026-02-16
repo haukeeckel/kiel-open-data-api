@@ -21,6 +21,7 @@ function createFakeRepo(): StatisticsRepository {
             category: 'single_person',
           },
         ],
+        pagination: { total: 2, limit: input.limit, offset: input.offset, hasMore: false },
       };
     },
     async listAreas(input) {
@@ -57,21 +58,40 @@ function createFakeRepo(): StatisticsRepository {
         ],
       };
     },
-    async listIndicators() {
-      return { rows: ['households', 'population'] };
+    async listIndicators(input) {
+      return {
+        rows: ['households', 'population'],
+        pagination: {
+          total: 2,
+          limit: input?.limit ?? 50,
+          offset: input?.offset ?? 0,
+          hasMore: false,
+        },
+      };
     },
     async listYears(input) {
+      const limit = input?.limit ?? 50;
+      const offset = input?.offset ?? 0;
       if (!input || (input.indicator === undefined && input.areaType === undefined)) {
-        return { rows: [2022, 2023] };
+        return {
+          rows: [2022, 2023],
+          pagination: { total: 2, limit, offset, hasMore: false },
+        };
       }
       if (
         input.indicator === 'population' &&
         input.areaType === 'district' &&
         (input.category === undefined || input.category === 'total')
       ) {
-        return { rows: [2022, 2023] };
+        return {
+          rows: [2022, 2023],
+          pagination: { total: 2, limit, offset, hasMore: false },
+        };
       }
-      return { rows: [] };
+      return {
+        rows: [],
+        pagination: { total: 0, limit, offset, hasMore: false },
+      };
     },
     async getYearMeta(year) {
       if (year !== 2023) return null;
@@ -121,6 +141,8 @@ describe('StatisticsQueryService', () => {
         areas: ['Altstadt'],
         from: 2024,
         to: 2023,
+        limit: 50,
+        offset: 0,
       }),
     ).rejects.toThrow(/from must be <= to/i);
   });
@@ -158,6 +180,8 @@ describe('StatisticsQueryService', () => {
       areaType: 'district',
       areas: ['Altstadt'],
       categories: ['single_person'],
+      limit: 50,
+      offset: 0,
     });
 
     expect(getTimeseriesSpy).toHaveBeenCalledWith({
@@ -165,6 +189,8 @@ describe('StatisticsQueryService', () => {
       areaType: 'district',
       areas: ['Altstadt'],
       categories: ['single_person'],
+      limit: 50,
+      offset: 0,
     });
     expect(result.rows).toEqual([
       { area: 'Altstadt', year: 2023, value: 1, unit: 'persons', category: 'total' },
@@ -209,12 +235,16 @@ describe('StatisticsQueryService', () => {
       indicator: 'households',
       areaType: 'district',
       areas: ['Altstadt'],
+      limit: 50,
+      offset: 0,
     });
 
     expect(getTimeseriesSpy).toHaveBeenCalledWith({
       indicator: 'households',
       areaType: 'district',
       areas: ['Altstadt'],
+      limit: 50,
+      offset: 0,
     });
     expect(result.rows).toEqual([
       { area: 'Altstadt', year: 2023, value: 1, unit: 'persons', category: 'total' },
@@ -277,7 +307,7 @@ describe('StatisticsQueryService', () => {
   it('passes listIndicators through to repository', async () => {
     const svc = new StatisticsQueryService(createFakeRepo());
 
-    const result = await svc.listIndicators();
+    const result = await svc.listIndicators({ limit: 50, offset: 0 });
     expect(result.rows).toEqual(['households', 'population']);
   });
 
@@ -286,12 +316,20 @@ describe('StatisticsQueryService', () => {
     const listIndicatorsSpy = vi.spyOn(repo, 'listIndicators');
     const svc = new StatisticsQueryService(repo);
 
-    await svc.listIndicators({ areaType: 'district', area: 'Altstadt', year: 2023 });
+    await svc.listIndicators({
+      areaType: 'district',
+      area: 'Altstadt',
+      year: 2023,
+      limit: 50,
+      offset: 0,
+    });
 
     expect(listIndicatorsSpy).toHaveBeenCalledWith({
       areaType: 'district',
       area: 'Altstadt',
       year: 2023,
+      limit: 50,
+      offset: 0,
     });
   });
 
@@ -435,6 +473,8 @@ describe('StatisticsQueryService', () => {
       areaType: 'district',
       category: 'total',
       area: 'Altstadt',
+      limit: 50,
+      offset: 0,
     });
 
     expect(listYearsSpy).toHaveBeenCalledWith({
@@ -442,6 +482,8 @@ describe('StatisticsQueryService', () => {
       areaType: 'district',
       category: 'total',
       area: 'Altstadt',
+      limit: 50,
+      offset: 0,
     });
     expect(result.rows).toEqual([2022, 2023]);
   });
@@ -454,14 +496,21 @@ describe('StatisticsQueryService', () => {
         indicator: 'population',
         areaType: 'district',
         category: 'single_person',
+        limit: 50,
+        offset: 0,
       }),
-    ).resolves.toEqual({ rows: [] });
+    ).resolves.toEqual({
+      rows: [],
+      pagination: { total: 0, limit: 50, offset: 0, hasMore: false },
+    });
   });
 
   it('validates areaType when passed to listYears', async () => {
     const svc = new StatisticsQueryService(createFakeRepo());
 
-    await expect(svc.listYears({ areaType: 'unknown' })).rejects.toMatchObject({
+    await expect(
+      svc.listYears({ areaType: 'unknown', limit: 50, offset: 0 }),
+    ).rejects.toMatchObject({
       name: 'StatisticsValidationError',
       message: 'Unknown areaType: unknown',
       details: {
@@ -579,6 +628,8 @@ describe('StatisticsQueryService', () => {
         areaType: 'district',
         areas: ['Altstadt'],
         categories: ['other'],
+        limit: 50,
+        offset: 0,
       }),
     ).rejects.toMatchObject({
       name: 'StatisticsValidationError',
