@@ -2,6 +2,7 @@ import type {
   AreaTypesResult,
   AreasQuery,
   AreasResult,
+  CapabilitiesResult,
   CategoriesQuery,
   CategoriesResult,
   IndicatorMetaResult,
@@ -39,6 +40,8 @@ export type StatisticsRepository = {
   listIndicators(query?: IndicatorsQuery): Promise<IndicatorsResult>;
 
   listAreaTypes(): Promise<AreaTypesResult>;
+
+  getCapabilities(): Promise<CapabilitiesResult>;
 
   getFreshnessMeta(): Promise<StatisticsFreshnessMeta>;
 };
