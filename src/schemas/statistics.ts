@@ -2,6 +2,10 @@ import { z } from 'zod';
 
 import {
   ORDERS,
+  PAGINATION_LIMIT_DEFAULT,
+  PAGINATION_LIMIT_MAX,
+  PAGINATION_LIMIT_MIN,
+  PAGINATION_OFFSET_DEFAULT,
   RANKING_LIMIT_DEFAULT,
   RANKING_LIMIT_MAX,
   RANKING_LIMIT_MIN,
@@ -21,6 +25,8 @@ const INDICATOR_DESCRIPTION = 'Indicator slug.';
 const AREA_TYPE_DESCRIPTION = 'Area type slug.';
 const CATEGORY_DESCRIPTION = 'Category value filter.';
 const YEAR_DESCRIPTION = 'Calendar year.';
+const PAGINATION_LIMIT_DESCRIPTION = 'Page size (max number of rows per response page).';
+const PAGINATION_OFFSET_DESCRIPTION = 'Page offset (number of rows skipped before page starts).';
 
 const IndicatorQueryParam = Indicator.max(QUERY_TEXT_MAX)
   .describe(INDICATOR_DESCRIPTION)
@@ -46,6 +52,30 @@ const AreaQueryParam = z
 const CategoryQueryParam = Category.describe(CATEGORY_DESCRIPTION).meta({
   example: 'total',
   examples: ['total'],
+});
+
+const PaginationLimitQueryParam = z.coerce
+  .number()
+  .int()
+  .min(PAGINATION_LIMIT_MIN)
+  .max(PAGINATION_LIMIT_MAX)
+  .default(PAGINATION_LIMIT_DEFAULT)
+  .describe(PAGINATION_LIMIT_DESCRIPTION)
+  .meta({ example: PAGINATION_LIMIT_DEFAULT, examples: [10, 50, 100] });
+
+const PaginationOffsetQueryParam = z.coerce
+  .number()
+  .int()
+  .min(PAGINATION_OFFSET_DEFAULT)
+  .default(PAGINATION_OFFSET_DEFAULT)
+  .describe(PAGINATION_OFFSET_DESCRIPTION)
+  .meta({ example: PAGINATION_OFFSET_DEFAULT, examples: [0, 10, 100] });
+
+const PaginationMeta = z.object({
+  total: z.number().int().nonnegative(),
+  limit: z.number().int().positive(),
+  offset: z.number().int().nonnegative(),
+  hasMore: z.boolean(),
 });
 
 function hasNoEmptyCsvTokens(value: string): boolean {
@@ -100,6 +130,8 @@ export const TimeseriesQuery = z.object({
     .describe('End year (inclusive).')
     .meta({ example: 2023, examples: [2023] })
     .optional(),
+  limit: PaginationLimitQueryParam,
+  offset: PaginationOffsetQueryParam,
 });
 
 export const TimeseriesResponse = z
@@ -116,6 +148,7 @@ export const TimeseriesResponse = z
         category: z.string(),
       }),
     ),
+    pagination: PaginationMeta,
   })
   .meta({
     examples: [
@@ -127,6 +160,7 @@ export const TimeseriesResponse = z
           { area: 'Altstadt', year: 2022, value: 1213, unit: 'persons', category: 'total' },
           { area: 'Altstadt', year: 2023, value: 1220, unit: 'persons', category: 'total' },
         ],
+        pagination: { total: 2, limit: 50, offset: 0, hasMore: false },
       },
     ],
   });
@@ -249,11 +283,20 @@ export const YearsQuery = z.object({
   areaType: AreaTypeQueryParam.optional(),
   category: CategoryQueryParam.optional(),
   area: AreaQueryParam.optional(),
+  limit: PaginationLimitQueryParam,
+  offset: PaginationOffsetQueryParam,
 });
 
-export const YearsResponse = z.object({ rows: z.array(z.number().int()) }).meta({
-  examples: [{ rows: [2018, 2019, 2020, 2022, 2023] }],
-});
+export const YearsResponse = z
+  .object({ rows: z.array(z.number().int()), pagination: PaginationMeta })
+  .meta({
+    examples: [
+      {
+        rows: [2018, 2019, 2020, 2022, 2023],
+        pagination: { total: 5, limit: 50, offset: 0, hasMore: false },
+      },
+    ],
+  });
 
 export const IndicatorsQuery = z.object({
   areaType: AreaTypeQueryParam.optional(),
@@ -264,15 +307,20 @@ export const IndicatorsQuery = z.object({
     .describe(YEAR_DESCRIPTION)
     .meta({ example: 2023, examples: [2023, 2018] })
     .optional(),
+  limit: PaginationLimitQueryParam,
+  offset: PaginationOffsetQueryParam,
 });
 
-export const IndicatorsResponse = z.object({ rows: z.array(z.string()) }).meta({
-  examples: [
-    {
-      rows: ['population', 'gender', 'households'],
-    },
-  ],
-});
+export const IndicatorsResponse = z
+  .object({ rows: z.array(z.string()), pagination: PaginationMeta })
+  .meta({
+    examples: [
+      {
+        rows: ['population', 'gender', 'households'],
+        pagination: { total: 3, limit: 50, offset: 0, hasMore: false },
+      },
+    ],
+  });
 
 export const IndicatorPathParams = z.object({
   indicator: Indicator.max(QUERY_TEXT_MAX),

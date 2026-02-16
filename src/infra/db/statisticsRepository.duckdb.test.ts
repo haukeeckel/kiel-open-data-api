@@ -51,6 +51,8 @@ describe('DuckDbStatisticsRepository', () => {
         indicator: 'population',
         areaType: 'district',
         areas: ['Altstadt'],
+        limit: 50,
+        offset: 0,
       });
 
       expect(result).toEqual({
@@ -61,6 +63,7 @@ describe('DuckDbStatisticsRepository', () => {
           { area: 'Altstadt', year: 2022, value: 1213, unit: 'persons', category: 'total' },
           { area: 'Altstadt', year: 2023, value: 1220, unit: 'persons', category: 'total' },
         ],
+        pagination: { total: 2, limit: 50, offset: 0, hasMore: false },
       });
     });
 
@@ -69,6 +72,8 @@ describe('DuckDbStatisticsRepository', () => {
         indicator: 'population',
         areaType: 'district',
         areas: ['NonExistent'],
+        limit: 50,
+        offset: 0,
       });
 
       expect(result.rows).toEqual([]);
@@ -81,6 +86,8 @@ describe('DuckDbStatisticsRepository', () => {
         areas: ['Altstadt'],
         from: 2023,
         to: 2023,
+        limit: 50,
+        offset: 0,
       });
 
       expect(result.rows).toEqual([
@@ -94,6 +101,8 @@ describe('DuckDbStatisticsRepository', () => {
         areaType: 'district',
         areas: ['Gaarden-Ost'],
         from: 2023,
+        limit: 50,
+        offset: 0,
       });
 
       expect(result.rows).toHaveLength(1);
@@ -106,6 +115,8 @@ describe('DuckDbStatisticsRepository', () => {
         areaType: 'district',
         areas: ['Gaarden-Ost'],
         to: 2022,
+        limit: 50,
+        offset: 0,
       });
 
       expect(result.rows).toHaveLength(1);
@@ -117,6 +128,8 @@ describe('DuckDbStatisticsRepository', () => {
         indicator: 'population',
         areaType: 'district',
         areas: ['Gaarden-Ost'],
+        limit: 50,
+        offset: 0,
       });
 
       const years = result.rows.map((r) => r.year);
@@ -128,6 +141,8 @@ describe('DuckDbStatisticsRepository', () => {
         indicator: 'households',
         areaType: 'district',
         areas: ['Altstadt'],
+        limit: 50,
+        offset: 0,
       });
 
       expect(result.rows).toEqual([
@@ -148,6 +163,8 @@ describe('DuckDbStatisticsRepository', () => {
         areaType: 'district',
         areas: ['Altstadt', 'Gaarden-Ost'],
         categories: ['single_person', 'total'],
+        limit: 50,
+        offset: 0,
       });
 
       expect(result.areas).toEqual(['Altstadt', 'Gaarden-Ost']);
@@ -378,17 +395,26 @@ describe('DuckDbStatisticsRepository', () => {
   describe('listYears', () => {
     it('returns distinct years sorted ascending without filters', async () => {
       const result = await repo.listYears();
-      expect(result).toEqual({ rows: [2022, 2023] });
+      expect(result).toEqual({
+        rows: [2022, 2023],
+        pagination: { total: 2, limit: 2, offset: 0, hasMore: false },
+      });
     });
 
     it('filters by indicator', async () => {
       const result = await repo.listYears({ indicator: 'households' });
-      expect(result.rows).toEqual([2023]);
+      expect(result).toEqual({
+        rows: [2023],
+        pagination: { total: 1, limit: 1, offset: 0, hasMore: false },
+      });
     });
 
     it('filters by areaType', async () => {
       const result = await repo.listYears({ areaType: 'district' });
-      expect(result.rows).toEqual([2022, 2023]);
+      expect(result).toEqual({
+        rows: [2022, 2023],
+        pagination: { total: 2, limit: 2, offset: 0, hasMore: false },
+      });
     });
 
     it('respects category filter', async () => {
@@ -396,12 +422,18 @@ describe('DuckDbStatisticsRepository', () => {
         category: 'single_person',
       });
 
-      expect(result.rows).toEqual([2023]);
+      expect(result).toEqual({
+        rows: [2023],
+        pagination: { total: 1, limit: 1, offset: 0, hasMore: false },
+      });
     });
 
     it('filters by area', async () => {
       const result = await repo.listYears({ area: 'Wik' });
-      expect(result.rows).toEqual([2023]);
+      expect(result).toEqual({
+        rows: [2023],
+        pagination: { total: 1, limit: 1, offset: 0, hasMore: false },
+      });
     });
 
     it('supports combined filters', async () => {
@@ -411,12 +443,18 @@ describe('DuckDbStatisticsRepository', () => {
         category: 'total',
         area: 'Altstadt',
       });
-      expect(result.rows).toEqual([2022, 2023]);
+      expect(result).toEqual({
+        rows: [2022, 2023],
+        pagination: { total: 2, limit: 2, offset: 0, hasMore: false },
+      });
     });
 
     it('returns empty rows when nothing matches', async () => {
       const result = await repo.listYears({ indicator: 'unknown' });
-      expect(result.rows).toEqual([]);
+      expect(result).toEqual({
+        rows: [],
+        pagination: { total: 0, limit: 0, offset: 0, hasMore: false },
+      });
     });
   });
 
@@ -471,22 +509,34 @@ describe('DuckDbStatisticsRepository', () => {
     it('returns distinct indicators sorted', async () => {
       const result = await repo.listIndicators();
 
-      expect(result.rows).toEqual(['households', 'population']);
+      expect(result).toEqual({
+        rows: ['households', 'population'],
+        pagination: { total: 2, limit: 2, offset: 0, hasMore: false },
+      });
     });
 
     it('filters by areaType', async () => {
       const result = await repo.listIndicators({ areaType: 'district' });
-      expect(result.rows).toEqual(['households', 'population']);
+      expect(result).toEqual({
+        rows: ['households', 'population'],
+        pagination: { total: 2, limit: 2, offset: 0, hasMore: false },
+      });
     });
 
     it('filters by area', async () => {
       const result = await repo.listIndicators({ area: 'Wik' });
-      expect(result.rows).toEqual(['households']);
+      expect(result).toEqual({
+        rows: ['households'],
+        pagination: { total: 1, limit: 1, offset: 0, hasMore: false },
+      });
     });
 
     it('filters by year', async () => {
       const result = await repo.listIndicators({ year: 2022 });
-      expect(result.rows).toEqual(['population']);
+      expect(result).toEqual({
+        rows: ['population'],
+        pagination: { total: 1, limit: 1, offset: 0, hasMore: false },
+      });
     });
 
     it('supports combined filters', async () => {
@@ -495,7 +545,10 @@ describe('DuckDbStatisticsRepository', () => {
         area: 'Altstadt',
         year: 2023,
       });
-      expect(result.rows).toEqual(['households', 'population']);
+      expect(result).toEqual({
+        rows: ['households', 'population'],
+        pagination: { total: 2, limit: 2, offset: 0, hasMore: false },
+      });
     });
   });
 
@@ -609,7 +662,7 @@ describe('DuckDbStatisticsRepository', () => {
       const text = await metricsRegistry.metrics();
 
       expect(text).toMatch(
-        /db_queries_total\{operation="statistics\.listIndicators",status="ok"\}\s+1/,
+        /db_queries_total\{operation="statistics\.listIndicators",status="ok"\}\s+2/,
       );
       expect(text).toMatch(
         /db_query_duration_seconds_(bucket|sum|count)\{operation="statistics\.listIndicators",status="ok"/,

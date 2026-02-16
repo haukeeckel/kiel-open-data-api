@@ -5,6 +5,10 @@ export type Order = (typeof ORDERS)[number];
 export const RANKING_LIMIT_MIN = 1;
 export const RANKING_LIMIT_MAX = 100;
 export const RANKING_LIMIT_DEFAULT = 50;
+export const PAGINATION_LIMIT_MIN = 1;
+export const PAGINATION_LIMIT_MAX = 500;
+export const PAGINATION_LIMIT_DEFAULT = 50;
+export const PAGINATION_OFFSET_DEFAULT = 0;
 
 export type TimeseriesQuery = {
   indicator: string;
@@ -13,6 +17,8 @@ export type TimeseriesQuery = {
   categories?: string[];
   from?: number;
   to?: number;
+  limit: number;
+  offset: number;
 };
 
 export type AreasQuery = {
@@ -32,6 +38,8 @@ export type YearsQuery = {
   areaType?: string;
   category?: string;
   area?: string;
+  limit?: number;
+  offset?: number;
 };
 
 export type RankingQuery = {
@@ -64,6 +72,7 @@ export type TimeseriesResult = {
   areaType: string;
   areas: string[];
   rows: TimeseriesRow[];
+  pagination: PaginationMeta;
 };
 
 export type AreasResult = {
@@ -89,16 +98,27 @@ export type RankingResult = {
 
 export type IndicatorsResult = {
   rows: string[];
+  pagination: PaginationMeta;
 };
 
 export type IndicatorsQuery = {
   areaType?: string;
   area?: string;
   year?: number;
+  limit?: number;
+  offset?: number;
 };
 
 export type YearsResult = {
   rows: number[];
+  pagination: PaginationMeta;
+};
+
+export type PaginationMeta = {
+  total: number;
+  limit: number;
+  offset: number;
+  hasMore: boolean;
 };
 
 export type YearMetaAreaType = {

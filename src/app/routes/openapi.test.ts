@@ -121,6 +121,12 @@ function getResponseSchemaObject(doc: OpenApiDoc, path: string, statusCode: stri
     | undefined;
 }
 
+function getResponseSchemaProperties(doc: OpenApiDoc, path: string, statusCode: string) {
+  const entry = getResponseEntry(doc, path, statusCode);
+  const schema = entry?.schema as { properties?: Record<string, unknown> } | undefined;
+  return schema?.properties ?? {};
+}
+
 describe('openapi', () => {
   let app: Awaited<ReturnType<typeof buildServer>>;
   let dbPath: string;
@@ -266,5 +272,44 @@ describe('openapi', () => {
     const notModified = getResponseObject(body, '/v1/timeseries', '304');
     expect(notModified).toBeDefined();
     expect(notModified?.description ?? '').toMatch(/not modified|etag|cache-control/i);
+
+    // pagination docs: limit/offset query params + pagination response object
+    const timeseriesLimit = getQueryParameter(body, '/v1/timeseries', 'limit');
+    const timeseriesOffset = getQueryParameter(body, '/v1/timeseries', 'offset');
+    const indicatorsLimit = getQueryParameter(body, '/v1/indicators', 'limit');
+    const indicatorsOffset = getQueryParameter(body, '/v1/indicators', 'offset');
+    const yearsLimit = getQueryParameter(body, '/v1/years', 'limit');
+    const yearsOffset = getQueryParameter(body, '/v1/years', 'offset');
+
+    expect(timeseriesLimit).toBeDefined();
+    expect(timeseriesOffset).toBeDefined();
+    expect(indicatorsLimit).toBeDefined();
+    expect(indicatorsOffset).toBeDefined();
+    expect(yearsLimit).toBeDefined();
+    expect(yearsOffset).toBeDefined();
+
+    const timeseries200Props = getResponseSchemaProperties(body, '/v1/timeseries', '200');
+    const indicators200Props = getResponseSchemaProperties(body, '/v1/indicators', '200');
+    const years200Props = getResponseSchemaProperties(body, '/v1/years', '200');
+
+    expect(timeseries200Props).toHaveProperty('pagination');
+    expect(indicators200Props).toHaveProperty('pagination');
+    expect(years200Props).toHaveProperty('pagination');
+    const timeseriesPagination = timeseries200Props['pagination'] as
+      | { properties?: Record<string, unknown> }
+      | undefined;
+    const indicatorPagination = indicators200Props['pagination'] as
+      | { properties?: Record<string, unknown> }
+      | undefined;
+    const yearsPagination = years200Props['pagination'] as
+      | { properties?: Record<string, unknown> }
+      | undefined;
+    for (const pagination of [timeseriesPagination, indicatorPagination, yearsPagination]) {
+      const props = pagination?.properties ?? {};
+      expect(props).toHaveProperty('total');
+      expect(props).toHaveProperty('limit');
+      expect(props).toHaveProperty('offset');
+      expect(props).toHaveProperty('hasMore');
+    }
   });
 });

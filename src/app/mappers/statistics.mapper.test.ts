@@ -15,12 +15,16 @@ describe('statistics mappers', () => {
       indicator: 'population',
       areaType: 'district',
       areas: 'Altstadt',
+      limit: 50,
+      offset: 0,
     } as const;
 
     expect(toTimeseriesQuery(input)).toEqual({
       indicator: 'population',
       areaType: 'district',
       areas: ['Altstadt'],
+      limit: 50,
+      offset: 0,
     });
   });
 
@@ -31,6 +35,8 @@ describe('statistics mappers', () => {
       areas: 'Altstadt',
       from: 2020,
       to: 2023,
+      limit: 50,
+      offset: 0,
     } as const;
 
     expect(toTimeseriesQuery(input)).toEqual({
@@ -39,6 +45,8 @@ describe('statistics mappers', () => {
       areas: ['Altstadt'],
       from: 2020,
       to: 2023,
+      limit: 50,
+      offset: 0,
     });
   });
 
@@ -48,6 +56,8 @@ describe('statistics mappers', () => {
       areaType: 'district',
       areas: 'Altstadt, Gaarden-Ost,Altstadt',
       categories: 'male, female,male',
+      limit: 50,
+      offset: 0,
     } as const;
 
     expect(toTimeseriesQuery(input)).toEqual({
@@ -55,6 +65,8 @@ describe('statistics mappers', () => {
       areaType: 'district',
       areas: ['Altstadt', 'Gaarden-Ost'],
       categories: ['male', 'female'],
+      limit: 50,
+      offset: 0,
     });
   });
 
@@ -122,7 +134,7 @@ describe('statistics mappers', () => {
   it('maps empty years query', () => {
     const input = {} as const;
 
-    expect(toYearsQuery(input)).toEqual({});
+    expect(toYearsQuery({ ...input, limit: 50, offset: 0 })).toEqual({ limit: 50, offset: 0 });
   });
 
   it('maps years query with optional filters', () => {
@@ -131,6 +143,8 @@ describe('statistics mappers', () => {
       areaType: 'district',
       category: 'total',
       area: 'Altstadt',
+      limit: 25,
+      offset: 10,
     } as const;
 
     expect(toYearsQuery(input)).toEqual(input);
@@ -141,6 +155,8 @@ describe('statistics mappers', () => {
       areaType: 'district',
       area: 'Altstadt',
       year: 2023,
+      limit: 50,
+      offset: 0,
     } as const;
 
     expect(toIndicatorsQuery(input)).toEqual(input);

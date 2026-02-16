@@ -101,7 +101,7 @@ Migration:
   - Cursor-Pagination.
 - DoD:
   - Große Responses seitenweise abrufbar.
-  - Default-Verhalten bleibt kompatibel.
+  - Default-Verhalten nutzt `limit=50` und `offset=0`.
   - Last-/Regressionstests vorhanden.
 
 ### Capabilities-Endpoint

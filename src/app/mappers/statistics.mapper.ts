@@ -31,6 +31,8 @@ export function toTimeseriesQuery(query: z.infer<typeof TimeseriesSchema>): Time
     ...(categories !== undefined ? { categories } : {}),
     ...(query.from !== undefined ? { from: query.from } : {}),
     ...(query.to !== undefined ? { to: query.to } : {}),
+    limit: query.limit,
+    offset: query.offset,
   };
 }
 
@@ -70,6 +72,8 @@ export function toYearsQuery(query: z.infer<typeof YearsSchema>): YearsQuery {
     ...(query.areaType !== undefined ? { areaType: query.areaType } : {}),
     ...(query.category !== undefined ? { category: query.category } : {}),
     ...(query.area !== undefined ? { area: query.area } : {}),
+    limit: query.limit,
+    offset: query.offset,
   };
 }
 
@@ -78,5 +82,7 @@ export function toIndicatorsQuery(query: z.infer<typeof IndicatorsSchema>): Indi
     ...(query.areaType !== undefined ? { areaType: query.areaType } : {}),
     ...(query.area !== undefined ? { area: query.area } : {}),
     ...(query.year !== undefined ? { year: query.year } : {}),
+    limit: query.limit,
+    offset: query.offset,
   };
 }

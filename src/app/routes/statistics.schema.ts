@@ -62,7 +62,7 @@ export const timeseriesRouteSchema = {
   schema: {
     tags: ['statistics'],
     description:
-      'Get yearly time-series values for an indicator and area type. Supports CSV filters for areas and optional categories. Includes ETag, Cache-Control, Data-Version and Last-Updated-At headers.',
+      'Get yearly time-series values for an indicator and area type. Supports CSV filters for areas and optional categories and uses offset pagination (`limit`, `offset`). Includes ETag, Cache-Control, Data-Version and Last-Updated-At headers.',
     headers: CONDITIONAL_GET_HEADERS,
     querystring: TimeseriesQuery,
     response: {
@@ -122,7 +122,7 @@ export const indicatorsRouteSchema = {
   schema: {
     tags: ['statistics'],
     description:
-      'List available indicators with optional discovery filters. Supports conditional GET with freshness headers.',
+      'List available indicators with optional discovery filters and offset pagination (`limit`, `offset`). Supports conditional GET with freshness headers.',
     headers: CONDITIONAL_GET_HEADERS,
     querystring: IndicatorsQuery,
     response: {
@@ -152,7 +152,7 @@ export const yearsRouteSchema = {
   schema: {
     tags: ['statistics'],
     description:
-      'List available years with optional discovery filters. Supports conditional GET with freshness headers.',
+      'List available years with optional discovery filters and offset pagination (`limit`, `offset`). Supports conditional GET with freshness headers.',
     headers: CONDITIONAL_GET_HEADERS,
     querystring: YearsQuery,
     response: {

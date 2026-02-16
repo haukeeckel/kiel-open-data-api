@@ -29,6 +29,7 @@ describe('statistics contract', () => {
       indicator: 'gender',
       areaType: 'district',
       areas: ['Altstadt', 'Vorstadt'],
+      pagination: { total: 4, limit: 50, offset: 0, hasMore: false },
     });
     expect(res.json().rows).toEqual(
       expect.arrayContaining([
