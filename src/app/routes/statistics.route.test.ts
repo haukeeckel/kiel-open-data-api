@@ -110,6 +110,75 @@ describe('statistics endpoints', () => {
     });
   });
 
+  it('adds caching and freshness headers for /v1 responses', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/v1/areas?indicator=population&areaType=district',
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers['etag']).toBeDefined();
+    expect(res.headers['cache-control']).toBe('public, max-age=60');
+    expect(res.headers['data-version']).toBeDefined();
+    expect(
+      res.headers['last-updated-at'] === undefined ||
+        typeof res.headers['last-updated-at'] === 'string',
+    ).toBe(true);
+  });
+
+  it('returns 304 when If-None-Match matches current representation', async () => {
+    const first = await app.inject({
+      method: 'GET',
+      url: '/v1/areas?indicator=population&areaType=district',
+    });
+    expect(first.statusCode).toBe(200);
+    const etag = first.headers['etag'];
+    expect(etag).toBeDefined();
+
+    const second = await app.inject({
+      method: 'GET',
+      url: '/v1/areas?indicator=population&areaType=district',
+      headers: {
+        'if-none-match': String(etag),
+      },
+    });
+
+    expect(second.statusCode).toBe(304);
+    expect(second.body).toBe('');
+    expect(second.headers['etag']).toBe(etag);
+    expect(second.headers['cache-control']).toBe('public, max-age=60');
+    expect(second.headers['data-version']).toBeDefined();
+    expect(
+      second.headers['last-updated-at'] === undefined ||
+        typeof second.headers['last-updated-at'] === 'string',
+    ).toBe(true);
+  });
+
+  it('uses a different ETag for changed query representations', async () => {
+    const first = await app.inject({
+      method: 'GET',
+      url: '/v1/areas?indicator=population&areaType=district',
+    });
+    const second = await app.inject({
+      method: 'GET',
+      url: '/v1/areas?indicator=population&areaType=district&like=gaard',
+    });
+
+    expect(first.statusCode).toBe(200);
+    expect(second.statusCode).toBe(200);
+    expect(first.headers['etag']).toBeDefined();
+    expect(second.headers['etag']).toBeDefined();
+    expect(second.headers['etag']).not.toBe(first.headers['etag']);
+  });
+
+  it('does not add caching/freshness headers to /health', async () => {
+    const res = await app.inject({ method: 'GET', url: '/health' });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers['etag']).toBeUndefined();
+    expect(res.headers['cache-control']).toBeUndefined();
+    expect(res.headers['data-version']).toBeUndefined();
+    expect(res.headers['last-updated-at']).toBeUndefined();
+  });
+
   // ---- GET /v1/timeseries ----
 
   describe('GET /v1/timeseries', () => {

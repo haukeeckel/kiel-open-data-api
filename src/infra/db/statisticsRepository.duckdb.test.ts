@@ -507,6 +507,17 @@ describe('DuckDbStatisticsRepository', () => {
     });
   });
 
+  describe('getFreshnessMeta', () => {
+    it('returns deterministic dataVersion and nullable lastUpdatedAt', async () => {
+      const first = await repo.getFreshnessMeta();
+      const second = await repo.getFreshnessMeta();
+
+      expect(first.dataVersion).toMatch(/^[a-f0-9]{64}$/);
+      expect(second.dataVersion).toBe(first.dataVersion);
+      expect(first.lastUpdatedAt).toBeNull();
+    });
+  });
+
   describe('error handling', () => {
     it('interrupts and throws RepositoryQueryTimeoutError on timeout', async () => {
       const interrupt = vi.fn();

@@ -1,3 +1,5 @@
+import crypto from 'node:crypto';
+
 import { recordDbQuery } from '../../observability/metrics.js';
 
 import { RepositoryInfraError, RepositoryQueryTimeoutError } from './errors.js';
@@ -38,6 +40,13 @@ function requireString(row: Record<string, unknown>, key: string): string {
     throw new Error(`statistics row invalid ${key}: expected string`);
   }
   return value;
+}
+
+function toIsoTimestamp(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  if (value instanceof Date) return value.toISOString();
+  const parsed = new Date(String(value));
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
 }
 
 function appendInClause(
@@ -613,6 +622,58 @@ export function createDuckDbStatisticsRepository(
             });
             const rows = reader.getRowObjects().map((r) => requireString(r, 'area_type'));
             return { rows };
+          },
+          logger,
+        ),
+      );
+    },
+
+    async getFreshnessMeta() {
+      return manager.withConnection((conn) =>
+        withRepositoryError(
+          'statistics.getFreshnessMeta',
+          async () => {
+            const baseReader = await runQueryWithTimeout({
+              conn,
+              operation: 'statistics.getFreshnessMeta',
+              sql: `
+                SELECT COUNT(*) AS row_count, MAX(loaded_at) AS last_updated_at
+                FROM statistics
+              `,
+              queryTimeoutMs,
+              slowQueryThresholdMs,
+              planSampleEnabled,
+              logger,
+            });
+            const baseRow = baseReader.getRowObjects()[0] ?? {};
+            const rowCount = requireInteger(baseRow, 'row_count');
+            const lastUpdatedAt = toIsoTimestamp(baseRow['last_updated_at']);
+
+            const versionsReader = await runQueryWithTimeout({
+              conn,
+              operation: 'statistics.getFreshnessMeta',
+              sql: `
+                SELECT DISTINCT data_version
+                FROM statistics
+                ORDER BY data_version ASC
+              `,
+              queryTimeoutMs,
+              slowQueryThresholdMs,
+              planSampleEnabled,
+              logger,
+            });
+            const versions = versionsReader
+              .getRowObjects()
+              .map((row) => (row['data_version'] == null ? '' : String(row['data_version'])));
+
+            const fingerprint = JSON.stringify({
+              rowCount,
+              lastUpdatedAt,
+              versions,
+            });
+            const dataVersion = crypto.createHash('sha256').update(fingerprint).digest('hex');
+
+            return { dataVersion, lastUpdatedAt };
           },
           logger,
         ),

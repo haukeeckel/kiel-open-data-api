@@ -16,6 +16,11 @@ import type {
   YearsResult,
 } from '../model/types.js';
 
+export type StatisticsFreshnessMeta = {
+  dataVersion: string;
+  lastUpdatedAt: string | null;
+};
+
 export type StatisticsRepository = {
   getTimeseries(input: TimeseriesQuery): Promise<TimeseriesResult>;
 
@@ -34,4 +39,6 @@ export type StatisticsRepository = {
   listIndicators(query?: IndicatorsQuery): Promise<IndicatorsResult>;
 
   listAreaTypes(): Promise<AreaTypesResult>;
+
+  getFreshnessMeta(): Promise<StatisticsFreshnessMeta>;
 };

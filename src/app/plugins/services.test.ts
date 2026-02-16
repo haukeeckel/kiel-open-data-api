@@ -55,6 +55,7 @@ describe('services plugin', () => {
       }),
       listIndicators: async () => ({ rows: [indicator] }),
       listAreaTypes: async () => ({ rows: [areaType] }),
+      getFreshnessMeta: async () => ({ dataVersion: 'test-version', lastUpdatedAt: null }),
     };
 
     app.decorate('repos', { statisticsRepository });
@@ -102,6 +103,7 @@ describe('services plugin', () => {
       })),
       listIndicators: vi.fn(async () => ({ rows: [indicator] })),
       listAreaTypes: vi.fn(async () => ({ rows: [areaType] })),
+      getFreshnessMeta: vi.fn(async () => ({ dataVersion: 'test-version', lastUpdatedAt: null })),
     };
 
     app.decorate('repos', { statisticsRepository });

@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 import {
   ApiBadRequestError,
   ApiConflictError,
@@ -28,6 +30,23 @@ import {
   YearsResponse,
 } from '../../schemas/statistics.js';
 
+const CONDITIONAL_GET_HEADERS = z
+  .object({
+    'if-none-match': z
+      .string()
+      .describe(
+        'Optional ETag for conditional requests. When it matches the current representation, the API returns 304.',
+      )
+      .optional(),
+  })
+  .passthrough();
+
+const NotModifiedResponse = z
+  .null()
+  .describe(
+    'Not Modified. Returned when If-None-Match matches the current representation. Cache headers (ETag, Cache-Control, Data-Version, Last-Updated-At) are included.',
+  );
+
 const ERROR_RESPONSES = {
   400: ApiBadRequestError,
   401: ApiUnauthorizedError,
@@ -43,10 +62,12 @@ export const timeseriesRouteSchema = {
   schema: {
     tags: ['statistics'],
     description:
-      'Get yearly time-series values for an indicator and area type. Supports CSV filters for areas and optional categories.',
+      'Get yearly time-series values for an indicator and area type. Supports CSV filters for areas and optional categories. Includes ETag, Cache-Control, Data-Version and Last-Updated-At headers.',
+    headers: CONDITIONAL_GET_HEADERS,
     querystring: TimeseriesQuery,
     response: {
       200: TimeseriesResponse,
+      304: NotModifiedResponse,
       ...ERROR_RESPONSES,
     },
   },
@@ -56,10 +77,12 @@ export const areasRouteSchema = {
   schema: {
     tags: ['statistics'],
     description:
-      'List distinct areas for indicator and area type. Omitting category returns areas across all categories.',
+      'List distinct areas for indicator and area type. Omitting category returns areas across all categories. Supports conditional GET with If-None-Match and returns freshness headers.',
+    headers: CONDITIONAL_GET_HEADERS,
     querystring: AreasQuery,
     response: {
       200: AreasResponse,
+      304: NotModifiedResponse,
       ...ERROR_RESPONSES,
     },
   },
@@ -68,10 +91,13 @@ export const areasRouteSchema = {
 export const categoriesRouteSchema = {
   schema: {
     tags: ['statistics'],
-    description: 'List distinct categories for indicator and area type.',
+    description:
+      'List distinct categories for indicator and area type. Supports conditional GET with If-None-Match and returns freshness headers.',
+    headers: CONDITIONAL_GET_HEADERS,
     querystring: CategoriesQuery,
     response: {
       200: CategoriesResponse,
+      304: NotModifiedResponse,
       ...ERROR_RESPONSES,
     },
   },
@@ -81,10 +107,12 @@ export const rankingRouteSchema = {
   schema: {
     tags: ['statistics'],
     description:
-      'Get ranking values for indicator and year. Supports optional CSV filters for categories and areas.',
+      'Get ranking values for indicator and year. Supports optional CSV filters for categories and areas. Includes ETag, Cache-Control, Data-Version and Last-Updated-At headers.',
+    headers: CONDITIONAL_GET_HEADERS,
     querystring: RankingQuery,
     response: {
       200: RankingResponse,
+      304: NotModifiedResponse,
       ...ERROR_RESPONSES,
     },
   },
@@ -93,10 +121,13 @@ export const rankingRouteSchema = {
 export const indicatorsRouteSchema = {
   schema: {
     tags: ['statistics'],
-    description: 'List available indicators with optional discovery filters.',
+    description:
+      'List available indicators with optional discovery filters. Supports conditional GET with freshness headers.',
+    headers: CONDITIONAL_GET_HEADERS,
     querystring: IndicatorsQuery,
     response: {
       200: IndicatorsResponse,
+      304: NotModifiedResponse,
       ...ERROR_RESPONSES,
     },
   },
@@ -105,10 +136,13 @@ export const indicatorsRouteSchema = {
 export const indicatorMetaRouteSchema = {
   schema: {
     tags: ['statistics'],
-    description: 'Get grouped metadata for a single indicator.',
+    description:
+      'Get grouped metadata for a single indicator. Supports conditional GET with freshness headers.',
+    headers: CONDITIONAL_GET_HEADERS,
     params: IndicatorPathParams,
     response: {
       200: IndicatorMetaResponse,
+      304: NotModifiedResponse,
       ...ERROR_RESPONSES,
     },
   },
@@ -117,10 +151,13 @@ export const indicatorMetaRouteSchema = {
 export const yearsRouteSchema = {
   schema: {
     tags: ['statistics'],
-    description: 'List available years with optional discovery filters.',
+    description:
+      'List available years with optional discovery filters. Supports conditional GET with freshness headers.',
+    headers: CONDITIONAL_GET_HEADERS,
     querystring: YearsQuery,
     response: {
       200: YearsResponse,
+      304: NotModifiedResponse,
       ...ERROR_RESPONSES,
     },
   },
@@ -129,10 +166,13 @@ export const yearsRouteSchema = {
 export const yearMetaRouteSchema = {
   schema: {
     tags: ['statistics'],
-    description: 'Get grouped metadata for a single year.',
+    description:
+      'Get grouped metadata for a single year. Supports conditional GET with freshness headers.',
+    headers: CONDITIONAL_GET_HEADERS,
     params: YearPathParams,
     response: {
       200: YearMetaResponse,
+      304: NotModifiedResponse,
       ...ERROR_RESPONSES,
     },
   },
@@ -141,9 +181,11 @@ export const yearMetaRouteSchema = {
 export const areaTypesRouteSchema = {
   schema: {
     tags: ['statistics'],
-    description: 'List all available area types.',
+    description: 'List all available area types. Supports conditional GET with freshness headers.',
+    headers: CONDITIONAL_GET_HEADERS,
     response: {
       200: AreaTypesResponse,
+      304: NotModifiedResponse,
       ...ERROR_RESPONSES,
     },
   },
