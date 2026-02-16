@@ -95,6 +95,7 @@ describe('statistics endpoints', () => {
   it('returns 429 error contract for rate limited requests', async () => {
     const res = await app.inject({ method: 'GET', url: '/__429' });
     expect(res.statusCode).toBe(429);
+    expect(res.headers['retry-after']).toBe('1');
     expect(res.json()).toMatchObject({
       error: {
         code: 'TOO_MANY_REQUESTS',
@@ -102,6 +103,7 @@ describe('statistics endpoints', () => {
         details: {
           kind: 'rate_limit',
           retryAfterMs: 1000,
+          retryAfterSec: 1,
         },
       },
       requestId: expect.any(String),
@@ -115,7 +117,11 @@ describe('statistics endpoints', () => {
       const res = await app.inject({ method: 'GET', url: '/v1/timeseries' });
       expect(res.statusCode).toBe(400);
       expect(res.json()).toMatchObject({
-        error: { code: 'BAD_REQUEST', message: 'Invalid query parameters' },
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'Invalid query parameters',
+          reason: 'INVALID_QUERY_PARAMS',
+        },
         requestId: expect.any(String),
       });
     });
@@ -127,7 +133,11 @@ describe('statistics endpoints', () => {
       });
       expect(res.statusCode).toBe(400);
       expect(res.json()).toMatchObject({
-        error: { code: 'BAD_REQUEST', message: 'Invalid query parameters' },
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'Invalid query parameters',
+          reason: 'INVALID_QUERY_PARAMS',
+        },
         requestId: expect.any(String),
       });
     });
@@ -139,7 +149,11 @@ describe('statistics endpoints', () => {
       });
       expect(res.statusCode).toBe(400);
       expect(res.json()).toMatchObject({
-        error: { code: 'BAD_REQUEST', message: 'Invalid query parameters' },
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'Invalid query parameters',
+          reason: 'INVALID_QUERY_PARAMS',
+        },
         requestId: expect.any(String),
       });
     });
@@ -154,6 +168,7 @@ describe('statistics endpoints', () => {
         error: {
           code: 'BAD_REQUEST',
           message: 'from must be <= to',
+          reason: 'INVALID_RANGE',
           details: { from: 2024, to: 2023 },
         },
         requestId: expect.any(String),
@@ -251,7 +266,11 @@ describe('statistics endpoints', () => {
       });
       expect(res.statusCode).toBe(400);
       expect(res.json()).toMatchObject({
-        error: { code: 'BAD_REQUEST', message: 'Invalid query parameters' },
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'Invalid query parameters',
+          reason: 'INVALID_QUERY_PARAMS',
+        },
       });
     });
   });
@@ -263,7 +282,11 @@ describe('statistics endpoints', () => {
       const res = await app.inject({ method: 'GET', url: '/v1/areas' });
       expect(res.statusCode).toBe(400);
       expect(res.json()).toMatchObject({
-        error: { code: 'BAD_REQUEST', message: 'Invalid query parameters' },
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'Invalid query parameters',
+          reason: 'INVALID_QUERY_PARAMS',
+        },
         requestId: expect.any(String),
       });
     });
@@ -278,6 +301,8 @@ describe('statistics endpoints', () => {
         error: {
           code: 'BAD_REQUEST',
           message: 'Unknown areaType: unknown',
+          reason: 'UNKNOWN_AREA_TYPE',
+          suggestions: ['district'],
           details: {
             kind: 'domain_validation',
             field: 'areaType',
@@ -295,7 +320,11 @@ describe('statistics endpoints', () => {
       });
       expect(res.statusCode).toBe(400);
       expect(res.json()).toMatchObject({
-        error: { code: 'BAD_REQUEST', message: 'Invalid query parameters' },
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'Invalid query parameters',
+          reason: 'INVALID_QUERY_PARAMS',
+        },
       });
     });
 
@@ -364,6 +393,8 @@ describe('statistics endpoints', () => {
         error: {
           code: 'BAD_REQUEST',
           message: 'Unknown indicator: unknown',
+          reason: 'UNKNOWN_INDICATOR',
+          suggestions: expect.any(Array),
           details: {
             kind: 'domain_validation',
             field: 'indicator',
@@ -380,7 +411,11 @@ describe('statistics endpoints', () => {
       });
       expect(res.statusCode).toBe(400);
       expect(res.json()).toMatchObject({
-        error: { code: 'BAD_REQUEST', message: 'Invalid query parameters' },
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'Invalid query parameters',
+          reason: 'INVALID_QUERY_PARAMS',
+        },
       });
     });
   });
@@ -392,7 +427,11 @@ describe('statistics endpoints', () => {
       const res = await app.inject({ method: 'GET', url: '/v1/ranking' });
       expect(res.statusCode).toBe(400);
       expect(res.json()).toMatchObject({
-        error: { code: 'BAD_REQUEST', message: 'Invalid query parameters' },
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'Invalid query parameters',
+          reason: 'INVALID_QUERY_PARAMS',
+        },
         requestId: expect.any(String),
       });
     });
@@ -404,7 +443,11 @@ describe('statistics endpoints', () => {
       });
       expect(res.statusCode).toBe(400);
       expect(res.json()).toMatchObject({
-        error: { code: 'BAD_REQUEST', message: 'Invalid query parameters' },
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'Invalid query parameters',
+          reason: 'INVALID_QUERY_PARAMS',
+        },
         requestId: expect.any(String),
       });
     });
@@ -416,7 +459,11 @@ describe('statistics endpoints', () => {
       });
       expect(res.statusCode).toBe(400);
       expect(res.json()).toMatchObject({
-        error: { code: 'BAD_REQUEST', message: 'Invalid query parameters' },
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'Invalid query parameters',
+          reason: 'INVALID_QUERY_PARAMS',
+        },
       });
     });
 
@@ -441,6 +488,8 @@ describe('statistics endpoints', () => {
         error: {
           code: 'BAD_REQUEST',
           message: 'Unknown category: other',
+          reason: 'UNKNOWN_CATEGORY',
+          suggestions: expect.any(Array),
           details: {
             kind: 'domain_validation',
             field: 'category',
@@ -518,7 +567,11 @@ describe('statistics endpoints', () => {
       });
       expect(res.statusCode).toBe(400);
       expect(res.json()).toMatchObject({
-        error: { code: 'BAD_REQUEST', message: 'Invalid query parameters' },
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'Invalid query parameters',
+          reason: 'INVALID_QUERY_PARAMS',
+        },
       });
     });
   });
@@ -663,6 +716,8 @@ describe('statistics endpoints', () => {
         error: {
           code: 'BAD_REQUEST',
           message: 'Unknown areaType: unknown',
+          reason: 'UNKNOWN_AREA_TYPE',
+          suggestions: ['district'],
         },
       });
     });

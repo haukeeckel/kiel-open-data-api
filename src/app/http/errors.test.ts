@@ -51,12 +51,16 @@ describe('http errors', () => {
       code: 'BAD_REQUEST',
       message: 'invalid',
       details: [{ message: 'nope' }],
+      reason: 'INVALID_QUERY_PARAMS',
+      suggestions: ['population'],
     });
 
     const body = (reply.send as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
     expect(body.error).toMatchObject({
       code: 'BAD_REQUEST',
       message: 'invalid',
+      reason: 'INVALID_QUERY_PARAMS',
+      suggestions: ['population'],
       details: [{ message: 'nope' }],
     });
   });
@@ -69,7 +73,7 @@ describe('http errors', () => {
       statusCode: 429,
       code: 'TOO_MANY_REQUESTS',
       message: 'Too Many Requests',
-      details: { kind: 'rate_limit', retryAfterMs: 1000 },
+      details: { kind: 'rate_limit', retryAfterMs: 1000, retryAfterSec: 1 },
     });
 
     expect(reply.code).toHaveBeenCalledWith(429);
@@ -77,7 +81,7 @@ describe('http errors', () => {
       error: {
         code: 'TOO_MANY_REQUESTS',
         message: 'Too Many Requests',
-        details: { kind: 'rate_limit', retryAfterMs: 1000 },
+        details: { kind: 'rate_limit', retryAfterMs: 1000, retryAfterSec: 1 },
       },
       requestId: 'abc',
     });
@@ -87,7 +91,7 @@ describe('http errors', () => {
     const req = makeRequest('abc');
     const reply = makeReply();
 
-    sendBadRequest(req, reply, 'bad', { field: 'x' });
+    sendBadRequest(req, reply, 'bad', { field: 'x' }, { reason: 'INVALID_QUERY_PARAMS' });
 
     expect(reply.code).toHaveBeenCalledWith(400);
     const body = (reply.send as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
@@ -95,6 +99,7 @@ describe('http errors', () => {
       error: {
         code: 'BAD_REQUEST',
         message: 'bad',
+        reason: 'INVALID_QUERY_PARAMS',
         details: { field: 'x' },
       },
       requestId: 'abc',
